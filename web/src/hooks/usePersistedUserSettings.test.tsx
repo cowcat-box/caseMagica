@@ -188,8 +188,8 @@ function snapshot(patch: Partial<LayeredSettings>): LayeredSettings {
     workspace: {},
     effective: {},
     paths: {
+      casemagica_dir: '',
       denova_dir: '',
-      nova_dir: '',
       user_config: '',
       workspace_config: '',
     },

@@ -10,10 +10,10 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/session"
 )
 
 func TestInteractiveConversationBuildsHistoryAndPersistsAssistantToStory(t *testing.T) {
@@ -28,7 +28,7 @@ func TestInteractiveConversationBuildsHistoryAndPersistsAssistantToStory(t *test
 	if _, err := loreStore.Create(book.LoreItemInput{ID: "base", Type: "location", Name: "黄泉酒馆", Importance: "important", LoadMode: book.LoreLoadModeAuto, BriefDescription: "黄泉酒馆据点索引", Content: "黄泉酒馆完整设定：柜台后的影子不能离开酒馆。"}); err != nil {
 		t.Fatal(err)
 	}
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	store := interactive.NewStore(workspace)
 	story, err := store.CreateStory(interactive.CreateStoryRequest{
 		Title:            "末日开端",
@@ -46,7 +46,7 @@ func TestInteractiveConversationBuildsHistoryAndPersistsAssistantToStory(t *test
 		t.Fatal(err)
 	}
 
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我在黄泉酒馆点燃火把", story.ReplyTargetChars, nil)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我在黄泉酒馆点燃火把", story.ReplyTargetChars, nil)
 	history, err := conversation.PrepareMessages("我在黄泉酒馆点燃火把", "我在黄泉酒馆点燃火把")
 	if err != nil {
 		t.Fatal(err)
@@ -302,9 +302,9 @@ func TestInteractiveConversationRejectsAssistantWithoutTurnResult(t *testing.T) 
 
 func TestInteractiveConversationInjectsStoryDirectorStrategyPrompt(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	prompt := "- 避免连续两回合使用同类型突发事件。\n- 伏笔回收前至少给一次可感知征兆。"
-	director, err := interactive.NewStoryDirectorLibrary(novaDir).Create(interactive.StoryDirector{
+	director, err := interactive.NewStoryDirectorLibrary(denovaDir).Create(interactive.StoryDirector{
 		ID:          "custom-strategy",
 		Name:        "自定义策略导演",
 		Description: "测试 Markdown 策略提示注入",
@@ -335,7 +335,7 @@ func TestInteractiveConversationInjectsStoryDirectorStrategyPrompt(t *testing.T)
 		t.Fatal(err)
 	}
 
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我跟上灯影", story.ReplyTargetChars, nil)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我跟上灯影", story.ReplyTargetChars, nil)
 	history, err := conversation.PrepareMessages("我跟上灯影", "我跟上灯影")
 	if err != nil {
 		t.Fatal(err)
@@ -365,8 +365,8 @@ func TestInteractiveConversationInjectsStoryDirectorStrategyPrompt(t *testing.T)
 
 func TestInteractiveConversationKeepsEventCardsForDirectorOnly(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
-	eventPackage, err := interactive.NewEventPackageLibrary(novaDir).Create(interactive.EventPackageModule{
+	denovaDir := t.TempDir()
+	eventPackage, err := interactive.NewEventPackageLibrary(denovaDir).Create(interactive.EventPackageModule{
 		ID:   "academy-pack",
 		Name: "学院事件包",
 		Events: []interactive.TellerEventCard{{
@@ -380,7 +380,7 @@ func TestInteractiveConversationKeepsEventCardsForDirectorOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	director, err := interactive.NewStoryDirectorLibrary(novaDir).Create(interactive.StoryDirector{
+	director, err := interactive.NewStoryDirectorLibrary(denovaDir).Create(interactive.StoryDirector{
 		ID:          "event-card-director",
 		Name:        "事件卡导演",
 		Description: "测试事件系统只进入后台导演",
@@ -419,7 +419,7 @@ func TestInteractiveConversationKeepsEventCardsForDirectorOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我看向质疑我的同门", story.ReplyTargetChars, nil)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我看向质疑我的同门", story.ReplyTargetChars, nil)
 	history, err := conversation.PrepareMessages("我看向质疑我的同门", "我看向质疑我的同门")
 	if err != nil {
 		t.Fatal(err)
@@ -486,8 +486,8 @@ func TestInteractiveDirectorEventCatalogIncludesConfiguredEventCards(t *testing.
 
 func TestInteractiveConversationPersistsRuleResolution(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := filepath.Join(workspace, ".nova")
-	store, director := newInteractiveStoreWithHPTestDirector(t, workspace, novaDir)
+	denovaDir := filepath.Join(workspace, ".denova")
+	store, director := newInteractiveStoreWithHPTestDirector(t, workspace, denovaDir)
 	story, err := store.CreateStory(interactive.CreateStoryRequest{
 		Title:           "规则审计",
 		Origin:          "主角站在秘境入口",
@@ -498,7 +498,7 @@ func TestInteractiveConversationPersistsRuleResolution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "main", "我强闯秘境入口", story.ReplyTargetChars, &config.Config{})
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "main", "我强闯秘境入口", story.ReplyTargetChars, &config.Config{})
 	resolution, err := conversation.PrepareInteractiveTurn(
 		context.Background(),
 		interactive.TurnCheckRequest{
@@ -541,10 +541,10 @@ func TestInteractiveConversationPersistsRuleResolution(t *testing.T) {
 	}
 }
 
-func newInteractiveStoreWithHPTestDirector(t *testing.T, workspace, novaDir string) (*interactive.Store, interactive.StoryDirector) {
+func newInteractiveStoreWithHPTestDirector(t *testing.T, workspace, denovaDir string) (*interactive.Store, interactive.StoryDirector) {
 	t.Helper()
 	hpMin, hpMax := 0.0, 10.0
-	actorState, err := interactive.NewActorStateLibrary(novaDir).Create(interactive.ActorStateModule{
+	actorState, err := interactive.NewActorStateLibrary(denovaDir).Create(interactive.ActorStateModule{
 		ID:   "hp-test-state",
 		Name: "生命测试状态",
 		ActorState: interactive.StoryDirectorActorStateSystem{
@@ -573,7 +573,7 @@ func newInteractiveStoreWithHPTestDirector(t *testing.T, workspace, novaDir stri
 	if err != nil {
 		t.Fatalf("create hp actor state failed: %v", err)
 	}
-	director, err := interactive.NewStoryDirectorLibrary(novaDir).Create(interactive.StoryDirector{
+	director, err := interactive.NewStoryDirectorLibrary(denovaDir).Create(interactive.StoryDirector{
 		ID:   "hp-test-director",
 		Name: "生命测试导演",
 		ModuleRefs: interactive.StoryDirectorModuleRefs{
@@ -588,7 +588,7 @@ func newInteractiveStoreWithHPTestDirector(t *testing.T, workspace, novaDir stri
 	if err != nil {
 		t.Fatalf("create hp test director failed: %v", err)
 	}
-	return interactive.NewStoreWithNovaDir(workspace, novaDir), director
+	return interactive.NewStoreWithCaseMagicaDir(workspace, denovaDir), director
 }
 
 func TestInteractiveConversationPersistsDisplayEventTimeline(t *testing.T) {
@@ -651,8 +651,8 @@ func TestInteractiveConversationPersistsDisplayEventTimeline(t *testing.T) {
 
 func TestInteractiveConversationIgnoresLegacyTellerReplyTargetChars(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
-	tellerDir := filepath.Join(novaDir, "story-tellers")
+	denovaDir := t.TempDir()
+	tellerDir := filepath.Join(denovaDir, "story-tellers")
 	if err := os.MkdirAll(tellerDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -700,7 +700,7 @@ func TestInteractiveConversationIgnoresLegacyTellerReplyTargetChars(t *testing.T
 		t.Fatal(err)
 	}
 
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我观察四周", story.ReplyTargetChars, nil)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我观察四周", story.ReplyTargetChars, nil)
 	history, err := conversation.PrepareMessages("我观察四周", "我观察四周")
 	if err != nil {
 		t.Fatal(err)
@@ -718,7 +718,7 @@ func TestInteractiveConversationIgnoresLegacyTellerReplyTargetChars(t *testing.T
 
 func TestInteractiveConversationKeepsFullHistoryWithoutSlidingWindow(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	store := interactive.NewStore(workspace)
 	story, err := store.CreateStory(interactive.CreateStoryRequest{
 		Title:            "窗口测试",
@@ -738,7 +738,7 @@ func TestInteractiveConversationKeepsFullHistoryWithoutSlidingWindow(t *testing.
 		}
 	}
 	cfg := &config.Config{}
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, cfg)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, cfg)
 	history, err := conversation.PrepareMessages("我继续探索", "我继续探索")
 	if err != nil {
 		t.Fatal(err)
@@ -756,7 +756,7 @@ func TestInteractiveConversationKeepsFullHistoryWithoutSlidingWindow(t *testing.
 
 func TestInteractiveConversationUsesDefaultCompactionRetainedTurns(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	store := interactive.NewStore(workspace)
 	story, err := store.CreateStory(interactive.CreateStoryRequest{
 		Title:            "压缩窗口测试",
@@ -784,7 +784,7 @@ func TestInteractiveConversationUsesDefaultCompactionRetainedTurns(t *testing.T)
 	}
 
 	cfg := &config.Config{}
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, cfg)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, cfg)
 	history, err := conversation.PrepareMessages("我继续探索", "我继续探索")
 	if err != nil {
 		t.Fatal(err)
@@ -799,7 +799,7 @@ func TestInteractiveConversationUsesDefaultCompactionRetainedTurns(t *testing.T)
 
 func TestInteractiveDirectorInstructionUsesModelVisibleCompactedHistory(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	store := interactive.NewStore(workspace)
 	story, err := store.CreateStory(interactive.CreateStoryRequest{
 		Title:            "记忆压缩测试",
@@ -826,12 +826,12 @@ func TestInteractiveDirectorInstructionUsesModelVisibleCompactedHistory(t *testi
 		t.Fatal(err)
 	}
 
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, &config.Config{})
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, &config.Config{})
 	instruction, err := conversation.BuildDirectorInstruction(interactive.TurnEvent{User: "我继续探索", Narrative: "我发现新的石门"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(instruction, "[Denova Context Compaction]") || !strings.Contains(instruction, "压缩摘要：主角已进入旧城。") {
+	if !strings.Contains(instruction, "[CaseMagica Context Compaction]") || !strings.Contains(instruction, "压缩摘要：主角已进入旧城。") {
 		t.Fatalf("director instruction should include active compaction summary: %s", instruction)
 	}
 	if strings.Contains(instruction, "第1次行动") || strings.Contains(instruction, "第9次行动") {

@@ -16,7 +16,7 @@ const (
 
 // DirName returns the active workspace-private directory name.
 // Existing .casemagica wins for new workspaces. When both names exist because a
-// legacy workspace was opened during the CaseMagica rename, old .denova state is kept
+// legacy workspace was opened during the CaseMagica rename, old .casemagica state is kept
 // active if .casemagica only contains generated or ephemeral files.
 func DirName(workspace string) string {
 	return dirNameFor(workspace)

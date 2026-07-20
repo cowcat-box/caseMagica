@@ -335,10 +335,10 @@ func TestWriteSettingsFileFiltersInvalidMotionIntensity(t *testing.T) {
 	}
 }
 
-func TestWriteSettingsFileFiltersDenovaDir(t *testing.T) {
+func TestWriteSettingsFileFiltersCaseMagicaDir(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "config.toml")
-	in := Settings{OpenAIModel: "abc", DenovaDir: "/tmp/ignored"}
+	in := Settings{OpenAIModel: "abc", CaseMagicaDir: "/tmp/ignored"}
 	if err := WriteSettingsFile(p, in); err != nil {
 		t.Fatal(err)
 	}
@@ -349,8 +349,8 @@ func TestWriteSettingsFileFiltersDenovaDir(t *testing.T) {
 	if string(data) == "" {
 		t.Fatalf("settings file should not be empty")
 	}
-	if strings.Contains(string(data), "denova_dir") {
-		t.Fatalf("denova_dir should not be persisted in editable settings: %s", string(data))
+	if strings.Contains(string(data), "casemagica_dir") {
+		t.Fatalf("casemagica_dir should not be persisted in editable settings: %s", string(data))
 	}
 }
 
@@ -522,7 +522,7 @@ func TestPrepareUserSettingsForWriteRejectsEnabledRemoteAccessWithoutCredentials
 func TestLoadLayeredKeepsGeneralSettingsUserScopedAndAppliesWorkspaceAgentOverrides(t *testing.T) {
 	home := t.TempDir()
 	ws := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(ws, ".denova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(ws, ".casemagica"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -536,7 +536,7 @@ func TestLoadLayeredKeepsGeneralSettingsUserScopedAndAppliesWorkspaceAgentOverri
 	if err := WriteSettingsFile(filepath.Join(home, "config.toml"), user); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteSettingsFile(filepath.Join(ws, ".denova", "config.toml"), wsCfg); err != nil {
+	if err := WriteSettingsFile(filepath.Join(ws, ".casemagica", "config.toml"), wsCfg); err != nil {
 		t.Fatal(err)
 	}
 
@@ -561,16 +561,16 @@ func TestLoadLayeredKeepsGeneralSettingsUserScopedAndAppliesWorkspaceAgentOverri
 	}
 }
 
-func TestLoadLayeredIgnoresDenovaDirFromEditableLayers(t *testing.T) {
+func TestLoadLayeredIgnoresCaseMagicaDirFromEditableLayers(t *testing.T) {
 	home := t.TempDir()
 	ws := t.TempDir()
-	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("denova_dir = \"/tmp/user\"\nopenai_model = \"user-model\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("casemagica_dir = \"/tmp/user\"\nopenai_model = \"user-model\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(ws, ".denova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(ws, ".casemagica"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(ws, ".denova", "config.toml"), []byte("denova_dir = \"/tmp/ws\"\nopenai_model = \"ws-model\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(ws, ".casemagica", "config.toml"), []byte("casemagica_dir = \"/tmp/ws\"\nopenai_model = \"ws-model\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -578,11 +578,11 @@ func TestLoadLayeredIgnoresDenovaDirFromEditableLayers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if layered.User.DenovaDir != "" || layered.Workspace.DenovaDir != "" {
-		t.Fatalf("denova_dir should be filtered from editable layers: user=%q workspace=%q", layered.User.DenovaDir, layered.Workspace.DenovaDir)
+	if layered.User.CaseMagicaDir != "" || layered.Workspace.CaseMagicaDir != "" {
+		t.Fatalf("casemagica_dir should be filtered from editable layers: user=%q workspace=%q", layered.User.CaseMagicaDir, layered.Workspace.CaseMagicaDir)
 	}
-	if layered.Effective.DenovaDir != normalizePath(home) {
-		t.Fatalf("editable layers should not override startup denova_dir: %q", layered.Effective.DenovaDir)
+	if layered.Effective.CaseMagicaDir != normalizePath(home) {
+		t.Fatalf("editable layers should not override startup casemagica_dir: %q", layered.Effective.CaseMagicaDir)
 	}
 	if layered.Effective.OpenAIModel != "user-model" {
 		t.Fatalf("workspace general fields should not override user settings: %q", layered.Effective.OpenAIModel)
@@ -621,13 +621,13 @@ func TestPrepareWorkspaceAgentSettingsForWritePreservesLegacyGeneralValues(t *te
 func TestLoadLayeredIgnoresStartupPortsFromWorkspaceLayer(t *testing.T) {
 	home := t.TempDir()
 	ws := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(ws, ".denova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(ws, ".casemagica"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := WriteSettingsFile(filepath.Join(home, "config.toml"), Settings{BackendPort: intPtr(18080), FrontendPort: intPtr(15173)}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(ws, ".denova", "config.toml"), []byte("backend_port = 19090\nfrontend_port = 16173\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(ws, ".casemagica", "config.toml"), []byte("backend_port = 19090\nfrontend_port = 16173\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -655,7 +655,7 @@ func TestLoadLayeredIgnoresStartupPortsFromWorkspaceLayer(t *testing.T) {
 func TestLoadLayeredIgnoresAgentModelsFromWorkspaceLayer(t *testing.T) {
 	home := t.TempDir()
 	ws := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(ws, ".nova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(ws, ".denova"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := WriteSettingsFile(filepath.Join(home, "config.toml"), Settings{
@@ -663,7 +663,7 @@ func TestLoadLayeredIgnoresAgentModelsFromWorkspaceLayer(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteSettingsFile(filepath.Join(ws, ".nova", "config.toml"), Settings{
+	if err := WriteSettingsFile(filepath.Join(ws, ".denova", "config.toml"), Settings{
 		AgentModels: AgentModelSettings{InteractiveStory: AgentModelOverride{ProfileID: "workspace-model"}},
 	}); err != nil {
 		t.Fatal(err)
@@ -684,7 +684,7 @@ func TestLoadLayeredIgnoresAgentModelsFromWorkspaceLayer(t *testing.T) {
 func TestLoadLayeredIgnoresRemoteAccessFromWorkspaceLayer(t *testing.T) {
 	home := t.TempDir()
 	ws := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(ws, ".denova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(ws, ".casemagica"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := WriteSettingsFile(filepath.Join(home, "config.toml"), Settings{
@@ -694,7 +694,7 @@ func TestLoadLayeredIgnoresRemoteAccessFromWorkspaceLayer(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(ws, ".denova", "config.toml"), []byte("allow_lan_access = false\nremote_access_username = \"workspace\"\nremote_access_password_hash = \"workspace-hash\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(ws, ".casemagica", "config.toml"), []byte("allow_lan_access = false\nremote_access_username = \"workspace\"\nremote_access_password_hash = \"workspace-hash\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -713,10 +713,10 @@ func TestLoadLayeredIgnoresRemoteAccessFromWorkspaceLayer(t *testing.T) {
 func TestLoadLayeredIgnoresLLMInputLogFromWorkspaceLayer(t *testing.T) {
 	home := t.TempDir()
 	ws := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(ws, ".denova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(ws, ".casemagica"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(ws, ".denova", "config.toml"), []byte("llm_input_log_enabled = true\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(ws, ".casemagica", "config.toml"), []byte("llm_input_log_enabled = true\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -735,13 +735,13 @@ func TestLoadLayeredIgnoresLLMInputLogFromWorkspaceLayer(t *testing.T) {
 func TestLoadLayeredIgnoresTraceDebugSettingsFromWorkspaceLayer(t *testing.T) {
 	home := t.TempDir()
 	ws := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(ws, ".denova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(ws, ".casemagica"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("trace_capture_level = \"debug\"\ntrace_exporter = \"local\"\ntrace_retention_runs = 7\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(ws, ".denova", "config.toml"), []byte("trace_capture_level = \"off\"\ntrace_exporter = \"otlp\"\ntrace_retention_runs = 1\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(ws, ".casemagica", "config.toml"), []byte("trace_capture_level = \"off\"\ntrace_exporter = \"otlp\"\ntrace_retention_runs = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

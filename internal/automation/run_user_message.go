@@ -15,7 +15,7 @@ import (
 // this function stays free of storage concerns.
 func BuildRunUserMessage(task Task, run RunRecord, writeMode, writeScope, confirmedSummary string) string {
 	var sb strings.Builder
-	sb.WriteString("执行 Denova 自动化任务。\n\n")
+	sb.WriteString("执行 CaseMagica 自动化任务。\n\n")
 	sb.WriteString(fmt.Sprintf("任务名称：%s\n", task.Name))
 	sb.WriteString(fmt.Sprintf("触发来源：%s\n", run.Trigger))
 	sb.WriteString(fmt.Sprintf("执行模式：%s\n", writeMode))

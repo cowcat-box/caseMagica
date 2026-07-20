@@ -49,7 +49,7 @@ function settingsSnapshot(patch: Partial<LayeredSettings>): LayeredSettings {
       casemagica_dir: '/casemagica',
       denova_dir: '/nova',
       user_config: '/nova/config.toml',
-      workspace_config: '/books/demo/.denova/config.toml',
+      workspace_config: '/books/demo/.casemagica/config.toml',
     },
     builtin_agent_prompts: {},
     builtin_agent_prompt_blocks: {},

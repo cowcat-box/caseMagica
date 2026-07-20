@@ -6,9 +6,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"denova/config"
-	"denova/internal/agent"
-	novaskills "denova/internal/skills"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	novaskills "casemagica/internal/skills"
 )
 
 const (

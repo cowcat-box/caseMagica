@@ -13,7 +13,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 // MaxNovelImportUploadBytes limits txt/md novel imports.
@@ -139,13 +139,13 @@ func (h *Handlers) HandleNovelImport(ctx context.Context, c *app.RequestContext)
 		writeError(c, consts.StatusInternalServerError, err.Error())
 		return
 	}
-	if layered.Paths.DenovaDir == "" {
+	if layered.Paths.CaseMagicaDir == "" {
 		writeErrorKey(c, consts.StatusInternalServerError, "api.books.novaDirMissing")
 		return
 	}
 
 	log.Printf("[api] 导入小说 filename=%q size=%d title=%q strategy=%s regex=%q chapters=%d", filename, len(data), title, preview.SplitStrategy, preview.SplitRegex, preview.ChapterCount)
-	workspace, meta, err := h.app.CreateBook(ctx, layered.Paths.DenovaDir, title, author, description)
+	workspace, meta, err := h.app.CreateBook(ctx, layered.Paths.CaseMagicaDir, title, author, description)
 	if err != nil {
 		status := consts.StatusInternalServerError
 		if strings.Contains(err.Error(), "已存在") {

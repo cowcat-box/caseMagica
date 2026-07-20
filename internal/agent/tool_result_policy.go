@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 type ToolSource string
@@ -46,7 +46,7 @@ type FilteredToolResult struct {
 
 const (
 	defaultToolResultMaxBytes = config.DefaultAgentToolResultLimitKB * 1024
-	toolResultMetadataHeader  = "[Denova tool result metadata]"
+	toolResultMetadataHeader  = "[CaseMagica tool result metadata]"
 )
 
 func ManifestForTool(name string) ToolManifest {

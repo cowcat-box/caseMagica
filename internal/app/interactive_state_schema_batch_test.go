@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/interactive"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
 )
 
 func TestStateSchemaBatchAccumulatesWithoutMutatingStoryUntilFinalizeRunCompletes(t *testing.T) {
@@ -18,7 +18,7 @@ func TestStateSchemaBatchAccumulatesWithoutMutatingStoryUntilFinalizeRunComplete
 	}); err != nil {
 		t.Fatal(err)
 	}
-	store := interactive.NewStoreWithNovaDir(workspace, t.TempDir())
+	store := interactive.NewStoreWithCaseMagicaDir(workspace, t.TempDir())
 	stateSystem := interactive.StoryDirectorActorStateSystem{
 		Templates:     []interactive.ActorStateTemplate{{ID: "protagonist", Name: "主角", Fields: []interactive.ActorStateField{{Name: "状态", Type: "string", Default: "平静"}}}},
 		InitialActors: []interactive.ActorStateInitialActor{{ID: "protagonist", Name: "主角", TemplateID: "protagonist"}},

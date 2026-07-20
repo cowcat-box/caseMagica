@@ -366,7 +366,7 @@ func atomicWriteRestoreFile(root *os.Root, rel string, data []byte, mode os.File
 	if _, err := cryptorand.Read(random[:]); err != nil {
 		return err
 	}
-	tempRel := path.Join(parent, fmt.Sprintf(".%s.denova-%x.tmp", path.Base(rel), random[:]))
+	tempRel := path.Join(parent, fmt.Sprintf(".%s.casemagica-%x.tmp", path.Base(rel), random[:]))
 	tempPath := filepath.FromSlash(tempRel)
 	targetPath := filepath.FromSlash(rel)
 	file, err := root.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode.Perm())

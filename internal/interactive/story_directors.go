@@ -38,7 +38,7 @@ const (
 var ErrStoryDirectorRevisionConflict = errors.New("故事导演已被其他操作更新，请重新加载后再保存")
 
 type StoryDirectorLibrary struct {
-	novaDir string
+	denovaDir string
 }
 
 type StoryDirector struct {
@@ -80,8 +80,8 @@ type StoryDirectorTRPGSystem struct {
 	RuleTemplates []RuleCheck `json:"rule_templates,omitempty"`
 }
 
-func NewStoryDirectorLibrary(novaDir string) *StoryDirectorLibrary {
-	return &StoryDirectorLibrary{novaDir: novaDir}
+func NewStoryDirectorLibrary(denovaDir string) *StoryDirectorLibrary {
+	return &StoryDirectorLibrary{denovaDir: denovaDir}
 }
 
 func (l *StoryDirectorLibrary) List() ([]StoryDirector, error) {
@@ -107,7 +107,7 @@ func (l *StoryDirectorLibrary) List() ([]StoryDirector, error) {
 		}
 		director.Path = file
 		director = applyStoryDirectorOwnership(director)
-		director = ResolveStoryDirectorModules(l.novaDir, director)
+		director = ResolveStoryDirectorModules(l.denovaDir, director)
 		persistResolvedStoryDirectorSnapshot(file, director)
 		directors = append(directors, director)
 	}
@@ -136,7 +136,7 @@ func (l *StoryDirectorLibrary) Get(id string) (StoryDirector, error) {
 		return StoryDirector{}, err
 	}
 	director = applyStoryDirectorOwnership(director)
-	director = ResolveStoryDirectorModules(l.novaDir, director)
+	director = ResolveStoryDirectorModules(l.denovaDir, director)
 	persistResolvedStoryDirectorSnapshot(filepath.Join(l.dir(), id+".json"), director)
 	return director, nil
 }
@@ -160,7 +160,7 @@ func (l *StoryDirectorLibrary) Create(director StoryDirector) (StoryDirector, er
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	director.CreatedAt = firstNonEmptyString(director.CreatedAt, now)
 	director.UpdatedAt = now
-	director = ResolveStoryDirectorModules(l.novaDir, director)
+	director = ResolveStoryDirectorModules(l.denovaDir, director)
 	if err := writeStoryDirectorFile(path, director); err != nil {
 		return StoryDirector{}, err
 	}
@@ -190,7 +190,7 @@ func (l *StoryDirectorLibrary) Update(id string, director StoryDirector, baseRev
 	director.CreatedAt = firstNonEmptyString(current.CreatedAt, director.CreatedAt)
 	director.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	director.BuiltinOverridden = isBuiltin
-	director = ResolveStoryDirectorModules(l.novaDir, director)
+	director = ResolveStoryDirectorModules(l.denovaDir, director)
 	if err := writeStoryDirectorFile(path, director); err != nil {
 		return StoryDirector{}, err
 	}
@@ -210,17 +210,17 @@ func (l *StoryDirectorLibrary) Delete(id string) error {
 }
 
 func (l *StoryDirectorLibrary) dir() string {
-	return filepath.Join(l.novaDir, "story-directors")
+	return filepath.Join(l.denovaDir, "story-directors")
 }
 
 func (l *StoryDirectorLibrary) ensureBuiltins() error {
-	if err := NewEventPackageLibrary(l.novaDir).ensureBuiltins(); err != nil {
+	if err := NewEventPackageLibrary(l.denovaDir).ensureBuiltins(); err != nil {
 		return err
 	}
-	if err := NewRuleSystemLibrary(l.novaDir).ensureBuiltins(); err != nil {
+	if err := NewRuleSystemLibrary(l.denovaDir).ensureBuiltins(); err != nil {
 		return err
 	}
-	if err := NewActorStateLibrary(l.novaDir).ensureBuiltins(); err != nil {
+	if err := NewActorStateLibrary(l.denovaDir).ensureBuiltins(); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(l.dir(), 0o755); err != nil {

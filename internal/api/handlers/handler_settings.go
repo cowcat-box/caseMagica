@@ -8,8 +8,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/config"
-	appsvc "denova/internal/app"
+	"casemagica/config"
+	appsvc "casemagica/internal/app"
 )
 
 // handleSettingsGet GET /api/settings — 返回用户设置、工作区 Agent 定制及生效快照。

@@ -3,7 +3,7 @@ package agent
 import (
 	"strings"
 
-	"denova/internal/session"
+	"casemagica/internal/session"
 )
 
 func userMessageReferencesForRequest(req ChatRequest) []session.UserMessageReference {

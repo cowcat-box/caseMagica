@@ -550,7 +550,7 @@ func TestLoreStoreCreateUpdateDelete(t *testing.T) {
 func TestLoreStoreReadsLegacyNovaLoreWhenCaseMagicaWasGeneratedEmpty(t *testing.T) {
 	workspace := t.TempDir()
 	currentLore := filepath.Join(workspace, ".casemagica", "lore", "items.json")
-	legacyLore := filepath.Join(workspace, ".denova", "lore", "items.json")
+	legacyLore := filepath.Join(workspace, ".casemagica", "lore", "items.json")
 	if err := os.MkdirAll(filepath.Dir(currentLore), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -702,7 +702,7 @@ func TestLoreStoreApplyOperationsDoesNotCreateSeparateVersions(t *testing.T) {
 	if len(items) != 2 {
 		t.Fatalf("apply operations should update the lore store: %#v", items)
 	}
-	if _, err := os.Stat(filepath.Join(workspace, ".denova", "lore", "versions")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(workspace, ".casemagica", "lore", "versions")); !os.IsNotExist(err) {
 		t.Fatalf("lore store should not create a separate versions directory, err=%v", err)
 	}
 }

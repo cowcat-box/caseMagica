@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/automation"
-	"denova/internal/messages"
+	"casemagica/internal/automation"
+	"casemagica/internal/messages"
 )
 
 const maxAutomationNotificationMessages = 200
@@ -22,7 +22,7 @@ func (a *App) Messages(locale string) (messages.ListResult, error) {
 		return messages.ListResult{}, err
 	}
 	merged := mergeMessages(changelog, dynamic)
-	state, err := messages.NewService(a.novaDir()).ReadState()
+	state, err := messages.NewService(a.denovaDir()).ReadState()
 	if err != nil {
 		return messages.ListResult{}, err
 	}
@@ -50,7 +50,7 @@ func (a *App) MarkMessageRead(id, locale string) (messages.Message, error) {
 	if found == nil {
 		return messages.Message{}, fmt.Errorf("message %s not found", id)
 	}
-	svc := messages.NewService(a.novaDir())
+	svc := messages.NewService(a.denovaDir())
 	state, err := svc.ReadState()
 	if err != nil {
 		return messages.Message{}, err
@@ -79,10 +79,10 @@ func (a *App) MarkAllMessagesRead(locale string) (messages.ListResult, error) {
 			ids = append(ids, item.ID)
 		}
 	}
-	if err := messages.NewService(a.novaDir()).MarkAllRead(ids); err != nil {
+	if err := messages.NewService(a.denovaDir()).MarkAllRead(ids); err != nil {
 		return messages.ListResult{}, err
 	}
-	state, err := messages.NewService(a.novaDir()).ReadState()
+	state, err := messages.NewService(a.denovaDir()).ReadState()
 	if err != nil {
 		return messages.ListResult{}, err
 	}
@@ -92,7 +92,7 @@ func (a *App) MarkAllMessagesRead(locale string) (messages.ListResult, error) {
 
 // messageSources fetches both changelog and dynamic messages.
 func (a *App) messageSources(locale string) ([]messages.Message, []messages.Message, error) {
-	svc := messages.NewService(a.novaDir())
+	svc := messages.NewService(a.denovaDir())
 	changelog, err := svc.ChangelogForLocale(locale)
 	if err != nil {
 		return nil, nil, err
@@ -345,7 +345,7 @@ func isChineseLocale(locale string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(locale)), "zh")
 }
 
-func (a *App) novaDir() string {
+func (a *App) denovaDir() string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	if a.cfg == nil {

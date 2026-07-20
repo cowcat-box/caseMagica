@@ -6,7 +6,7 @@ import type {
   DocumentReviewThread,
 } from './types'
 
-const WORKSPACE_HEADER = 'X-Denova-Workspace'
+const WORKSPACE_HEADER = 'X-CaseMagica-Workspace'
 
 interface ReviewEnvelope {
   workspace?: string

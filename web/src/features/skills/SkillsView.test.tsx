@@ -119,7 +119,7 @@ describe('SkillsView', () => {
       scope: target?.scope || scope,
       name: target?.name || name,
       description: 'Beat planning',
-      path: `/books/demo/.denova/skills/${target?.name || name}/SKILL.md`,
+      path: `/books/demo/.casemagica/skills/${target?.name || name}/SKILL.md`,
       editable: true,
       active: true,
       content: savedContent,
@@ -325,7 +325,7 @@ describe('SkillsView', () => {
       name: 'novel-standard',
       description: 'Workspace override',
       scope: 'workspace',
-      path: '/books/demo/.denova/skills/novel-standard/SKILL.md',
+      path: '/books/demo/.casemagica/skills/novel-standard/SKILL.md',
       editable: true,
       active: true,
       content: '---\nname: novel-standard\ndescription: Workspace override\n---\n\n# Override\n',
@@ -359,7 +359,7 @@ describe('SkillsView', () => {
 function skillsSnapshot(patch: Partial<SkillSnapshot> = {}): SkillSnapshot {
   return {
     scopes: [
-      { scope: 'workspace', path: '/books/demo/.denova/skills', writable: true },
+      { scope: 'workspace', path: '/books/demo/.casemagica/skills', writable: true },
       { scope: 'user', path: '/nova/skills', writable: true },
       { scope: 'builtin', path: '/app/skills', writable: false },
     ],

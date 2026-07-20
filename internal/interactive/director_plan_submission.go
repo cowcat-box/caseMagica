@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 // DirectorPlanUpdateSubmission incrementally stages independently retryable

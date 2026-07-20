@@ -100,9 +100,9 @@ func TestSubAgentRequiresExplicitParent(t *testing.T) {
 
 func TestLoadLayeredWithStartupConfigKeepsGlobalSubAgents(t *testing.T) {
 	root := t.TempDir()
-	denovaDir := filepath.Join(root, ".denova")
+	denovaDir := filepath.Join(root, ".casemagica")
 	t.Chdir(root)
-	t.Setenv("DENOVA_DIR", denovaDir)
+	t.Setenv("CASEMAGICA_DIR", denovaDir)
 
 	global := Settings{SubAgents: []SubAgentConfig{
 		testSubAgent("context-planner"),

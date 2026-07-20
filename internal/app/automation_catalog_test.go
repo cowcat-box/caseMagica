@@ -7,16 +7,16 @@ import (
 	"testing"
 	"time"
 
-	"denova/config"
-	"denova/internal/automation"
+	"casemagica/config"
+	"casemagica/internal/automation"
 )
 
 func TestAutomationsListsTasksFromInactiveRegisteredWorkspaces(t *testing.T) {
 	root := t.TempDir()
-	novaDir := filepath.Join(root, "user")
-	workspaceA := createAutomationTestWorkspace(t, filepath.Join(novaDir, "projects", "book-a"))
-	workspaceB := createAutomationTestWorkspace(t, filepath.Join(novaDir, "projects", "book-b"))
-	registry := NewBookRegistry(novaDir)
+	denovaDir := filepath.Join(root, "user")
+	workspaceA := createAutomationTestWorkspace(t, filepath.Join(denovaDir, "projects", "book-a"))
+	workspaceB := createAutomationTestWorkspace(t, filepath.Join(denovaDir, "projects", "book-b"))
+	registry := NewBookRegistry(denovaDir)
 	if err := registry.Touch(workspaceA); err != nil {
 		t.Fatalf("register workspace A: %v", err)
 	}
@@ -24,13 +24,13 @@ func TestAutomationsListsTasksFromInactiveRegisteredWorkspaces(t *testing.T) {
 		t.Fatalf("register workspace B: %v", err)
 	}
 
-	taskA, err := automation.NewStore(novaDir, workspaceA).Create(automation.Task{
+	taskA, err := automation.NewStore(denovaDir, workspaceA).Create(automation.Task{
 		Scope: automation.ScopeWorkspace, Name: "Task A", Template: automation.TemplateReview,
 	})
 	if err != nil {
 		t.Fatalf("create task A: %v", err)
 	}
-	taskB, err := automation.NewStore(novaDir, workspaceB).Create(automation.Task{
+	taskB, err := automation.NewStore(denovaDir, workspaceB).Create(automation.Task{
 		Scope: automation.ScopeWorkspace, Name: "Task B", Template: automation.TemplateReview,
 	})
 	if err != nil {
@@ -38,7 +38,7 @@ func TestAutomationsListsTasksFromInactiveRegisteredWorkspaces(t *testing.T) {
 	}
 
 	application := &App{
-		cfg:          &config.Config{NovaDir: novaDir, Workspace: workspaceA},
+		cfg:          &config.Config{DenovaDir: denovaDir, Workspace: workspaceA},
 		workspace:    workspaceA,
 		bookRegistry: registry,
 	}
@@ -60,10 +60,10 @@ func TestAutomationsListsTasksFromInactiveRegisteredWorkspaces(t *testing.T) {
 
 func TestSchedulerEvaluatesDueTasksInInactiveWorkspace(t *testing.T) {
 	root := t.TempDir()
-	novaDir := filepath.Join(root, "user")
-	workspaceA := createAutomationTestWorkspace(t, filepath.Join(novaDir, "projects", "book-a"))
-	workspaceB := createAutomationTestWorkspace(t, filepath.Join(novaDir, "projects", "book-b"))
-	registry := NewBookRegistry(novaDir)
+	denovaDir := filepath.Join(root, "user")
+	workspaceA := createAutomationTestWorkspace(t, filepath.Join(denovaDir, "projects", "book-a"))
+	workspaceB := createAutomationTestWorkspace(t, filepath.Join(denovaDir, "projects", "book-b"))
+	registry := NewBookRegistry(denovaDir)
 	if err := registry.Touch(workspaceA); err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestSchedulerEvaluatesDueTasksInInactiveWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Now().UTC().Truncate(time.Minute)
-	_, err := automation.NewStore(novaDir, workspaceB).Create(automation.Task{
+	_, err := automation.NewStore(denovaDir, workspaceB).Create(automation.Task{
 		Scope:      automation.ScopeWorkspace,
 		Enabled:    true,
 		Name:       "Inactive workspace schedule",
@@ -95,7 +95,7 @@ func TestSchedulerEvaluatesDueTasksInInactiveWorkspace(t *testing.T) {
 	}
 
 	application := &App{
-		cfg:          &config.Config{NovaDir: novaDir, Workspace: workspaceA},
+		cfg:          &config.Config{DenovaDir: denovaDir, Workspace: workspaceA},
 		workspace:    workspaceA,
 		bookRegistry: registry,
 		chatService:  nil,
@@ -124,17 +124,17 @@ func TestSchedulerEvaluatesDueTasksInInactiveWorkspace(t *testing.T) {
 
 func TestCheckAutomationTriggersUsesCatalogIDForInactiveWorkspace(t *testing.T) {
 	root := t.TempDir()
-	novaDir := filepath.Join(root, "user")
-	workspaceA := createAutomationTestWorkspace(t, filepath.Join(novaDir, "projects", "book-a"))
-	workspaceB := createAutomationTestWorkspace(t, filepath.Join(novaDir, "projects", "book-b"))
-	registry := NewBookRegistry(novaDir)
+	denovaDir := filepath.Join(root, "user")
+	workspaceA := createAutomationTestWorkspace(t, filepath.Join(denovaDir, "projects", "book-a"))
+	workspaceB := createAutomationTestWorkspace(t, filepath.Join(denovaDir, "projects", "book-b"))
+	registry := NewBookRegistry(denovaDir)
 	if err := registry.Touch(workspaceA); err != nil {
 		t.Fatal(err)
 	}
 	if err := registry.Touch(workspaceB); err != nil {
 		t.Fatal(err)
 	}
-	task, err := automation.NewStore(novaDir, workspaceB).Create(automation.Task{
+	task, err := automation.NewStore(denovaDir, workspaceB).Create(automation.Task{
 		Scope:      automation.ScopeWorkspace,
 		Enabled:    true,
 		Name:       "Inactive workspace manual check",
@@ -157,7 +157,7 @@ func TestCheckAutomationTriggersUsesCatalogIDForInactiveWorkspace(t *testing.T) 
 	}
 
 	application := &App{
-		cfg:          &config.Config{NovaDir: novaDir, Workspace: workspaceA},
+		cfg:          &config.Config{DenovaDir: denovaDir, Workspace: workspaceA},
 		workspace:    workspaceA,
 		bookRegistry: registry,
 	}

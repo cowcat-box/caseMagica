@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/session"
 )
 
 // automationWorkspaceSnapshot binds asynchronous trigger evaluation and any
@@ -22,7 +22,7 @@ import (
 // where one type conditionally behaves like two different objects.
 type automationWorkspaceSnapshot struct {
 	workspace    string
-	novaDir      string
+	denovaDir      string
 	cfg          config.Config
 	bookState    *book.State
 	bookService  *book.Service
@@ -47,7 +47,7 @@ func (s *AutomationAppService) runtimeSnapshot() (*automationWorkspaceSnapshot, 
 	}
 	cfg := *a.cfg
 	workspace := a.workspace
-	novaDir := cfg.DataDir()
+	denovaDir := cfg.DataDir()
 	bookState := a.bookState
 	bookService := a.bookService
 	sessionStore := a.sessionStore
@@ -55,10 +55,10 @@ func (s *AutomationAppService) runtimeSnapshot() (*automationWorkspaceSnapshot, 
 	a.mu.RUnlock()
 
 	cfg.Workspace = workspace
-	applyAutomationLayeredConfig(&cfg, novaDir, workspace)
+	applyAutomationLayeredConfig(&cfg, denovaDir, workspace)
 	return &automationWorkspaceSnapshot{
 		workspace:    workspace,
-		novaDir:      novaDir,
+		denovaDir:      denovaDir,
 		cfg:          cfg,
 		bookState:    bookState,
 		bookService:  bookService,
@@ -72,11 +72,11 @@ func (s *AutomationAppService) runtimeSnapshot() (*automationWorkspaceSnapshot, 
 // workspace settings are folded into an automation runtime config, so every
 // snapshot (live workspace or cross-workspace target) resolves models, tools,
 // and iteration limits consistently.
-func applyAutomationLayeredConfig(cfg *config.Config, novaDir, workspace string) {
+func applyAutomationLayeredConfig(cfg *config.Config, denovaDir, workspace string) {
 	if cfg == nil {
 		return
 	}
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(cfg, layered)
 	} else {
 		log.Printf("[automation] load layered settings failed workspace=%s err=%v", workspace, err)
@@ -98,7 +98,7 @@ func (a *App) automationSnapshotLocked() *automationWorkspaceSnapshot {
 	}
 	return &automationWorkspaceSnapshot{
 		workspace:    workspace,
-		novaDir:      cfg.DataDir(),
+		denovaDir:      cfg.DataDir(),
 		cfg:          cfg,
 		bookState:    a.bookState,
 		bookService:  a.bookService,
@@ -114,7 +114,7 @@ func (a *App) automationSnapshot() *automationWorkspaceSnapshot {
 	if snap == nil {
 		return nil
 	}
-	applyAutomationLayeredConfig(&snap.cfg, snap.novaDir, snap.workspace)
+	applyAutomationLayeredConfig(&snap.cfg, snap.denovaDir, snap.workspace)
 	return snap
 }
 

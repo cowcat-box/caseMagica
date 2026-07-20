@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 // residentLoreReader is the narrow storage boundary required to assemble one

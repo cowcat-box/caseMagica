@@ -93,9 +93,9 @@ func TestLoadConfigManagerResourceSkillsUsesActiveSkillPrecedence(t *testing.T) 
 	workspace := filepath.Join(root, "workspace")
 	writeConfigManagerSkill(t, builtin, configManagerAutomationSkill, "builtin body", "config_manager")
 	writeConfigManagerSkill(t, filepath.Join(denovaDir, "skills"), configManagerAutomationSkill, "user body", "config_manager")
-	writeConfigManagerSkill(t, filepath.Join(workspace, ".denova", "skills"), configManagerAutomationSkill, "workspace body", "config_manager")
+	writeConfigManagerSkill(t, filepath.Join(workspace, ".casemagica", "skills"), configManagerAutomationSkill, "workspace body", "config_manager")
 
-	cfg := &config.Config{SkillsDir: builtin, DenovaDir: denovaDir, Workspace: workspace}
+	cfg := &config.Config{SkillsDir: builtin, CaseMagicaDir: denovaDir, Workspace: workspace}
 	got := loadConfigManagerResourceSkills(context.Background(), cfg, ConfigManagerRequest{Origin: "automation"})
 	if len(got) != 1 {
 		t.Fatalf("loaded skills = %#v, want one", got)

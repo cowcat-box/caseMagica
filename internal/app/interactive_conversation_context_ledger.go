@@ -7,11 +7,11 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/agent"
-	agentcontext "denova/internal/agent/context"
-	"denova/internal/book"
-	"denova/internal/interactive"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	agentcontext "casemagica/internal/agent/context"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
 )
 
 // interactiveContextSource is a transient description of one domain fragment.

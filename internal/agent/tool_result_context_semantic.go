@@ -6,7 +6,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 const retainedToolReceiptSchema = "tool_result.retained.v1"
@@ -172,7 +172,7 @@ func filterSemanticToolContextMessages(messages []*schema.Message, policy ToolRe
 				if callID == "" || !knownCall || !callPolicy.valid || resultCountsByID[callID] != 1 || !callPolicy.retain {
 					continue
 				}
-				call.Function.Arguments = limitContextText(call.Function.Arguments, policy.PreviewChars, "\n[Denova tool call args truncated for retained context]")
+				call.Function.Arguments = limitContextText(call.Function.Arguments, policy.PreviewChars, "\n[CaseMagica tool call args truncated for retained context]")
 				next.ToolCalls = append(next.ToolCalls, call)
 			}
 			if len(next.ToolCalls) > 0 || strings.TrimSpace(next.Content) != "" {

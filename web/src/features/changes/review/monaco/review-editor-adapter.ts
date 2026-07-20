@@ -137,7 +137,7 @@ export class ReviewEditorAdapter {
 
   private installCommentAction(codeEditor: editor.IStandaloneCodeEditor, side: 'before' | 'after'): IDisposable {
     return codeEditor.addAction({
-      id: `denova.change-review.comment.${side}`,
+      id: `casemagica.change-review.comment.${side}`,
       label: this.callbacks.commentLabel,
       keybindings: [this.monaco.KeyMod.CtrlCmd | this.monaco.KeyMod.Shift | this.monaco.KeyCode.KeyM],
       contextMenuGroupId: 'navigation',

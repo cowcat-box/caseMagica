@@ -1,7 +1,7 @@
 import type { Monaco } from '@monaco-editor/react'
 
-export const REVIEW_MONACO_THEME_DARK = 'denova-review-dark'
-export const REVIEW_MONACO_THEME_LIGHT = 'denova-review-light'
+export const REVIEW_MONACO_THEME_DARK = 'casemagica-review-dark'
+export const REVIEW_MONACO_THEME_LIGHT = 'casemagica-review-light'
 
 const DARK_COLORS = {
   addedLine: '#1f3124',

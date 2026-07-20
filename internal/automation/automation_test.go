@@ -15,7 +15,7 @@ func TestStoreSeparatesUserAndWorkspaceTasks(t *testing.T) {
 	root := t.TempDir()
 	userDir := filepath.Join(root, "user")
 	workspace := filepath.Join(root, "book")
-	if err := os.MkdirAll(filepath.Join(workspace, ".denova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(workspace, ".casemagica"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	store := NewStore(userDir, workspace)
@@ -31,7 +31,7 @@ func TestStoreSeparatesUserAndWorkspaceTasks(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(userDir, "automations", "tasks.json")); err != nil {
 		t.Fatalf("user tasks not written: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(workspace, ".denova", "automations", "tasks.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(workspace, ".casemagica", "automations", "tasks.json")); err != nil {
 		t.Fatalf("workspace tasks not written: %v", err)
 	}
 
@@ -66,7 +66,7 @@ func TestStoreListDoesNotCreateWorkspaceAutomationFile(t *testing.T) {
 	if len(tasks) != 0 {
 		t.Fatalf("task count = %d, want no implicit tasks", len(tasks))
 	}
-	path := filepath.Join(workspace, ".denova", "automations", "tasks.json")
+	path := filepath.Join(workspace, ".casemagica", "automations", "tasks.json")
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("read-only List should not create %s: %v", path, err)
 	}

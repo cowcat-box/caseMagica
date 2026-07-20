@@ -9,8 +9,8 @@ import (
 )
 
 func TestStoryDirectorLibraryCRUDAndRevisionConflict(t *testing.T) {
-	novaDir := t.TempDir()
-	library := NewStoryDirectorLibrary(novaDir)
+	denovaDir := t.TempDir()
+	library := NewStoryDirectorLibrary(denovaDir)
 
 	directors, err := library.List()
 	if err != nil {
@@ -29,7 +29,7 @@ func TestStoryDirectorLibraryCRUDAndRevisionConflict(t *testing.T) {
 		t.Fatalf("story director should preserve disabled state schema adaptation: %#v", normalized)
 	}
 
-	actorStateModule, err := NewActorStateLibrary(novaDir).Create(ActorStateModule{
+	actorStateModule, err := NewActorStateLibrary(denovaDir).Create(ActorStateModule{
 		ID:   "custom-state",
 		Name: "自定义状态系统",
 		ActorState: StoryDirectorActorStateSystem{
@@ -51,7 +51,7 @@ func TestStoryDirectorLibraryCRUDAndRevisionConflict(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create actor state failed: %v", err)
 	}
-	ruleModule, err := NewRuleSystemLibrary(novaDir).Create(RuleSystemModule{
+	ruleModule, err := NewRuleSystemLibrary(denovaDir).Create(RuleSystemModule{
 		ID:   "custom-rules",
 		Name: "自定义规则",
 		TRPGSystem: StoryDirectorTRPGSystem{RuleTemplates: []RuleCheck{{

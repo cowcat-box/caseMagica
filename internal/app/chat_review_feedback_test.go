@@ -11,12 +11,12 @@ import (
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/documentreview"
-	"denova/internal/session"
-	"denova/internal/workspacechange"
-	"denova/internal/workspacepath"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/documentreview"
+	"casemagica/internal/session"
+	"casemagica/internal/workspacechange"
+	"casemagica/internal/workspacepath"
 )
 
 func TestDocumentReviewFeedbackResolvesCurrentAnchorAndConsumesAfterCommit(t *testing.T) {

@@ -35,7 +35,7 @@ func requestLocaleHeader(c *app.RequestContext) string {
 	if header := strings.TrimSpace(string(c.Request.Header.Peek("X-CaseMagica-Locale"))); header != "" {
 		return header
 	}
-	return strings.TrimSpace(string(c.Request.Header.Peek("X-Denova-Locale")))
+	return strings.TrimSpace(string(c.Request.Header.Peek("X-CaseMagica-Locale")))
 }
 
 func writeErrorKey(c *app.RequestContext, code int, key string, args ...any) {

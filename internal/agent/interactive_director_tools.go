@@ -9,7 +9,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
 
-	"denova/internal/interactive"
+	"casemagica/internal/interactive"
 )
 
 const submitDirectorPlanUpdateToolName = "submit_director_plan_update"

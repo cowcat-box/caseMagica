@@ -52,9 +52,9 @@ func NewStore(root string) *Store {
 	return &Store{root: root}
 }
 
-// NewStoreWithDenovaDir creates an interactive store that can resolve reusable
+// NewStoreWithCaseMagicaDir creates an interactive store that can resolve reusable
 // director modules from the workspace .casemagica directory.
-func NewStoreWithDenovaDir(root, denovaDir string) *Store {
+func NewStoreWithCaseMagicaDir(root, denovaDir string) *Store {
 	return &Store{root: root, denovaDir: strings.TrimSpace(denovaDir)}
 }
 
@@ -142,7 +142,7 @@ func (s *Store) CreateStory(req CreateStoryRequest) (StorySummary, error) {
 	trpgSystem := StoryDirectorTRPGSystem{}
 	if req.ActorState != nil {
 		actorState = *req.ActorState
-	} else if strings.TrimSpace(s.novaDir) != "" {
+	} else if strings.TrimSpace(s.denovaDir) != "" {
 		director := s.storyDirectorForMeta(meta)
 		actorState = director.ActorState
 		trpgSystem = director.TRPGSystem
@@ -1269,15 +1269,15 @@ func stateBeforeTurn(path []StoryEventRecord, turnID string) map[string]any {
 }
 
 func (s *Store) storyDirectorForMeta(meta StoryMeta) StoryDirector {
-	if strings.TrimSpace(s.novaDir) == "" {
+	if strings.TrimSpace(s.denovaDir) == "" {
 		return DefaultStoryDirector()
 	}
 	directorID := normalizedStoryDirectorID(meta.StoryDirectorID)
-	director, err := NewStoryDirectorLibrary(s.novaDir).Get(directorID)
+	director, err := NewStoryDirectorLibrary(s.denovaDir).Get(directorID)
 	if err == nil {
 		return director
 	}
-	fallback, fallbackErr := NewStoryDirectorLibrary(s.novaDir).Get(DefaultStoryDirectorID)
+	fallback, fallbackErr := NewStoryDirectorLibrary(s.denovaDir).Get(DefaultStoryDirectorID)
 	if fallbackErr == nil {
 		return fallback
 	}

@@ -14,7 +14,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 func TestToolExecutionGateAllowsReadOnlyCallsInParallel(t *testing.T) {

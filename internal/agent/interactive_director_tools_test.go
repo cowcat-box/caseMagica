@@ -7,7 +7,7 @@ import (
 
 	"github.com/cloudwego/eino/components/tool"
 
-	"denova/internal/interactive"
+	"casemagica/internal/interactive"
 )
 
 func TestInteractiveDirectorPlanToolSubmitsMarkdownPatchPayload(t *testing.T) {

@@ -119,8 +119,8 @@ func TestServiceMarkReadPersistsAndIsIdempotent(t *testing.T) {
 	if err := os.WriteFile(changelog, []byte("## [v0.2.0] - 2026-07-01\n\n### Added\n\n- 正式发布消息。\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	novaDir := filepath.Join(dir, "nova")
-	service := NewServiceWithChangelog(novaDir, changelog)
+	denovaDir := filepath.Join(dir, "nova")
+	service := NewServiceWithChangelog(denovaDir, changelog)
 
 	items, err := service.ChangelogForLocale("")
 	if err != nil {
@@ -149,7 +149,7 @@ func TestServiceMarkReadPersistsAndIsIdempotent(t *testing.T) {
 	}
 
 	// Persisted across service instances.
-	next := NewServiceWithChangelog(novaDir, changelog)
+	next := NewServiceWithChangelog(denovaDir, changelog)
 	state, err := next.ReadState()
 	if err != nil {
 		t.Fatal(err)
@@ -170,8 +170,8 @@ func TestServiceReadStateIsSharedAcrossLocales(t *testing.T) {
 	if err := os.WriteFile(changelog, []byte("## [v0.2.0] - 2026-07-01\n\n### Brief / 简要说明\n\n#### 中文\n\n- 中文简要。\n\n#### English\n\n- English brief.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	novaDir := filepath.Join(dir, "nova")
-	service := NewServiceWithChangelog(novaDir, changelog)
+	denovaDir := filepath.Join(dir, "nova")
+	service := NewServiceWithChangelog(denovaDir, changelog)
 
 	zhItems, err := service.ChangelogForLocale("zh-CN")
 	if err != nil {
@@ -190,7 +190,7 @@ func TestServiceReadStateIsSharedAcrossLocales(t *testing.T) {
 	}
 
 	// Read state is shared: a new service sees the mark regardless of locale.
-	next := NewServiceWithChangelog(novaDir, changelog)
+	next := NewServiceWithChangelog(denovaDir, changelog)
 	state, err := next.ReadState()
 	if err != nil {
 		t.Fatal(err)
@@ -206,8 +206,8 @@ func TestServiceMarkAllReadPersists(t *testing.T) {
 	if err := os.WriteFile(changelog, []byte("## [Unreleased]\n\n### Added\n\n- 第一条消息。\n\n## [v0.2.0] - 2026-07-01\n\n### Added\n\n- 正式发布消息。\n\n## [v0.1.17] - 2026-06-27\n\n### Fixed\n\n- 第二条消息。\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	novaDir := filepath.Join(dir, "nova")
-	service := NewServiceWithChangelog(novaDir, changelog)
+	denovaDir := filepath.Join(dir, "nova")
+	service := NewServiceWithChangelog(denovaDir, changelog)
 
 	items, err := service.ChangelogForLocale("")
 	if err != nil {
@@ -226,7 +226,7 @@ func TestServiceMarkAllReadPersists(t *testing.T) {
 	}
 
 	// Persisted across service instances.
-	next := NewServiceWithChangelog(novaDir, changelog)
+	next := NewServiceWithChangelog(denovaDir, changelog)
 	state, err := next.ReadState()
 	if err != nil {
 		t.Fatal(err)

@@ -14,8 +14,8 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 
-	"denova/internal/interactive"
-	"denova/internal/session"
+	"casemagica/internal/interactive"
+	"casemagica/internal/session"
 )
 
 func TestInteractiveTurnProtocolRecoversMissingSubmissionInsideAgentLoop(t *testing.T) {

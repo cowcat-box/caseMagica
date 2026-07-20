@@ -68,7 +68,7 @@ const importCard = {
   'importCard.newBookTitle': '新书书名',
   'importCard.createIn': '新书将创建在 {{dir}}',
   'importCard.residentWarning': '常驻资料约 {{size}} KB，超过 {{threshold}} KB 建议值。导入不会受阻；如需减少上下文占用，可在导入后将部分资料改为按需加载。',
-  'importCard.novaDir': 'Denova 数据目录',
+  'importCard.denovaDir': 'CaseMagica 数据目录',
   'importCard.import': '导入',
   'importCard.importing': '导入中...',
   'importCard.previewFailed': '解析酒馆角色卡失败',

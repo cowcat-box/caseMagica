@@ -7,9 +7,9 @@ import (
 	"log"
 	"strings"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/session"
 )
 
 type ConfigManagerAppService struct {

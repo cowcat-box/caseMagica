@@ -734,9 +734,9 @@ func (s *Store) backupStoryBeforeStateSchemaMigration(storyID string) error {
 	if err != nil {
 		return fmt.Errorf("读取状态结构迁移备份失败: %w", err)
 	}
-	root := strings.TrimSpace(s.novaDir)
+	root := strings.TrimSpace(s.denovaDir)
 	if root == "" {
-		root = filepath.Join(s.root, ".denova")
+		root = filepath.Join(s.root, ".casemagica")
 	}
 	backupDir := filepath.Join(root, "backups", "state-schema-adaptation", time.Now().UTC().Format("20060102T150405.000000000Z"))
 	if err := os.MkdirAll(backupDir, 0o755); err != nil {

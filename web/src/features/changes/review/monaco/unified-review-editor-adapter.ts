@@ -64,7 +64,7 @@ export class UnifiedReviewEditorAdapter {
         if (collapseID) callbacks.onExpandRegion(collapseID)
       }),
       editorInstance.addAction({
-        id: 'denova.change-review.comment.unified',
+        id: 'casemagica.change-review.comment.unified',
         label: callbacks.commentLabel,
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyM],
         contextMenuGroupId: 'navigation',

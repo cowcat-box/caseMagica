@@ -526,8 +526,8 @@ args_bytes: %d
 model_finish_reason: %s
 target: %s
 
-中文：模型在生成工具参数时被内容过滤中断，arguments 不是完整 JSON 对象：%v。Denova 已阻止工具执行，文件未写入。请直接告知用户本次写入失败的原因，不要重试同一个写入工具。
-English: The model output was stopped by content filtering while producing tool arguments, so arguments are not a complete JSON object: %v. Denova blocked tool execution and no file was written. Tell the user what happened; do not retry the same write tool.`, decision.ToolName, len(args), strings.TrimSpace(outcome.FinishReason), target, err, err)
+中文：模型在生成工具参数时被内容过滤中断，arguments 不是完整 JSON 对象：%v。CaseMagica 已阻止工具执行，文件未写入。请直接告知用户本次写入失败的原因，不要重试同一个写入工具。
+English: The model output was stopped by content filtering while producing tool arguments, so arguments are not a complete JSON object: %v. CaseMagica blocked tool execution and no file was written. Tell the user what happened; do not retry the same write tool.`, decision.ToolName, len(args), strings.TrimSpace(outcome.FinishReason), target, err, err)
 	}
 	return fmt.Sprintf(`[tool error]
 type: invalid_tool_arguments

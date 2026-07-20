@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 func TestAutomationTriggerCoordinatorDoesNotLoseEnqueueDuringIdleExit(t *testing.T) {
@@ -38,8 +38,8 @@ func TestAutomationTriggerCoordinatorDoesNotLoseEnqueueDuringIdleExit(t *testing
 	service := &AutomationAppService{app: &App{}}
 	snapshot := &automationWorkspaceSnapshot{
 		workspace: workspace,
-		novaDir:   filepath.Join(workspace, "user"),
-		cfg:       config.Config{Workspace: workspace, NovaDir: filepath.Join(workspace, "user")},
+		denovaDir:   filepath.Join(workspace, "user"),
+		cfg:       config.Config{Workspace: workspace, DenovaDir: filepath.Join(workspace, "user")},
 	}
 	if !coordinator.Enqueue(service, snapshot, "first", []string{"chapters/one.md"}) {
 		t.Fatal("first enqueue was rejected")

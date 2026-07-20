@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"denova/internal/automation"
-	"denova/internal/messages"
+	"casemagica/internal/automation"
+	"casemagica/internal/messages"
 )
 
 func TestAutomationMessagesIncludeCrossWorkspaceCompletionsAndPendingActions(t *testing.T) {

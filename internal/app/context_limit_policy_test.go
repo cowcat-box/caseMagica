@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"denova/internal/interactive"
+	"casemagica/internal/interactive"
 )
 
 func TestCompleteGameAndSkillContextLimitsAreAtLeast128KB(t *testing.T) {

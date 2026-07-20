@@ -9,11 +9,11 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	denovaapp "denova/internal/app"
-	"denova/internal/workspacechange"
+	casemagicaapp "casemagica/internal/app"
+	"casemagica/internal/workspacechange"
 )
 
-const workspaceChangeWorkspaceHeader = "X-Denova-Workspace"
+const workspaceChangeWorkspaceHeader = "X-CaseMagica-Workspace"
 
 // HandleWorkspaceChangeGroups lists durable workspace changes without loading
 // manuscript blobs. Full before/after content is loaded only by the detail API.
@@ -90,17 +90,17 @@ func (h *Handlers) HandleWorkspaceChangeReview(ctx context.Context, c *app.Reque
 	workspace, err := h.app.WithWorkspaceChangeMutation(
 		ctx,
 		workspaceChangeExpectedWorkspace(c),
-		func(service *workspacechange.Service) (denovaapp.WorkspaceChangeMutationHooks, error) {
+		func(service *workspacechange.Service) (casemagicaapp.WorkspaceChangeMutationHooks, error) {
 			result, reviewErr := service.ReviewWithResult(ctx, req)
 			if reviewErr != nil {
-				return denovaapp.WorkspaceChangeMutationHooks{}, reviewErr
+				return casemagicaapp.WorkspaceChangeMutationHooks{}, reviewErr
 			}
 			group = result.Group
 			affectedPaths = result.AffectedPaths
 			if !rejectDecision || len(affectedPaths) == 0 {
-				return denovaapp.WorkspaceChangeMutationHooks{}, nil
+				return casemagicaapp.WorkspaceChangeMutationHooks{}, nil
 			}
-			return denovaapp.WorkspaceChangeMutationHooks{
+			return casemagicaapp.WorkspaceChangeMutationHooks{
 				CreateTimedVersion: true,
 				AutomationSource:   "workspace_change_review_reject",
 				Paths:              affectedPaths,
@@ -132,7 +132,7 @@ func (h *Handlers) handleWorkspaceChangeHistory(ctx context.Context, c *app.Requ
 	workspace, err := h.app.WithWorkspaceChangeMutation(
 		ctx,
 		workspaceChangeExpectedWorkspace(c),
-		func(service *workspacechange.Service) (denovaapp.WorkspaceChangeMutationHooks, error) {
+		func(service *workspacechange.Service) (casemagicaapp.WorkspaceChangeMutationHooks, error) {
 			var historyErr error
 			if redo {
 				group, historyErr = service.Redo(ctx, req)
@@ -140,17 +140,17 @@ func (h *Handlers) handleWorkspaceChangeHistory(ctx context.Context, c *app.Requ
 				group, historyErr = service.Undo(ctx, req)
 			}
 			if historyErr != nil {
-				return denovaapp.WorkspaceChangeMutationHooks{}, historyErr
+				return casemagicaapp.WorkspaceChangeMutationHooks{}, historyErr
 			}
 			affectedPaths = workspaceChangeGroupPaths(group)
 			if len(affectedPaths) == 0 {
-				return denovaapp.WorkspaceChangeMutationHooks{}, nil
+				return casemagicaapp.WorkspaceChangeMutationHooks{}, nil
 			}
 			source := "workspace_change_undo"
 			if redo {
 				source = "workspace_change_redo"
 			}
-			return denovaapp.WorkspaceChangeMutationHooks{
+			return casemagicaapp.WorkspaceChangeMutationHooks{
 				CreateTimedVersion: true,
 				AutomationSource:   source,
 				Paths:              affectedPaths,
@@ -259,7 +259,7 @@ func (h *Handlers) withWorkspaceChangeService(c *app.RequestContext, action func
 }
 
 func (h *Handlers) writeWorkspaceChangeLeaseError(c *app.RequestContext, expectedWorkspace string, err error) {
-	if errors.Is(err, denovaapp.ErrWorkspaceChanged) {
+	if errors.Is(err, casemagicaapp.ErrWorkspaceChanged) {
 		writeJSON(c, consts.StatusConflict, map[string]any{
 			"error": messageKey(c, "api.workspace.changedDuringRequest"),
 			"code":  "workspace_changed",
@@ -270,7 +270,7 @@ func (h *Handlers) writeWorkspaceChangeLeaseError(c *app.RequestContext, expecte
 		})
 		return
 	}
-	if errors.Is(err, denovaapp.ErrNoWorkspace) {
+	if errors.Is(err, casemagicaapp.ErrNoWorkspace) {
 		writeErrorKey(c, consts.StatusConflict, "api.workspace.noWorkspace")
 		return
 	}

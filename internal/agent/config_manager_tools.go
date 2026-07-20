@@ -10,12 +10,12 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
 
-	"denova/config"
-	"denova/internal/automation"
-	"denova/internal/imagepreset"
-	"denova/internal/interactive"
-	novaskills "denova/internal/skills"
-	"denova/internal/styleref"
+	"casemagica/config"
+	"casemagica/internal/automation"
+	"casemagica/internal/imagepreset"
+	"casemagica/internal/interactive"
+	novaskills "casemagica/internal/skills"
+	"casemagica/internal/styleref"
 )
 
 type idListInput struct {
@@ -40,7 +40,7 @@ type styleReferenceWriteInput struct {
 
 type styleReferenceWriteOperation struct {
 	Op        string                `json:"op" jsonschema:"description=操作类型：create/update/delete"`
-	Path      string                `json:"path" jsonschema:"description=delete 使用的文风参考路径，例如 .denova/styles/name.md"`
+	Path      string                `json:"path" jsonschema:"description=delete 使用的文风参考路径，例如 .casemagica/styles/name.md"`
 	Reference styleref.WriteRequest `json:"reference" jsonschema:"description=create/update 使用的 Markdown 文风参考；content 必须是最终提炼后的 md，不要写原始长文"`
 }
 
@@ -131,31 +131,31 @@ func newConfigManagerTools(cfg *config.Config, settings config.ResolvedAgentTool
 		cfg = &config.Config{}
 	}
 	_ = settings
-	novaDir := strings.TrimSpace(cfg.DataDir())
+	denovaDir := strings.TrimSpace(cfg.DataDir())
 	workspace := strings.TrimSpace(cfg.Workspace)
 	automationWorkspaces := append([]string(nil), cfg.AutomationWorkspaces...)
 	builders := []configManagerToolBuilder{
-		{build: func() (tool.BaseTool, error) { return newListStyleReferencesTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newWriteStyleReferencesTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newListTellersTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newReadTellersTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newWriteTellersTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newListStoryDirectorsTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newReadStoryDirectorsTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newWriteStoryDirectorsTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newListEventPackagesTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newReadEventPackagesTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newWriteEventPackagesTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newListActorStatesTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newReadActorStatesTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newWriteActorStatesTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newListImagePresetsTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newReadImagePresetsTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newWriteImagePresetsTool(novaDir) }},
-		{build: func() (tool.BaseTool, error) { return newListAutomationsTool(novaDir, workspace, automationWorkspaces) }},
-		{build: func() (tool.BaseTool, error) { return newReadAutomationsTool(novaDir, workspace, automationWorkspaces) }},
+		{build: func() (tool.BaseTool, error) { return newListStyleReferencesTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newWriteStyleReferencesTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newListTellersTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newReadTellersTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newWriteTellersTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newListStoryDirectorsTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newReadStoryDirectorsTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newWriteStoryDirectorsTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newListEventPackagesTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newReadEventPackagesTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newWriteEventPackagesTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newListActorStatesTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newReadActorStatesTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newWriteActorStatesTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newListImagePresetsTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newReadImagePresetsTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newWriteImagePresetsTool(denovaDir) }},
+		{build: func() (tool.BaseTool, error) { return newListAutomationsTool(denovaDir, workspace, automationWorkspaces) }},
+		{build: func() (tool.BaseTool, error) { return newReadAutomationsTool(denovaDir, workspace, automationWorkspaces) }},
 		{build: func() (tool.BaseTool, error) {
-			return newWriteAutomationsTool(novaDir, workspace, automationWorkspaces)
+			return newWriteAutomationsTool(denovaDir, workspace, automationWorkspaces)
 		}},
 		{build: func() (tool.BaseTool, error) { return newListSkillsTool(cfg) }},
 		{build: func() (tool.BaseTool, error) { return newReadSkillsTool(cfg) }},
@@ -179,14 +179,14 @@ func newConfigManagerTools(cfg *config.Config, settings config.ResolvedAgentTool
 	return tools, nil
 }
 
-func newListImagePresetsTool(novaDir string) (tool.BaseTool, error) {
+func newListImagePresetsTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("list_image_presets", "列出图像方案索引，返回 ID、名称、简介、类型和注入规则概览；图像方案是共享模块，可用于写作模式和游戏模式；需要完整 slots 内容时再调用 read_image_presets。", func(ctx context.Context, input struct{}) (string, error) {
 		_ = ctx
 		_ = input
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取图像方案")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取图像方案")
 		}
-		presets, err := imagepreset.NewLibrary(novaDir).List()
+		presets, err := imagepreset.NewLibrary(denovaDir).List()
 		if err != nil {
 			return "", err
 		}
@@ -215,13 +215,13 @@ func newListImagePresetsTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newReadImagePresetsTool(novaDir string) (tool.BaseTool, error) {
+func newReadImagePresetsTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("read_image_presets", "按图像方案 ID 批量读取完整图像方案配置。图像方案是共享模块，使用 slots：agent_system 注入图像提示构造 Agent 的 system prompt，tool_request 原样前置注入最终图像请求 prompt。", func(ctx context.Context, input idListInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取图像方案")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取图像方案")
 		}
-		lib := imagepreset.NewLibrary(novaDir)
+		lib := imagepreset.NewLibrary(denovaDir)
 		result := []imagepreset.Preset{}
 		for _, id := range input.IDs {
 			id = strings.TrimSpace(id)
@@ -238,13 +238,13 @@ func newReadImagePresetsTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newWriteImagePresetsTool(novaDir string) (tool.BaseTool, error) {
+func newWriteImagePresetsTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("write_image_presets", "批量创建、更新或删除图像方案配置。图像方案是共享模块，不存在每个方案可配置的模式字段。create/update 必须写完整 slots；target 仅支持 agent_system 和 tool_request。旧 prompt 字段只作为兼容输入，会被后端转换为 tool_request slot。删除内置图像方案会被后端拒绝；删除必须来自用户明确指令。", func(ctx context.Context, input imagePresetWriteInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法写入图像方案")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法写入图像方案")
 		}
-		lib := imagepreset.NewLibrary(novaDir)
+		lib := imagepreset.NewLibrary(denovaDir)
 		result := map[string][]string{"created": []string{}, "updated": []string{}, "deleted": []string{}}
 		for _, op := range input.Operations {
 			switch strings.TrimSpace(op.Op) {
@@ -275,14 +275,14 @@ func newWriteImagePresetsTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newListStyleReferencesTool(novaDir string) (tool.BaseTool, error) {
-	return utils.InferTool("list_style_references", "列出共享文风参考索引。文风参考统一位于 .denova/styles/，返回 name、description、path；叙事风格的 style_rules 只能引用这些 path，不应内联长文风内容。", func(ctx context.Context, input struct{}) (string, error) {
+func newListStyleReferencesTool(denovaDir string) (tool.BaseTool, error) {
+	return utils.InferTool("list_style_references", "列出共享文风参考索引。文风参考统一位于 .casemagica/styles/，返回 name、description、path；叙事风格的 style_rules 只能引用这些 path，不应内联长文风内容。", func(ctx context.Context, input struct{}) (string, error) {
 		_ = ctx
 		_ = input
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取文风参考")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取文风参考")
 		}
-		refs, err := styleref.NewLibrary(novaDir).List()
+		refs, err := styleref.NewLibrary(denovaDir).List()
 		if err != nil {
 			return "", err
 		}
@@ -302,13 +302,13 @@ func newListStyleReferencesTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newWriteStyleReferencesTool(novaDir string) (tool.BaseTool, error) {
-	return utils.InferTool("write_style_references", "批量创建、更新或删除共享文风参考 Markdown。用于把用户源文件提炼为 .denova/styles/*.md；content 必须是最终可复用的 md 文风参考，以提炼出的典型参考段落为主，辅以风格总结，不要写现实作者名、作品名、来源说明或大段原文。", func(ctx context.Context, input styleReferenceWriteInput) (string, error) {
+func newWriteStyleReferencesTool(denovaDir string) (tool.BaseTool, error) {
+	return utils.InferTool("write_style_references", "批量创建、更新或删除共享文风参考 Markdown。用于把用户源文件提炼为 .casemagica/styles/*.md；content 必须是最终可复用的 md 文风参考，以提炼出的典型参考段落为主，辅以风格总结，不要写现实作者名、作品名、来源说明或大段原文。", func(ctx context.Context, input styleReferenceWriteInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法写入文风参考")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法写入文风参考")
 		}
-		lib := styleref.NewLibrary(novaDir)
+		lib := styleref.NewLibrary(denovaDir)
 		result := map[string][]string{"created": []string{}, "updated": []string{}, "deleted": []string{}}
 		for _, op := range input.Operations {
 			switch strings.TrimSpace(op.Op) {
@@ -345,14 +345,14 @@ func newWriteStyleReferencesTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newListTellersTool(novaDir string) (tool.BaseTool, error) {
+func newListTellersTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("list_tellers", "列出叙事风格索引，返回 ID、名称、简介和槽位概览；叙事风格是共享模块，可用于写作模式和游戏模式；需要完整配置时再调用 read_tellers。叙事风格只负责文风、提示词槽位、场景风格和上下文策略；场景风格应引用 list_style_references 返回的共享 path。", func(ctx context.Context, input struct{}) (string, error) {
 		_ = ctx
 		_ = input
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取叙事风格")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取叙事风格")
 		}
-		tellers, err := interactive.NewTellerLibrary(novaDir).List()
+		tellers, err := interactive.NewTellerLibrary(denovaDir).List()
 		if err != nil {
 			return "", err
 		}
@@ -372,13 +372,13 @@ func newListTellersTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newReadTellersTool(novaDir string) (tool.BaseTool, error) {
-	return utils.InferTool("read_tellers", "按叙事风格 ID 批量读取完整配置。顶层 style_refs 是所有场景默认生效的文风参考；style_rules 使用 scene + style_refs 引用 .denova/styles/*.md 表示分场景文风参考。旧 style_contents 只为兼容已发布配置保留，新配置不要继续内联长文风内容。事件、TRPG 检定、状态系统和图像方案属于故事导演；Actor 词条属于状态系统 trait_pools，并通过模板 trait_rules 绑定。", func(ctx context.Context, input idListInput) (string, error) {
+func newReadTellersTool(denovaDir string) (tool.BaseTool, error) {
+	return utils.InferTool("read_tellers", "按叙事风格 ID 批量读取完整配置。顶层 style_refs 是所有场景默认生效的文风参考；style_rules 使用 scene + style_refs 引用 .casemagica/styles/*.md 表示分场景文风参考。旧 style_contents 只为兼容已发布配置保留，新配置不要继续内联长文风内容。事件、TRPG 检定、状态系统和图像方案属于故事导演；Actor 词条属于状态系统 trait_pools，并通过模板 trait_rules 绑定。", func(ctx context.Context, input idListInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取叙事风格")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取叙事风格")
 		}
-		lib := interactive.NewTellerLibrary(novaDir)
+		lib := interactive.NewTellerLibrary(denovaDir)
 		result := []interactive.Teller{}
 		for _, id := range input.IDs {
 			id = strings.TrimSpace(id)
@@ -395,13 +395,13 @@ func newReadTellersTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newWriteTellersTool(novaDir string) (tool.BaseTool, error) {
-	return utils.InferTool("write_tellers", "批量创建、更新或删除叙事风格配置。叙事风格是共享模块，不存在每个风格可配置的模式字段；只维护文风、提示词槽位、文风参考和上下文策略。顶层 style_refs 表示所有场景默认生效的文风参考；style_rules 表示分场景文风参考，必须优先使用 style_refs 引用 .denova/styles/*.md。如需新增文风参考，先用 write_style_references 创建 md，再把 path 写入顶层 style_refs 或对应 style_rules[].style_refs。故事编排请使用 write_story_directors。更新内置 ID 会在用户空间覆盖同一个叙事风格；删除内置 ID 只用于恢复内置默认内容，必须来自用户明确指令。", func(ctx context.Context, input tellerWriteInput) (string, error) {
+func newWriteTellersTool(denovaDir string) (tool.BaseTool, error) {
+	return utils.InferTool("write_tellers", "批量创建、更新或删除叙事风格配置。叙事风格是共享模块，不存在每个风格可配置的模式字段；只维护文风、提示词槽位、文风参考和上下文策略。顶层 style_refs 表示所有场景默认生效的文风参考；style_rules 表示分场景文风参考，必须优先使用 style_refs 引用 .casemagica/styles/*.md。如需新增文风参考，先用 write_style_references 创建 md，再把 path 写入顶层 style_refs 或对应 style_rules[].style_refs。故事编排请使用 write_story_directors。更新内置 ID 会在用户空间覆盖同一个叙事风格；删除内置 ID 只用于恢复内置默认内容，必须来自用户明确指令。", func(ctx context.Context, input tellerWriteInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法写入叙事风格")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法写入叙事风格")
 		}
-		lib := interactive.NewTellerLibrary(novaDir)
+		lib := interactive.NewTellerLibrary(denovaDir)
 		result := map[string][]string{"created": []string{}, "updated": []string{}, "deleted": []string{}}
 		for _, op := range input.Operations {
 			switch strings.TrimSpace(op.Op) {
@@ -432,14 +432,14 @@ func newWriteTellersTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newListEventPackagesTool(novaDir string) (tool.BaseTool, error) {
+func newListEventPackagesTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("list_event_packages", "列出事件包索引，返回 ID、名称、简介、类型和事件卡数量；事件包是游戏模式独占模块，一个事件包就是一组事件卡。需要完整事件卡内容时再调用 read_event_packages。", func(ctx context.Context, input struct{}) (string, error) {
 		_ = ctx
 		_ = input
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取事件包")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取事件包")
 		}
-		items, err := interactive.NewEventPackageLibrary(novaDir).List()
+		items, err := interactive.NewEventPackageLibrary(denovaDir).List()
 		if err != nil {
 			return "", err
 		}
@@ -459,13 +459,13 @@ func newListEventPackagesTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newReadEventPackagesTool(novaDir string) (tool.BaseTool, error) {
+func newReadEventPackagesTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("read_event_packages", "按事件包 ID 批量读取完整配置。事件包直接包含 events 事件卡列表。", func(ctx context.Context, input idListInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取事件包")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取事件包")
 		}
-		lib := interactive.NewEventPackageLibrary(novaDir)
+		lib := interactive.NewEventPackageLibrary(denovaDir)
 		result := []interactive.EventPackageModule{}
 		for _, id := range input.IDs {
 			id = strings.TrimSpace(id)
@@ -482,13 +482,13 @@ func newReadEventPackagesTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newWriteEventPackagesTool(novaDir string) (tool.BaseTool, error) {
+func newWriteEventPackagesTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("write_event_packages", "批量创建、更新或删除事件包。事件包是游戏模式独占模块，一个事件包就是一组事件卡；create/update 必须写完整 events。删除内置事件包会恢复内置版本；删除自定义事件包必须来自用户明确指令。", func(ctx context.Context, input eventPackageWriteInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法写入事件包")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法写入事件包")
 		}
-		lib := interactive.NewEventPackageLibrary(novaDir)
+		lib := interactive.NewEventPackageLibrary(denovaDir)
 		result := map[string][]string{"created": []string{}, "updated": []string{}, "deleted": []string{}}
 		for _, op := range input.Operations {
 			switch strings.TrimSpace(op.Op) {
@@ -519,14 +519,14 @@ func newWriteEventPackagesTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newListActorStatesTool(novaDir string) (tool.BaseTool, error) {
+func newListActorStatesTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("list_actor_states", "列出状态系统索引，返回 ID、名称、简介、类型、模板数量、初始 Actor 数量和词条池数量；状态系统是游戏模式结构化 Actor 状态和词条库的唯一真源。模板可表示主角、重要角色、敌人、怪物、世界、故事倒计时、势力、基地或副本等 Actor。需要完整字段 schema、trait_rules 或词条定义时再调用 read_actor_states。", func(ctx context.Context, input struct{}) (string, error) {
 		_ = ctx
 		_ = input
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取状态系统")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取状态系统")
 		}
-		items, err := interactive.NewActorStateLibrary(novaDir).List()
+		items, err := interactive.NewActorStateLibrary(denovaDir).List()
 		if err != nil {
 			return "", err
 		}
@@ -546,13 +546,13 @@ func newListActorStatesTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newReadActorStatesTool(novaDir string) (tool.BaseTool, error) {
+func newReadActorStatesTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("read_actor_states", "按状态系统 ID 批量读取完整配置。字段 schema 支持 name/type/default/min/max/options/visibility/description/update_instruction/order；规范化后的 name 同时是状态 ID，同一模板内不可重名。trait_pools 定义可复用词条，模板 trait_rules 声明创建 Actor 时的自动抽取规则；initial_actors 定义初始 Actor。故事先冻结原始预设，首轮正文落盘后默认由初始化 Director 生成一次故事专属差异并迁移；state_schema_adaptation_mode=off 时始终使用原始预设。后续所有字段引用使用 actor_id + field_id。", func(ctx context.Context, input idListInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取状态系统")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取状态系统")
 		}
-		lib := interactive.NewActorStateLibrary(novaDir)
+		lib := interactive.NewActorStateLibrary(denovaDir)
 		result := []interactive.ActorStateModule{}
 		for _, id := range input.IDs {
 			id = strings.TrimSpace(id)
@@ -569,13 +569,13 @@ func newReadActorStatesTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newWriteActorStatesTool(novaDir string) (tool.BaseTool, error) {
+func newWriteActorStatesTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("write_actor_states", "批量创建、更新或删除状态系统。create/update 必须写完整 actor_state.templates、actor_state.trait_pools 和 initial_actors。模板是 Actor 状态 schema；templates[].trait_rules 只能引用存在的 pool_id，draw_count 必须为正且不超过池内词条数。词条只写 id、name、summary、weight、visibility，禁止写 ops、路径或 StateOp。主角、重要角色、敌人和怪物均在 Actor 创建时由后端应用模板默认值、实例覆盖值并自动抽取词条快照；initial_actors 仅声明开局就存在的 Actor。当前时间、地点、事件、资源、关系数值、持续状态、规则标记，以及会影响后续承接或规则检定的结构化状态都放进状态系统；普通叙事记录和场景流水只保留在 Turn 历史。字段 path 不要带 actors.<actor_id>.state 前缀，只写模板内字段路径，例如 crisis.countdown。删除内置状态系统会恢复内置版本；删除自定义状态系统必须来自用户明确指令。", func(ctx context.Context, input actorStateWriteInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法写入状态系统")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法写入状态系统")
 		}
-		lib := interactive.NewActorStateLibrary(novaDir)
+		lib := interactive.NewActorStateLibrary(denovaDir)
 		result := map[string][]string{"created": []string{}, "updated": []string{}, "deleted": []string{}}
 		for _, op := range input.Operations {
 			switch strings.TrimSpace(op.Op) {
@@ -606,14 +606,14 @@ func newWriteActorStatesTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newListStoryDirectorsTool(novaDir string) (tool.BaseTool, error) {
+func newListStoryDirectorsTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("list_story_directors", "列出故事导演索引，返回 ID、名称、简介、策略、模块引用开关和系统配置概览；策略会用中文名称展示，完整枚举 ID 见 read/write 工具说明。故事导演是游戏模式独占模块；需要完整配置时再调用 read_story_directors。故事导演可插拔组合叙事风格、多个事件包、TRPG 检定、状态系统和图像方案；Actor 词条库属于状态系统。", func(ctx context.Context, input struct{}) (string, error) {
 		_ = ctx
 		_ = input
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取故事导演")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取故事导演")
 		}
-		directors, err := interactive.NewStoryDirectorLibrary(novaDir).List()
+		directors, err := interactive.NewStoryDirectorLibrary(denovaDir).List()
 		if err != nil {
 			return "", err
 		}
@@ -658,13 +658,13 @@ func newListStoryDirectorsTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newReadStoryDirectorsTool(novaDir string) (tool.BaseTool, error) {
+func newReadStoryDirectorsTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("read_story_directors", "按故事导演 ID 批量读取完整配置。故事导演是游戏模式独占模块；module_refs 决定引用哪些模块，event_package_ids 可引用多个事件包，rule_system_id 引用一个 TRPG 检定资源，actor_state_id 引用状态系统，*_disabled=true 表示对应模块关闭且保留原 ID 以便重新启用。状态系统的 trait_pools 是通用词条库，模板 trait_rules 决定各类 Actor 创建时从哪些池抽取多少词条。TRPG 资源只配置一项 rule_templates[0]，检定固定 d20，支持 trigger、must_check_examples、skip_check_examples、difficulty_guidance、state_effect_guidance 和 state_bindings；带 state_bindings 的 TRPG 资源需要 actor_state_id。strategy 使用枚举：mainline_strength=soft_guidance/balanced/strong_arc，failure_policy=reversible/consequence/fail_forward，pacing_curve=progressive/wave/goal-pressure-payoff，event_frequency=off/sparse/balanced/frequent，state_schema_adaptation_mode=after_opening/off，rule_state_consumption_mode=hybrid_auto/director_only，rule_visibility_mode=audit_only/public_roll；branch_planning_turns 控制最近分支规划回合数；planning_templates.plan 是单份 director.md Markdown 模板；strategy.prompt_markdown 是纯 Markdown 高级策略提示，最多 64KB。", func(ctx context.Context, input idListInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法读取故事导演")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法读取故事导演")
 		}
-		lib := interactive.NewStoryDirectorLibrary(novaDir)
+		lib := interactive.NewStoryDirectorLibrary(denovaDir)
 		result := []interactive.StoryDirector{}
 		for _, id := range input.IDs {
 			id = strings.TrimSpace(id)
@@ -681,13 +681,13 @@ func newReadStoryDirectorsTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newWriteStoryDirectorsTool(novaDir string) (tool.BaseTool, error) {
+func newWriteStoryDirectorsTool(denovaDir string) (tool.BaseTool, error) {
 	return utils.InferTool("write_story_directors", "批量创建、更新或删除故事导演配置。故事导演通过 module_refs 可插拔组合叙事风格、多个事件包、TRPG 检定、状态系统和图像方案；用 narrative_style_disabled、event_packages_disabled、rule_system_disabled、actor_state_disabled、image_preset_disabled 关闭模块，关闭时保留对应 ID。Actor 词条库和模板抽取规则通过 write_actor_states 更新。事件包引用写 event_package_ids；TRPG 检定引用写 rule_system_id；带 state_bindings 的 TRPG 检定资源必须配置 actor_state_id；状态系统引用写 actor_state_id。strategy 使用枚举：mainline_strength=soft_guidance/balanced/strong_arc，failure_policy=reversible/consequence/fail_forward，pacing_curve=progressive/wave/goal-pressure-payoff，event_frequency=off/sparse/balanced/frequent，state_schema_adaptation_mode=after_opening/off 默认 after_opening，rule_state_consumption_mode=hybrid_auto/director_only 默认 hybrid_auto，rule_visibility_mode=audit_only/public_roll 默认 audit_only；branch_planning_turns 默认 5；planning_templates.plan 可写单份 director.md Markdown 模板并必须保留固定标题；strategy.prompt_markdown 可写纯 Markdown 高级策略提示，最多 64KB，不能覆盖结构化策略、工具权限和输出协议。删除内置故事导演会被后端拒绝；删除必须来自用户明确指令。", func(ctx context.Context, input storyDirectorWriteInput) (string, error) {
 		_ = ctx
-		if novaDir == "" {
-			return "", fmt.Errorf("nova_dir 不可用，无法写入故事导演")
+		if denovaDir == "" {
+			return "", fmt.Errorf("denova_dir 不可用，无法写入故事导演")
 		}
-		lib := interactive.NewStoryDirectorLibrary(novaDir)
+		lib := interactive.NewStoryDirectorLibrary(denovaDir)
 		result := map[string][]string{"created": []string{}, "updated": []string{}, "deleted": []string{}}
 		for _, op := range input.Operations {
 			switch strings.TrimSpace(op.Op) {
@@ -718,11 +718,11 @@ func newWriteStoryDirectorsTool(novaDir string) (tool.BaseTool, error) {
 	})
 }
 
-func newListAutomationsTool(novaDir, workspace string, workspaces []string) (tool.BaseTool, error) {
+func newListAutomationsTool(denovaDir, workspace string, workspaces []string) (tool.BaseTool, error) {
 	return utils.InferTool("list_automations", "列出用户的全局自动化任务索引，按显式执行目标返回 catalog_id、名称、启用状态、模板、触发器和写入策略；需要完整配置时再调用 read_automations。", func(ctx context.Context, input struct{}) (string, error) {
 		_ = ctx
 		_ = input
-		tasks, err := configManagerAutomationStore(novaDir, workspace, workspaces).List()
+		tasks, err := configManagerAutomationStore(denovaDir, workspace, workspaces).List()
 		if err != nil {
 			return "", err
 		}
@@ -738,10 +738,10 @@ func newListAutomationsTool(novaDir, workspace string, workspaces []string) (too
 	})
 }
 
-func newReadAutomationsTool(novaDir, workspace string, workspaces []string) (tool.BaseTool, error) {
+func newReadAutomationsTool(denovaDir, workspace string, workspaces []string) (tool.BaseTool, error) {
 	return utils.InferTool("read_automations", "按自动化任务 catalog_id 批量读取完整任务配置。", func(ctx context.Context, input idListInput) (string, error) {
 		_ = ctx
-		store := configManagerAutomationStore(novaDir, workspace, workspaces)
+		store := configManagerAutomationStore(denovaDir, workspace, workspaces)
 		tasks := []automation.Task{}
 		for _, id := range input.IDs {
 			task, err := store.Get(strings.TrimSpace(id))
@@ -754,10 +754,10 @@ func newReadAutomationsTool(novaDir, workspace string, workspaces []string) (too
 	})
 }
 
-func newWriteAutomationsTool(novaDir, workspace string, workspaces []string) (tool.BaseTool, error) {
+func newWriteAutomationsTool(denovaDir, workspace string, workspaces []string) (tool.BaseTool, error) {
 	return utils.InferTool("write_automations", "批量创建、更新或删除用户自动化任务；create 必须显式指定 target，update/delete 使用 catalog_id。删除必须来自用户明确指令。", func(ctx context.Context, input automationWriteInput) (string, error) {
 		_ = ctx
-		store := configManagerAutomationStore(novaDir, workspace, workspaces)
+		store := configManagerAutomationStore(denovaDir, workspace, workspaces)
 		result := map[string][]string{"created": []string{}, "updated": []string{}, "deleted": []string{}}
 		for i, op := range input.Operations {
 			switch strings.TrimSpace(op.Op) {
@@ -791,9 +791,9 @@ func newWriteAutomationsTool(novaDir, workspace string, workspaces []string) (to
 	})
 }
 
-func configManagerAutomationStore(novaDir, workspace string, workspaces []string) *automation.Store {
+func configManagerAutomationStore(denovaDir, workspace string, workspaces []string) *automation.Store {
 	all := append([]string{workspace}, workspaces...)
-	return automation.NewStore(novaDir, workspace).WithWorkspaces(all...)
+	return automation.NewStore(denovaDir, workspace).WithWorkspaces(all...)
 }
 
 func newListSkillsTool(cfg *config.Config) (tool.BaseTool, error) {

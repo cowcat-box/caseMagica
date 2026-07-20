@@ -198,8 +198,8 @@ func TestBuildStateSchemaMigrationRejectsLossyFallbackOverExistingValue(t *testi
 
 func TestApplyStateSchemaProposalMigratesOpeningStateAndKeepsAudit(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := filepath.Join(workspace, ".denova")
-	store := NewStoreWithNovaDir(workspace, novaDir)
+	denovaDir := filepath.Join(workspace, ".casemagica")
+	store := NewStoreWithCaseMagicaDir(workspace, denovaDir)
 	base := StoryDirectorActorStateSystem{
 		Templates: []ActorStateTemplate{{
 			ID: "protagonist", Name: "主角", Fields: []ActorStateField{
@@ -311,7 +311,7 @@ func TestApplyStateSchemaProposalMigratesOpeningStateAndKeepsAudit(t *testing.T)
 		}
 		seenSets[key] = true
 	}
-	backups, err := filepath.Glob(filepath.Join(novaDir, "backups", "state-schema-adaptation", "*", "story-"+story.ID+".jsonl"))
+	backups, err := filepath.Glob(filepath.Join(denovaDir, "backups", "state-schema-adaptation", "*", "story-"+story.ID+".jsonl"))
 	if err != nil || len(backups) != 1 {
 		t.Fatalf("expected one pre-migration backup: paths=%#v err=%v", backups, err)
 	}
@@ -332,7 +332,7 @@ func TestApplyStateSchemaProposalMigratesOpeningStateAndKeepsAudit(t *testing.T)
 
 func TestStateSchemaInitializationFailureAndSkipKeepRevisionOne(t *testing.T) {
 	workspace := t.TempDir()
-	store := NewStoreWithNovaDir(workspace, filepath.Join(workspace, ".denova"))
+	store := NewStoreWithCaseMagicaDir(workspace, filepath.Join(workspace, ".casemagica"))
 	base := StoryDirectorActorStateSystem{
 		Templates:     []ActorStateTemplate{{ID: "npc", Name: "NPC", Fields: []ActorStateField{{Name: "态度", Type: "string", Default: "中立"}}}},
 		InitialActors: []ActorStateInitialActor{{ID: "guide", Name: "向导", TemplateID: "npc"}},
@@ -378,7 +378,7 @@ func TestStateSchemaInitializationFailureAndSkipKeepRevisionOne(t *testing.T) {
 
 func TestFailedStateSchemaInitializationRequiresExplicitResetBeforeRetry(t *testing.T) {
 	workspace := t.TempDir()
-	store := NewStoreWithNovaDir(workspace, filepath.Join(workspace, ".denova"))
+	store := NewStoreWithCaseMagicaDir(workspace, filepath.Join(workspace, ".casemagica"))
 	story, err := store.CreateStory(CreateStoryRequest{
 		Title: "显式重试", StateSchemaInitialization: &StateSchemaInitializationStatus{
 			Mode: StateSchemaAdaptationModeAfterOpening, Status: StateSchemaInitializationWaitingOpening, BaseRevision: 1,
@@ -410,8 +410,8 @@ func TestFailedStateSchemaInitializationRequiresExplicitResetBeforeRetry(t *test
 
 func TestApplyUnchangedStateSchemaProposalKeepsRevisionAndStoresReview(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := filepath.Join(workspace, ".denova")
-	store := NewStoreWithNovaDir(workspace, novaDir)
+	denovaDir := filepath.Join(workspace, ".casemagica")
+	store := NewStoreWithCaseMagicaDir(workspace, denovaDir)
 	minValue, maxValue := 0.0, 100.0
 	base := StoryDirectorActorStateSystem{
 		Templates:     []ActorStateTemplate{{ID: "protagonist", Name: "主角", Fields: []ActorStateField{{Name: "生命", Type: "number", Default: 100, Min: &minValue, Max: &maxValue}}}},
@@ -452,7 +452,7 @@ func TestApplyUnchangedStateSchemaProposalKeepsRevisionAndStoresReview(t *testin
 	if snapshot.ActorStateSchema == nil || snapshot.ActorStateSchema.Revision != 1 || snapshot.ActorStateSchema.Adaptation == nil || len(snapshot.ActorStateSchema.Adaptation.Requirements) != 1 {
 		t.Fatalf("unchanged review must preserve schema revision and audit coverage: %#v", snapshot.ActorStateSchema)
 	}
-	backups, err := filepath.Glob(filepath.Join(novaDir, "backups", "state-schema-adaptation", "*", "story-"+story.ID+".jsonl"))
+	backups, err := filepath.Glob(filepath.Join(denovaDir, "backups", "state-schema-adaptation", "*", "story-"+story.ID+".jsonl"))
 	if err != nil || len(backups) != 0 {
 		t.Fatalf("unchanged review must not create a migration backup: paths=%#v err=%v", backups, err)
 	}

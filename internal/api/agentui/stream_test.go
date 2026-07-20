@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"denova/internal/agent"
+	"casemagica/internal/agent"
 )
 
 func TestStreamEncoderMapsAgentEventsToUIStream(t *testing.T) {

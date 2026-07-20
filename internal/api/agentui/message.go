@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/session"
+	"casemagica/internal/session"
 )
 
 const (

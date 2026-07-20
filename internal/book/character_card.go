@@ -69,7 +69,7 @@ type CharacterCardPreview struct {
 	UncertainTypeCount    int                              `json:"uncertain_type_count"`
 }
 
-// CharacterCardCompatibilityReport reports Denova capabilities rather than
+// CharacterCardCompatibilityReport reports CaseMagica capabilities rather than
 // exposing Tavern's runtime field vocabulary to users.
 type CharacterCardCompatibilityReport struct {
 	Capabilities        []string `json:"capabilities"`

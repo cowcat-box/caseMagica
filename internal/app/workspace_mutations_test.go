@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/workspacechange"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/workspacechange"
 )
 
 func TestWorkspaceTreeMutationWaitsForSharedExclusiveLease(t *testing.T) {

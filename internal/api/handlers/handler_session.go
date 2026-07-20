@@ -9,9 +9,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/internal/api/agentui"
-	"denova/internal/restart"
-	"denova/internal/session"
+	"casemagica/internal/api/agentui"
+	"casemagica/internal/restart"
+	"casemagica/internal/session"
 )
 
 // sessionDTO 会话摘要 DTO。

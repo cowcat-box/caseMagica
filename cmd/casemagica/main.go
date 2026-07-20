@@ -65,7 +65,7 @@ func main() {
 	if workspace != "" {
 		cfg.Workspace = workspace
 		cfg.ResumeLastWorkspace = false
-	} else if workspaceEnv := envCompat("CASEMAGICA_WORKSPACE", "DENOVA_WORKSPACE"); workspaceEnv != "" {
+	} else if workspaceEnv := envCompat("CASEMAGICA_WORKSPACE", "CASEMAGICA_WORKSPACE"); workspaceEnv != "" {
 		cfg.Workspace = workspaceEnv
 		cfg.ResumeLastWorkspace = false
 	}
@@ -204,7 +204,7 @@ func shouldAutoPickPort(devStartup bool) bool {
 	if devStartup {
 		return false
 	}
-	if envCompat("CASEMAGICA_BACKEND_PORT", "DENOVA_BACKEND_PORT") != "" {
+	if envCompat("CASEMAGICA_BACKEND_PORT", "CASEMAGICA_BACKEND_PORT") != "" {
 		return false
 	}
 	explicit := false
@@ -310,7 +310,7 @@ func resolveSkillsDir(configured string) string {
 	if dir := existingDir(configured); dir != "" {
 		return dir
 	}
-	if configured != "" && envCompat("CASEMAGICA_SKILLS_DIR", "DENOVA_SKILLS_DIR") != "" {
+	if configured != "" && envCompat("CASEMAGICA_SKILLS_DIR", "CASEMAGICA_SKILLS_DIR") != "" {
 		return configured
 	}
 	candidates := []string{

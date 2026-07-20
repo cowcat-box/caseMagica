@@ -128,7 +128,7 @@ export function BookFormDialog({
   const dialogTitle = mode === 'create' && !createdPath ? t('home.createBook') : t('home.editInfo')
   const dialogDescription = activePath
     ? activePath
-    : `${t('home.createIn')} ${denovaDir || t('home.denovaDirLoading')}`
+    : `${t('home.createIn')} ${denovaDir || t('home.casemagicaDirLoading')}`
 
   const closeDialog = (nextOpen: boolean) => {
     if (!nextOpen && busy) return
@@ -138,7 +138,7 @@ export function BookFormDialog({
   const handleSubmit = async () => {
     const validTitle = title.trim()
     if (!validTitle) { setFormError(t('home.titleRequired')); return }
-    if (mode === 'create' && !createdPath && !denovaDir.trim()) { setFormError(t('home.waitDenovaDir')); return }
+    if (mode === 'create' && !createdPath && !denovaDir.trim()) { setFormError(t('home.waitCaseMagicaDir')); return }
     setSaving(true)
     setFormError('')
     try {
@@ -211,7 +211,7 @@ export function BookFormDialog({
 
   const createWorkspace = async () => {
     if (!title.trim()) throw new Error(t('home.titleRequired'))
-    if (!denovaDir.trim()) throw new Error(t('home.waitDenovaDir'))
+    if (!denovaDir.trim()) throw new Error(t('home.waitCaseMagicaDir'))
     const data = await createBook(title.trim(), author.trim() || undefined, description.trim() || undefined)
     setCreatedPath(data.workspace)
     onSwitch(data.workspace)
@@ -268,7 +268,7 @@ export function BookFormDialog({
                   <div className="flex min-w-0 items-center gap-2 rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2.5 py-1.5 text-xs text-[var(--nova-text-faint)]">
                     <Folder className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-muted)]" />
                     <span className="shrink-0">{t('home.createIn')}</span>
-                    <span className="truncate text-[var(--nova-text-muted)]">{denovaDir || t('home.denovaDirLoading')}</span>
+                    <span className="truncate text-[var(--nova-text-muted)]">{denovaDir || t('home.casemagicaDirLoading')}</span>
                   </div>
                 )}
                 <Textarea

@@ -10,11 +10,11 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/automation"
-	"denova/internal/book"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/automation"
+	"casemagica/internal/book"
+	"casemagica/internal/session"
 )
 
 // AutomationAppService is a thin facade over the live App. It never stores a
@@ -558,14 +558,14 @@ func (s *AutomationAppService) runDueWithSnapshot(ctx context.Context, snap *aut
 func (s *AutomationAppService) storeAllWorkspaces() *automation.Store {
 	a := s.app
 	a.mu.RLock()
-	novaDir := ""
+	denovaDir := ""
 	if a.cfg != nil {
-		novaDir = a.cfg.DataDir()
+		denovaDir = a.cfg.DataDir()
 	}
 	workspace := a.workspace
 	registry := a.bookRegistry
 	a.mu.RUnlock()
-	store := automation.NewStore(novaDir, workspace)
+	store := automation.NewStore(denovaDir, workspace)
 	if registry == nil {
 		return store
 	}
@@ -585,7 +585,7 @@ func storeForSnapshot(snap *automationWorkspaceSnapshot) *automation.Store {
 	if snap == nil {
 		return automation.NewStore("", "")
 	}
-	return automation.NewStore(snap.novaDir, snap.workspace)
+	return automation.NewStore(snap.denovaDir, snap.workspace)
 }
 
 func (s *AutomationAppService) newRunRecord(snap *automationWorkspaceSnapshot, task automation.Task, trigger string) automation.RunRecord {

@@ -3,7 +3,7 @@ package agent
 import (
 	"testing"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 func TestLoreToolsFactoryOmitsDisabledLoreSchemas(t *testing.T) {

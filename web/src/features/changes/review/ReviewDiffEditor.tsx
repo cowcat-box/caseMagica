@@ -540,7 +540,7 @@ function reviewModelPath(threadID: string, file: ReviewThreadFile, side: 'before
     : side === 'after'
       ? file.revision
       : `${file.base_revision}:${file.revision}`
-  return `denova-review://thread/${encodeURIComponent(threadID)}/${encodeURIComponent(file.path)}?side=${side}&revision=${encodeURIComponent(revision)}`
+  return `casemagica-review://thread/${encodeURIComponent(threadID)}/${encodeURIComponent(file.path)}?side=${side}&revision=${encodeURIComponent(revision)}`
 }
 
 function ReviewEditorLoading({ label }: { label: string }) {

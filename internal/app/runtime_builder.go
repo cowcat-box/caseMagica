@@ -8,12 +8,12 @@ import (
 
 	"github.com/cloudwego/eino/adk"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/prompts"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/prompts"
+	"casemagica/internal/session"
 )
 
 type runtimeState struct {
@@ -66,7 +66,7 @@ func buildRuntime(ctx context.Context, cfg *config.Config, workspace string) (*r
 	if err != nil {
 		return nil, err
 	}
-	interactiveStore := interactive.NewStoreWithNovaDir(absWorkspace, runtimeCfg.DataDir())
+	interactiveStore := interactive.NewStoreWithCaseMagicaDir(absWorkspace, runtimeCfg.DataDir())
 
 	return &runtimeState{
 		workspace:              absWorkspace,

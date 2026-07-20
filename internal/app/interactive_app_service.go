@@ -7,11 +7,11 @@ import (
 	"log"
 	"strings"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/imagepreset"
-	"denova/internal/interactive"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/imagepreset"
+	"casemagica/internal/interactive"
 )
 
 // InteractiveAppService 负责互动故事、剧情分支、导演和互动 Agent 任务。
@@ -401,10 +401,10 @@ func (s *InteractiveAppService) RunInteractiveDirectorPlan(storyID string, req i
 	runtimeCfg := *a.cfg
 	workspace := a.workspace
 	runtimeCfg.Workspace = workspace
-	novaDir := runtimeCfg.DataDir()
+	denovaDir := runtimeCfg.DataDir()
 	a.mu.RUnlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[interactive-director-agent] load settings for manual run failed workspace=%s err=%v", workspace, err)
@@ -417,7 +417,7 @@ func (s *InteractiveAppService) RunInteractiveDirectorPlan(storyID string, req i
 		return interactive.DirectorPlanStatus{}, fmt.Errorf("开局尚未完成，无法运行导演规划")
 	}
 	turn := *storyCtx.Snapshot.CurrentTurn
-	director := loadStoryDirectorForMeta(novaDir, storyCtx.Meta)
+	director := loadStoryDirectorForMeta(denovaDir, storyCtx.Meta)
 	decision := shouldRunInteractiveDirectorAgent(director.Strategy)
 	if !decision.ShouldRun {
 		if err := store.MarkDirectorPlanRunSkipped(storyID, storyCtx.Snapshot.BranchID, turn.ID, decision.Reason); err != nil {
@@ -433,7 +433,7 @@ func (s *InteractiveAppService) RunInteractiveDirectorPlan(storyID string, req i
 		return interactive.DirectorPlanStatus{}, fmt.Errorf("标记导演规划运行状态失败: %w", err)
 	}
 	log.Printf("[interactive-director-agent] manual run scheduled story_id=%s branch_id=%s turn_id=%s source=%s", storyID, storyCtx.Snapshot.BranchID, turn.ID, firstNonEmptyApp(req.Source, "manual_retry"))
-	conversation := newInteractiveConversation(store, novaDir, workspace, storyID, storyCtx.Snapshot.BranchID, turn.User, storyCtx.Meta.ReplyTargetChars, &runtimeCfg).bindDirectorRuntime(a.directorTasksForWorkspace(workspace), a.interactiveDirectorGenerator())
+	conversation := newInteractiveConversation(store, denovaDir, workspace, storyID, storyCtx.Snapshot.BranchID, turn.User, storyCtx.Meta.ReplyTargetChars, &runtimeCfg).bindDirectorRuntime(a.directorTasksForWorkspace(workspace), a.interactiveDirectorGenerator())
 	startInteractiveDirectorTask(&runtimeCfg, state, conversation, turn, sessionStore, token)
 	return store.DirectorPlanStatus(storyID, storyCtx.Snapshot.BranchID)
 }
@@ -573,10 +573,10 @@ func (s *InteractiveAppService) AnalyzeInteractiveContext(storyID, branchID, mes
 	runtimeCfg := *a.cfg
 	workspace := a.workspace
 	runtimeCfg.Workspace = workspace
-	novaDir := runtimeCfg.DataDir()
+	denovaDir := runtimeCfg.DataDir()
 	a.mu.RUnlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[interactive-agent-analysis] load interactive settings failed workspace=%s err=%v", workspace, err)
@@ -587,16 +587,16 @@ func (s *InteractiveAppService) AnalyzeInteractiveContext(storyID, branchID, mes
 	if err != nil {
 		return agent.ContextAnalysis{}, err
 	}
-	teller := loadInteractiveTeller(novaDir, storyCtx.Meta.StoryTellerID)
+	teller := loadInteractiveTeller(denovaDir, storyCtx.Meta.StoryTellerID)
 	runtimeCfg.InteractiveReplyTargetChars = storyCtx.Meta.ReplyTargetChars
-	styleRules := convertTellerStyleRules(novaDir, teller.StyleRefs, teller.StyleRules, styleScenes)
+	styleRules := convertTellerStyleRules(denovaDir, teller.StyleRefs, teller.StyleRules, styleScenes)
 	req := agent.ChatRequest{
 		Message:     message,
 		StyleScenes: styleScenes,
 		StyleRules:  styleRules,
 		Locale:      locale,
 	}
-	conversation := newInteractiveConversation(store, novaDir, workspace, storyID, branchID, message, runtimeCfg.InteractiveReplyTargetChars, &runtimeCfg).bindDirectorRuntime(a.directorTasksForWorkspace(workspace), a.interactiveDirectorGenerator())
+	conversation := newInteractiveConversation(store, denovaDir, workspace, storyID, branchID, message, runtimeCfg.InteractiveReplyTargetChars, &runtimeCfg).bindDirectorRuntime(a.directorTasksForWorkspace(workspace), a.interactiveDirectorGenerator())
 	return agent.BuildInteractiveStoryContextAnalysis(&runtimeCfg, state, interactiveStoryTellerSystemInput(teller, styleRules), bookService, req, storyCtx.Snapshot.ContextCompaction, conversation.PrepareMessages)
 }
 
@@ -615,10 +615,10 @@ func (s *InteractiveAppService) AnalyzeInteractiveDirectorContext(storyID, branc
 	runtimeCfg := *a.cfg
 	workspace := a.workspace
 	runtimeCfg.Workspace = workspace
-	novaDir := runtimeCfg.DataDir()
+	denovaDir := runtimeCfg.DataDir()
 	a.mu.RUnlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[interactive-director-analysis] load interactive settings failed workspace=%s err=%v", workspace, err)
@@ -633,7 +633,7 @@ func (s *InteractiveAppService) AnalyzeInteractiveDirectorContext(storyID, branc
 	if err != nil {
 		return agent.ContextAnalysis{}, err
 	}
-	conversation := newInteractiveConversation(store, novaDir, workspace, storyID, storyCtx.Snapshot.BranchID, turn.User, storyCtx.Meta.ReplyTargetChars, &runtimeCfg).bindDirectorRuntime(a.directorTasksForWorkspace(workspace), a.interactiveDirectorGenerator())
+	conversation := newInteractiveConversation(store, denovaDir, workspace, storyID, storyCtx.Snapshot.BranchID, turn.User, storyCtx.Meta.ReplyTargetChars, &runtimeCfg).bindDirectorRuntime(a.directorTasksForWorkspace(workspace), a.interactiveDirectorGenerator())
 	stableContext, instruction, err := conversation.buildDirectorModelInput(turn)
 	if err != nil {
 		return agent.ContextAnalysis{}, err
@@ -763,10 +763,10 @@ func (s *InteractiveAppService) startInteractiveTask(ctx context.Context, storyI
 	runtimeCfg := *a.cfg
 	workspace := a.workspace
 	runtimeCfg.Workspace = workspace
-	novaDir := runtimeCfg.DataDir()
+	denovaDir := runtimeCfg.DataDir()
 	a.mu.Unlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 		log.Printf("[interactive-agent-task] load interactive settings workspace=%s", workspace)
 	} else {
@@ -779,9 +779,9 @@ func (s *InteractiveAppService) startInteractiveTask(ctx context.Context, storyI
 		log.Printf("[interactive-agent-task] 读取互动故事上下文失败 story_id=%s branch_id=%s err=%v", storyID, branchID, err)
 		return nil
 	}
-	teller := loadInteractiveTeller(novaDir, storyCtx.Meta.StoryTellerID)
+	teller := loadInteractiveTeller(denovaDir, storyCtx.Meta.StoryTellerID)
 	runtimeCfg.InteractiveReplyTargetChars = storyCtx.Meta.ReplyTargetChars
-	styleRules := convertTellerStyleRules(novaDir, teller.StyleRefs, teller.StyleRules, styleScenes)
+	styleRules := convertTellerStyleRules(denovaDir, teller.StyleRefs, teller.StyleRules, styleScenes)
 	if len(styleRules) > 0 {
 		log.Printf("[interactive-agent-task] inject teller style rules teller_id=%s scenes=%q count=%d rules=%q", teller.ID, styleScenes, len(styleRules), appStyleRuleNames(styleRules))
 	}
@@ -789,7 +789,7 @@ func (s *InteractiveAppService) startInteractiveTask(ctx context.Context, storyI
 	tellerSystemInput := interactiveStoryTellerSystemInput(teller, styleRules)
 	tellerSystemInput.ChoiceCount = storyCtx.Meta.ChoiceCount
 	baseParentID := storyCtx.Meta.Branches[storyCtx.Snapshot.BranchID].Head
-	conversation := newInteractiveConversation(store, novaDir, workspace, storyID, branchID, message, runtimeCfg.InteractiveReplyTargetChars, &runtimeCfg).bindDirectorRuntime(a.directorTasksForWorkspace(workspace), a.interactiveDirectorGenerator()).withBaseParentID(baseParentID)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, storyID, branchID, message, runtimeCfg.InteractiveReplyTargetChars, &runtimeCfg).bindDirectorRuntime(a.directorTasksForWorkspace(workspace), a.interactiveDirectorGenerator()).withBaseParentID(baseParentID)
 	runner, err := buildInteractiveStoryRunner(ctx, &runtimeCfg, state, tellerSystemInput, agent.InteractiveStoryToolContext{
 		Store:            store,
 		StoryID:          storyID,
@@ -1324,10 +1324,10 @@ func (s *InteractiveAppService) interactiveRuntimeConfig() (*interactive.Store, 
 	runtimeCfg := *a.cfg
 	workspace := a.workspace
 	runtimeCfg.Workspace = workspace
-	novaDir := runtimeCfg.DataDir()
+	denovaDir := runtimeCfg.DataDir()
 	a.mu.RUnlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[interactive-agent] load layered settings failed workspace=%s err=%v", workspace, err)

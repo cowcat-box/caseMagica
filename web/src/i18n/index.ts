@@ -71,7 +71,7 @@ function installLocaleFetchHeaders() {
     }
     const nextInit: RequestInit = { ...init }
     const headers = new Headers(init?.headers)
-    if (!headers.has('X-CaseMagica-Locale') && !headers.has('X-Denova-Locale')) {
+    if (!headers.has('X-CaseMagica-Locale') && !headers.has('X-CaseMagica-Locale')) {
       headers.set('X-CaseMagica-Locale', localeRequestHeader())
     }
     nextInit.headers = headers

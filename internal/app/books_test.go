@@ -38,13 +38,13 @@ func TestBookRegistryTouchListAndCurrent(t *testing.T) {
 	}
 }
 
-func TestBookRegistryListScansDenovaDirBooks(t *testing.T) {
+func TestBookRegistryListScansCaseMagicaDirBooks(t *testing.T) {
 	root := t.TempDir()
 	bookA := filepath.Join(root, "zeta")
 	bookB := filepath.Join(root, "alpha")
 	missingBook := filepath.Join(root, "missing")
 	for _, dir := range []string{
-		filepath.Join(bookA, ".denova"),
+		filepath.Join(bookA, ".casemagica"),
 		filepath.Join(bookB, "chapters"),
 		filepath.Join(root, "book_meta"),
 		filepath.Join(root, "styles"),
@@ -82,7 +82,7 @@ func TestBookRegistryListScansProjectsAndLegacyRootBooks(t *testing.T) {
 	legacyBook := filepath.Join(root, "alpha")
 	projectBook := filepath.Join(root, bookProjectsDirName, "beta")
 	for _, dir := range []string{
-		filepath.Join(legacyBook, ".denova"),
+		filepath.Join(legacyBook, ".casemagica"),
 		filepath.Join(projectBook, ".casemagica"),
 		filepath.Join(root, bookProjectsDirName, "notes"),
 	} {
@@ -101,7 +101,7 @@ func TestBookRegistryListScansProjectsAndLegacyRootBooks(t *testing.T) {
 	}
 }
 
-func TestBookCreationParentDirUsesProjectsForDenovaDir(t *testing.T) {
+func TestBookCreationParentDirUsesProjectsForCaseMagicaDir(t *testing.T) {
 	root := t.TempDir()
 	parent, err := bookCreationParentDir(root, root)
 	if err != nil {
@@ -124,7 +124,7 @@ func TestBookCreationParentDirUsesProjectsForDenovaDir(t *testing.T) {
 func TestBooksIncludesCoverUpdatedAt(t *testing.T) {
 	root := t.TempDir()
 	bookDir := filepath.Join(root, "alpha")
-	if err := os.MkdirAll(filepath.Join(bookDir, ".denova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(bookDir, ".casemagica"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(bookDir, "assets", "image"), 0o755); err != nil {
@@ -183,8 +183,8 @@ func TestBookRegistryRemoveHidesScannedNovaBook(t *testing.T) {
 	bookA := filepath.Join(root, "book-a")
 	bookB := filepath.Join(root, "book-b")
 	for _, dir := range []string{
-		filepath.Join(bookA, ".denova"),
-		filepath.Join(bookB, ".denova"),
+		filepath.Join(bookA, ".casemagica"),
+		filepath.Join(bookB, ".casemagica"),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
@@ -210,8 +210,8 @@ func TestBookRegistryReorderScannedNovaBooks(t *testing.T) {
 	bookA := filepath.Join(root, "alpha")
 	bookB := filepath.Join(root, "zeta")
 	for _, dir := range []string{
-		filepath.Join(bookA, ".denova"),
-		filepath.Join(bookB, ".denova"),
+		filepath.Join(bookA, ".casemagica"),
+		filepath.Join(bookB, ".casemagica"),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
@@ -308,7 +308,7 @@ func TestBookRegistryLegacyOrderInfersManualSortMode(t *testing.T) {
 	}
 }
 
-func TestNewBookRegistryUsesDenovaDir(t *testing.T) {
+func TestNewBookRegistryUsesCaseMagicaDir(t *testing.T) {
 	denovaDir := t.TempDir()
 	registry := NewBookRegistry(denovaDir)
 	want := filepath.Join(denovaDir, "books.json")

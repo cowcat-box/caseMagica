@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/interactive"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
 )
 
 func TestInteractiveStoryLoadsAllResidentLoreAndActiveOnDemandLore(t *testing.T) {

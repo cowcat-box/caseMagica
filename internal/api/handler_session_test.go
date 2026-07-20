@@ -11,13 +11,13 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/cloudwego/hertz/pkg/common/ut"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/api/agentui"
-	runtimeapp "denova/internal/app"
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/api/agentui"
+	runtimeapp "casemagica/internal/app"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/session"
 )
 
 type testSessionDTO struct {
@@ -142,8 +142,8 @@ func TestSessionAPIReturnsSubAgentDisplayMetadata(t *testing.T) {
 		Content:           "SubAgent 调研结果",
 		RunID:             "run-1",
 		AgentName:         "researcher",
-		RootAgentName:     "DenovaAgent",
-		RunPath:           []string{"DenovaAgent", "researcher"},
+		RootAgentName:     "CaseMagicaAgent",
+		RunPath:           []string{"CaseMagicaAgent", "researcher"},
 		SubAgent:          true,
 		SubAgentSessionID: "run-1-subagent-01-researcher",
 		SubAgentType:      "researcher",
@@ -316,7 +316,7 @@ func newTestApplication(t *testing.T) *runtimeapp.App {
 	root := t.TempDir()
 	application, err := runtimeapp.New(context.Background(), &config.Config{
 		OpenAIModel:         "test-model",
-		NovaDir:             root,
+		DenovaDir:             root,
 		Workspace:           root,
 		ResumeLastWorkspace: false,
 	})

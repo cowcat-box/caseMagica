@@ -317,7 +317,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
         <>
           <Text label={t('settings.paths.skillsDir')} value={draft.skills_dir} placeholder={placeholderFor('skills_dir')}
                 onChange={(v) => setField('skills_dir', v)} />
-          <ReadOnly label={t('settings.paths.denovaDir')} value={layered?.paths?.casemagica_dir || layered?.paths?.denova_dir} />
+          <ReadOnly label={t('settings.paths.denovaDir')} value={layered?.paths?.casemagica_dir || layered?.paths?.casemagica_dir} />
           <ReadOnly label={t('settings.paths.userConfig')} value={layered?.paths?.user_config} />
         </>
       ),

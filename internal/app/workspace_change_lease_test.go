@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"denova/internal/workspacechange"
+	"casemagica/internal/workspacechange"
 )
 
 func TestWorkspaceFileSaveLeaseBlocksWorkspaceSwitchThroughHooks(t *testing.T) {

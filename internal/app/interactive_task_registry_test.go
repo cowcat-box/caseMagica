@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"denova/internal/agent"
+	"casemagica/internal/agent"
 )
 
 func TestActiveInteractiveTaskForScopesRecoveryToCurrentStoryBranchAndWorkspace(t *testing.T) {

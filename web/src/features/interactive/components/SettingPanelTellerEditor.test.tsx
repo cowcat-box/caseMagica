@@ -34,8 +34,8 @@ describe('TellerEditor style contents', () => {
     vi.mocked(saveStyleReference).mockImplementation(async (input) => ({
       name: input.name,
       description: input.description || '',
-      path: `/tmp/.denova/styles/${input.filename || 'style.md'}`,
-      display_path: `.denova/styles/${input.filename || 'style.md'}`,
+      path: `/tmp/.casemagica/styles/${input.filename || 'style.md'}`,
+      display_path: `.casemagica/styles/${input.filename || 'style.md'}`,
     }))
     vi.mocked(updateStyleReferenceFile).mockImplementation(async (input) => ({
       reference: styleReference(),
@@ -119,7 +119,7 @@ describe('TellerEditor style contents', () => {
 
     await waitFor(() => {
       const saved = currentDraft.style_rules?.[0]?.style_refs?.[0] || ''
-      expect(saved).toBe('.denova/styles/style.md')
+      expect(saved).toBe('.casemagica/styles/style.md')
     })
   })
 
@@ -174,7 +174,7 @@ describe('TellerEditor style contents', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '直接保存' }))
 
     await waitFor(() => {
-      expect(currentDraft.style_refs?.[0]).toMatch(/^\.denova\/styles\/style-\d+\.md$/)
+      expect(currentDraft.style_refs?.[0]).toMatch(/^\.casemagica\/styles\/style-\d+\.md$/)
     })
     const calls = vi.mocked(saveStyleReference).mock.calls
     expect(calls[calls.length - 1]?.[0].content).toBe('克制短句，动作承载情绪。')
@@ -185,7 +185,7 @@ describe('TellerEditor style contents', () => {
     let extractedPath = ''
     vi.mocked(runConfigManagerStream).mockResolvedValue(streamText('<style_reference_markdown>\n# 克制雨夜\n\n## 总体原则\n\n短句推进，动作承载情绪。\n</style_reference_markdown>'))
     vi.mocked(readStyleReferenceFile).mockImplementation(async (path) => {
-      if (path.startsWith('.denova/styles/style-')) {
+      if (path.startsWith('.casemagica/styles/style-')) {
         extractedPath = path
         return {
           reference: {
@@ -225,7 +225,7 @@ describe('TellerEditor style contents', () => {
     await waitFor(() => expect(readStyleReferenceFile).toHaveBeenCalled())
     expect(within(dialog).getByText(/已写入并选择/)).toBeInTheDocument()
     expect(editor).toHaveValue('# 克制雨夜\n\n## 总体原则\n\n短句推进，动作承载情绪。')
-    expect(currentDraft.style_refs?.[0]).toMatch(/^\.denova\/styles\/style-\d+\.md$/)
+    expect(currentDraft.style_refs?.[0]).toMatch(/^\.casemagica\/styles\/style-\d+\.md$/)
     expect(readStyleReferenceFile).toHaveBeenCalledWith(extractedPath)
     expect(saveStyleReference).not.toHaveBeenCalled()
 
@@ -401,8 +401,8 @@ function styleReference() {
   return {
     name: '克制细腻',
     description: '动作、对白和停顿承载情绪',
-    path: '/tmp/.denova/styles/restraint.md',
-    display_path: '.denova/styles/restraint.md',
+    path: '/tmp/.casemagica/styles/restraint.md',
+    display_path: '.casemagica/styles/restraint.md',
   }
 }
 

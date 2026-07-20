@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"denova/internal/documentreview"
-	"denova/internal/workspacechange"
+	"casemagica/internal/documentreview"
+	"casemagica/internal/workspacechange"
 )
 
 type reviewFeedbackServiceScope struct {

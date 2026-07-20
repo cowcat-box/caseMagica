@@ -6,7 +6,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 func TestApplyToolResultContextPolicyKeepsRecentAndPlaceholdersOldResults(t *testing.T) {

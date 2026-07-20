@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"denova/internal/session"
+	"casemagica/internal/session"
 )
 
 func TestMessagesFromHistoryConvertsLegacyEntries(t *testing.T) {

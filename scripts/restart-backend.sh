@@ -32,13 +32,13 @@ is_repository_backend() {
     process_name="${process_name%"${process_name##*[![:space:]]}"}"
 
     case "${process_name##*/}" in
-      denova|denova.exe)
+      casemagica|casemagica.exe)
         return 0
         ;;
       go|go.exe)
         command_line="$(ps -p "${pid}" -o command= 2>/dev/null)" || return 1
         case "${command_line}" in
-          *"go run ./cmd/denova"*)
+          *"go run ./cmd/casemagica"*)
             return 0
             ;;
         esac
@@ -49,7 +49,7 @@ is_repository_backend() {
 }
 
 if ! command -v pgrep >/dev/null 2>&1; then
-    echo "错误 / Error: 未找到 pgrep，无法安全识别 Denova 后端进程。 / pgrep is required to identify the Denova backend safely." >&2
+    echo "错误 / Error: 未找到 pgrep，无法安全识别 CaseMagica 后端进程。 / pgrep is required to identify the CaseMagica backend safely." >&2
     exit 1
 fi
 if [ ! -e "/proc/$$/cwd" ] && ! command -v lsof >/dev/null 2>&1; then
@@ -64,20 +64,20 @@ while IFS= read -r pid; do
     fi
 done < <(
     {
-        pgrep -x denova || true
-        pgrep -x denova.exe || true
-        pgrep -f 'go run ./cmd/denova([[:space:]]|$)' || true
+        pgrep -x casemagica || true
+        pgrep -x casemagica.exe || true
+        pgrep -f 'go run ./cmd/casemagica([[:space:]]|$)' || true
     } | sort -u
 )
 
 if [ "${#backend_pids[@]}" -eq 0 ]; then
-    echo "==> 未发现当前仓库中运行的 Denova 后端 / No running Denova backend found for this repository"
+    echo "==> 未发现当前仓库中运行的 CaseMagica 后端 / No running CaseMagica backend found for this repository"
 else
-    echo "==> 正在停止 Denova 后端（PID: ${backend_pids[*]}） / Stopping Denova backend (PID: ${backend_pids[*]})"
+    echo "==> 正在停止 CaseMagica 后端（PID: ${backend_pids[*]}） / Stopping CaseMagica backend (PID: ${backend_pids[*]})"
     for pid in "${backend_pids[@]}"; do
         if kill -0 "${pid}" 2>/dev/null; then
             if ! kill -TERM "${pid}" 2>/dev/null && kill -0 "${pid}" 2>/dev/null; then
-                echo "错误 / Error: 无法停止 Denova 后端进程 ${pid}。 / Failed to stop Denova backend process ${pid}." >&2
+                echo "错误 / Error: 无法停止 CaseMagica 后端进程 ${pid}。 / Failed to stop CaseMagica backend process ${pid}." >&2
                 exit 1
             fi
         fi
@@ -98,5 +98,5 @@ else
     done
 fi
 
-echo "==> 正在重启 Denova 后端 / Restarting Denova backend"
+echo "==> 正在重启 CaseMagica 后端 / Restarting CaseMagica backend"
 exec "${SCRIPT_DIR}/bootstrap.sh" be

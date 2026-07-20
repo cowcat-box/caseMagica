@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 func TestBookMetaStoreWriteAndReadFromNovaDir(t *testing.T) {

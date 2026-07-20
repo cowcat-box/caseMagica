@@ -12,7 +12,7 @@ import (
 	"github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/compose"
 
-	"denova/internal/workspacechange"
+	"casemagica/internal/workspacechange"
 )
 
 var workspaceEditFileToolDescription = strings.TrimSpace(`Apply one or more exact text edits to a single workspace file as one reviewed change.

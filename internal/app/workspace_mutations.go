@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"denova/internal/book"
-	"denova/internal/workspacechange"
+	"casemagica/internal/book"
+	"casemagica/internal/workspacechange"
 )
 
 // workspaceMutationRuntime is a workspace-scoped snapshot of the services

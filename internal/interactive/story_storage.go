@@ -151,14 +151,14 @@ func (s *Store) freezeLegacyActorStateSchemaLocked(storyID string, meta *StoryMe
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("读取旧故事冻结状态 schema 失败: %w", err)
 	}
-	if strings.TrimSpace(s.novaDir) == "" {
+	if strings.TrimSpace(s.denovaDir) == "" {
 		return nil
 	}
 	director := s.storyDirectorForMeta(*meta)
 	if err := validateActorStateSystem(director.ActorState); err != nil {
 		return fmt.Errorf("旧故事状态 schema 需要人工处理，未执行迁移: %w", err)
 	}
-	backupDir := filepath.Join(s.novaDir, "backups", "state-system-v6", time.Now().UTC().Format("20060102T150405.000000000Z"))
+	backupDir := filepath.Join(s.denovaDir, "backups", "state-system-v6", time.Now().UTC().Format("20060102T150405.000000000Z"))
 	if err := os.MkdirAll(backupDir, 0o755); err != nil {
 		return fmt.Errorf("创建旧故事状态迁移备份目录失败: %w", err)
 	}

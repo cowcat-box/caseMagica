@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"denova/internal/keyedlock"
+	"casemagica/internal/keyedlock"
 )
 
 // storePathLocks coordinates all Store instances in this process. Stores are

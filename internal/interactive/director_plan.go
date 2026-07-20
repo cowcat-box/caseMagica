@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 const (

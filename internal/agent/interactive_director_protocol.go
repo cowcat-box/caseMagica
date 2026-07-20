@@ -7,7 +7,7 @@ import (
 
 	"github.com/cloudwego/eino/adk"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 type interactiveDirectorPlanCancelKey struct{}

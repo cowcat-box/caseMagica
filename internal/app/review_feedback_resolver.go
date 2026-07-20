@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/documentreview"
-	"denova/internal/workspacechange"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/documentreview"
+	"casemagica/internal/workspacechange"
 )
 
 // reviewFeedbackResolver abstracts one review-feedback source (workspace-change

@@ -35,7 +35,7 @@ export class ReviewCommentGutter implements IDisposable {
     icon.setAttribute('aria-hidden', 'true')
     this.domNode.append(icon)
     this.widget = {
-      getId: () => `denova.change-review.hover-comment.${options.id}`,
+      getId: () => `casemagica.change-review.hover-comment.${options.id}`,
       getDomNode: () => this.domNode,
       getPosition: () => ({
         lane: this.monaco.editor.GlyphMarginLane.Center,

@@ -47,7 +47,7 @@ describe('AgentPanel', () => {
         ...settings,
       },
       revisions: { user: 'r2' },
-      paths: { denova_dir: '', nova_dir: '', user_config: '', workspace_config: '' },
+      paths: { casemagica_dir: '', denova_dir: '', user_config: '', workspace_config: '' },
     }))
     useWritingSkillOptionsMock.mockReset()
     useWorkspaceChangeGroupsMock.mockReset()
@@ -56,7 +56,7 @@ describe('AgentPanel', () => {
       { name: 'novel-lite', description: 'Lite', scope: 'builtin', path: '/skills/novel-lite/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-standard', description: 'Standard', scope: 'builtin', path: '/skills/novel-standard/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-heavy', description: 'Heavy', scope: 'builtin', path: '/skills/novel-heavy/SKILL.md', active: true, agent: 'ide' },
-      { name: 'slow-burn', description: '慢热写作', scope: 'workspace', path: '/book/.denova/skills/slow-burn/SKILL.md', active: true, agent: 'ide' },
+      { name: 'slow-burn', description: '慢热写作', scope: 'workspace', path: '/book/.casemagica/skills/slow-burn/SKILL.md', active: true, agent: 'ide' },
     ])
   })
 

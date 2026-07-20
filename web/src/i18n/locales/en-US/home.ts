@@ -32,7 +32,7 @@ const home = {
   'home.importCard': 'Import Tavern Card',
   'home.importNovel': 'Import Existing Novel',
   'home.generateCover': 'Generate Cover',
-  'home.denovaDirLoading': 'CaseMagica data directory loading...',
+  'home.casemagicaDirLoading': 'CaseMagica data directory loading...',
   'home.saveError': 'Save failed',
   'home.sortLabel': 'Book order',
   'home.sortManual': 'Manual order',
@@ -47,7 +47,7 @@ const home = {
   'home.unnamedBook': 'Untitled Book',
   'home.uploadCover': 'Upload Cover',
   'home.coverUploadPending': 'Cover selected. It will be saved when the book is created.',
-  'home.waitDenovaDir': 'CaseMagica data directory is not ready. Try again later.',
+  'home.waitCaseMagicaDir': 'CaseMagica data directory is not ready. Try again later.',
 } as const
 
 export default home

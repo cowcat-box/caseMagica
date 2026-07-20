@@ -387,7 +387,7 @@ func TestIDEContextAnalysisSplitsStableAndDynamicWorkspaceState(t *testing.T) {
 	}
 
 	for _, part := range analysis.SystemPromptParts {
-		if part.Source == ".denova/lore/items.json" {
+		if part.Source == ".casemagica/lore/items.json" {
 			t.Fatalf("workspace state should not be part of system prompt sources: %#v", part)
 		}
 		if part.Title == "角色小标题" || part.Source == "作品状态注入" {

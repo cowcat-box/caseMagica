@@ -245,7 +245,7 @@ func TestPreparedRecoverySyncsParentBeforeTerminalProjection(t *testing.T) {
 func TestChangeStoreRejectsPrivateDirectorySymlink(t *testing.T) {
 	workspace := t.TempDir()
 	external := t.TempDir()
-	if err := os.Symlink(external, filepath.Join(workspace, ".denova")); err != nil {
+	if err := os.Symlink(external, filepath.Join(workspace, ".casemagica")); err != nil {
 		t.Fatal(err)
 	}
 	_, err := NewService(workspace)
@@ -257,7 +257,7 @@ func TestChangeStoreRejectsPrivateDirectorySymlink(t *testing.T) {
 
 func TestChangeStoreRejectsLedgerSymlink(t *testing.T) {
 	workspace := t.TempDir()
-	changesDir := filepath.Join(workspace, ".denova", "changes")
+	changesDir := filepath.Join(workspace, ".casemagica", "changes")
 	if err := os.MkdirAll(filepath.Join(changesDir, "blobs"), 0o700); err != nil {
 		t.Fatal(err)
 	}

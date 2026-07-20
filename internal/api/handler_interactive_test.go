@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/interactive"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
 )
 
 func TestInteractiveStoriesAndTellersAPI(t *testing.T) {

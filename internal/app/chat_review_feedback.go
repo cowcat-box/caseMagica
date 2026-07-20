@@ -7,9 +7,9 @@ import (
 	"log"
 	"strings"
 
-	"denova/internal/agent"
-	"denova/internal/documentreview"
-	"denova/internal/workspacechange"
+	"casemagica/internal/agent"
+	"casemagica/internal/documentreview"
+	"casemagica/internal/workspacechange"
 )
 
 const maxReviewFeedbackCommentIDs = 256

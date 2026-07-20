@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 const (

@@ -102,10 +102,10 @@ function settingsSnapshot(patch: Partial<LayeredSettings>): LayeredSettings {
     workspace: {},
     effective: {},
     paths: {
-      denova_dir: '/denova',
-      nova_dir: '/nova',
+      casemagica_dir: '/casemagica',
+      denova_dir: '/nova',
       user_config: '/nova/config.toml',
-      workspace_config: '/tmp/book/.nova/config.toml',
+      workspace_config: '/tmp/book/.denova/config.toml',
     },
     builtin_agent_prompts: {},
     builtin_agent_prompt_blocks: {},

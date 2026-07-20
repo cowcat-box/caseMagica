@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 const (

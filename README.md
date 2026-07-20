@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="./web/public/favicon.svg" alt="Denova 图标" width="76" height="76">
+  <img src="./web/public/favicon.svg" alt="CaseMagica 图标" width="76" height="76">
 </p>
 
 <p align="center">
-  <strong>Denova 一个面向小说创作与 AI 角色扮演游戏的 AI 创作平台，内置支持 AI Agents、Skills、Subagent Workflows、自动化、图像自动生成与项目版本管理等核心能力</strong>
+  <strong>CaseMagica 一个面向小说创作与 AI 角色扮演游戏的 AI 创作平台，内置支持 AI Agents、Skills、Subagent Workflows、自动化、图像自动生成与项目版本管理等核心能力</strong>
 </p>
 
 <p align="center">
@@ -11,9 +11,9 @@
 </p>
 
 <p align="center">
-  <a href="https://discord.gg/QuHu2aPya"><img src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white" alt="加入 Denova Discord" /></a>
-  <a href="https://github.com/alfredxw/denova/releases"><img alt="Release" src="https://img.shields.io/github/v/release/alfredxw/denova?style=flat-square"></a>
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/alfredxw/denova?style=flat-square"></a>
+  <a href="https://discord.gg/QuHu2aPya"><img src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white" alt="加入 CaseMagica Discord" /></a>
+  <a href="https://github.com/cowcat-box/caseMagica/releases"><img alt="Release" src="https://img.shields.io/github/v/release/cowcat-box/caseMagica?style=flat-square"></a>
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/cowcat-box/caseMagica?style=flat-square"></a>
   <img alt="Go" src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?style=flat-square&logo=go&logoColor=white">
   <img alt="Node.js" src="https://img.shields.io/badge/Node.js-20%2B-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white">
 </p>
@@ -22,14 +22,14 @@
   当前版本：<strong>v0.3.0</strong>（2026-07-18） · Beta
 </p>
 
-![Denova 写作模式](./img/ide.png)
+![CaseMagica 写作模式](./img/ide.png)
 
 <details>
 <summary>查看更多界面截图</summary>
 
 ### 游戏模式
 
-![Denova 游戏模式](./img/interactive.png)
+![CaseMagica 游戏模式](./img/interactive.png)
 
 ### 剧情分支
 
@@ -37,17 +37,17 @@
 
 ### 资料库
 
-![Denova 资料库](./img/setting.png)
+![CaseMagica 资料库](./img/setting.png)
 
 ### 方案预设
 
-![Denova 方案预设](./img/story-teller.png)
+![CaseMagica 方案预设](./img/story-teller.png)
 
 </details>
 
-## 为什么选择 Denova
+## 为什么选择 CaseMagica
 
-Denova 面向长期创作项目和互动娱乐，把写作 IDE、互动故事、结构化资料库、Agent 工具调用、图像生成、自动化和本地版本管理放在同一个项目工作区里，让创作过程可以反复迭代、回溯和沉淀。
+CaseMagica 面向长期创作项目和互动娱乐，把写作 IDE、互动故事、结构化资料库、Agent 工具调用、图像生成、自动化和本地版本管理放在同一个项目工作区里，让创作过程可以反复迭代、回溯和沉淀。
 
 你可以从原创灵感开始，也可以导入已有小说做同人、改编或续写；还可以导入 AI 酒馆角色卡，快速搭建互动文字冒险。模型上下文会按来源、用途和大小上限组织，避免把完整历史、日志或全部设定无界塞进下一轮对话。
 
@@ -65,7 +65,7 @@ Denova 面向长期创作项目和互动娱乐，把写作 IDE、互动故事、
 
 ## 写作模式与游戏模式
 
-Denova 有两个并列工作台。写作模式关注小说生产线：构思、设定、大纲、章节细纲、正文和进度；游戏模式关注可游玩的互动叙事：玩家行动、剧情分支、回合历史、Actor State、故事线和选择推进。
+CaseMagica 有两个并列工作台。写作模式关注小说生产线：构思、设定、大纲、章节细纲、正文和进度；游戏模式关注可游玩的互动叙事：玩家行动、剧情分支、回合历史、Actor State、故事线和选择推进。
 
 游戏模式内置故事导演，会在首个场景开始前结合开局设定和资料库，安排当前舞台、关键角色与势力、线索、风险和近期分支；游戏进行中，它会持续根据玩家的选择调整剧情方向，在尊重自由行动的同时维持人物动机、世界规则和伏笔的连贯。资料库中的重要角色、地点、势力与规则会优先进入剧情，让创作者沉淀的设定真正参与冒险。每个回合都会努力带来新的信息、关系变化、压力、收益、代价或悬念，并在合适的位置提供可继续行动的建议。
 
@@ -75,7 +75,7 @@ Denova 有两个并列工作台。写作模式关注小说生产线：构思、�
 
 ## 欢迎交流
 
-Denova 仍在快速迭代中，欢迎反馈问题、分享用法或一起讨论创作工作流。
+CaseMagica 仍在快速迭代中，欢迎反馈问题、分享用法或一起讨论创作工作流。
 
 加入 [Discord 社区](https://discord.gg/QuHu2aPya) 一起交流。
 
@@ -87,16 +87,16 @@ Denova 仍在快速迭代中，欢迎反馈问题、分享用法或一起讨论�
 
 ### 下载 Release
 
-从 [GitHub Releases](https://github.com/alfredxw/denova/releases) 下载对应平台压缩包，解压后运行：
+从 [GitHub Releases](https://github.com/cowcat-box/caseMagica/releases) 下载对应平台压缩包，解压后运行：
 
 ```bash
-./denova
+./casemagica
 ```
 
-Windows 用户运行 `denova.exe`。macOS 如果提示安全限制，可以执行：
+Windows 用户运行 `casemagica.exe`。macOS 如果提示安全限制，可以执行：
 
 ```bash
-xattr -dr com.apple.quarantine denova
+xattr -dr com.apple.quarantine casemagica
 ```
 
 ### 从源码运行
@@ -104,8 +104,8 @@ xattr -dr com.apple.quarantine denova
 需要 Go 1.26.5+、Node.js 20+、pnpm 和 ripgrep。
 
 ```bash
-git clone https://github.com/alfredxw/denova.git
-cd denova
+git clone https://github.com/cowcat-box/caseMagica.git
+cd casemagica
 corepack enable
 ./scripts/bootstrap.sh
 ```
@@ -117,7 +117,7 @@ corepack enable
 
 ## 模型与配置
 
-Denova 使用 OpenAI 兼容接口。推荐先在设置页配置语言模型、图像模型、Agent 参数、默认写作 Skill、编辑器、游戏模式、版本管理、语言、主题和字体。
+CaseMagica 使用 OpenAI 兼容接口。推荐先在设置页配置语言模型、图像模型、Agent 参数、默认写作 Skill、编辑器、游戏模式、版本管理、语言、主题和字体。
 
 需要脚本化启动或部署时，也可以用环境变量覆盖模型配置：
 
@@ -130,15 +130,15 @@ export OPENAI_IMAGE_BASE_URL="https://api.openai.com/v1"
 export OPENAI_IMAGE_MODEL="gpt-image-1"
 ```
 
-可选 Denova 启动环境变量：
+可选 CaseMagica 启动环境变量：
 
 ```bash
-export DENOVA_WORKSPACE="/path/to/your-workspace"
-export DENOVA_DIR="./.denova"
-export DENOVA_SKILLS_DIR="./skills"
-export DENOVA_WEB_DIR="./web"
-export DENOVA_BACKEND_PORT="8080"
-export DENOVA_FRONTEND_PORT="5173"
+export CASEMAGICA_WORKSPACE="/path/to/your-workspace"
+export CASEMAGICA_DIR="./.casemagica"
+export CASEMAGICA_SKILLS_DIR="./skills"
+export CASEMAGICA_WEB_DIR="./web"
+export CASEMAGICA_BACKEND_PORT="8080"
+export CASEMAGICA_FRONTEND_PORT="5173"
 ```
 
 配置优先级：
@@ -147,11 +147,11 @@ export DENOVA_FRONTEND_PORT="5173"
 内置默认值 < 全局 config.toml < 用户级配置 < 环境变量
 ```
 
-设置页中的通用、写作与游戏偏好统一保存为用户配置。工作区 `.denova/config.toml` 只承载 Agent 页明确提供的工作区定制；旧文件中的其他字段会保留，但不再覆盖用户设置。旧环境变量仍会兼容读取；新配置建议使用 `.denova` / `DENOVA_*`。
+设置页中的通用、写作与游戏偏好统一保存为用户配置。工作区 `.casemagica/config.toml` 只承载 Agent 页明确提供的工作区定制；旧文件中的其他字段会保留，但不再覆盖用户设置。旧环境变量仍会兼容读取；新配置建议使用 `.casemagica` / `CASEMAGICA_*`。
 
 ## 远程访问与手机使用
 
-Denova 可以在本机、局域网或自托管服务器上使用。Release 包已包含前端资源；从源码部署时可先构建前端：
+CaseMagica 可以在本机、局域网或自托管服务器上使用。Release 包已包含前端资源；从源码部署时可先构建前端：
 
 ```bash
 pnpm --dir web build
@@ -164,7 +164,7 @@ pnpm --dir web build
 Caddy 示例：
 
 ```text
-denova.example.com {
+casemagica.example.com {
     reverse_proxy 127.0.0.1:8080
 }
 ```
@@ -184,7 +184,7 @@ denova.example.com {
 ./scripts/bootstrap.sh be
 ```
 
-停止当前仓库中运行的 Denova 后端并以前台方式重启：
+停止当前仓库中运行的 CaseMagica 后端并以前台方式重启：
 
 ```bash
 ./scripts/restart-backend.sh
@@ -206,11 +206,11 @@ denova.example.com {
 
 ## Star History
 
-<a href="https://www.star-history.com/#alfredxw/denova&type=date&legend=top-left">
+<a href="https://www.star-history.com/#cowcat-box/caseMagica&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=alfredxw/denova&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=alfredxw/denova&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=alfredxw/denova&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=cowcat-box/caseMagica&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=cowcat-box/caseMagica&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=cowcat-box/caseMagica&type=date&legend=top-left" />
  </picture>
 </a>
 

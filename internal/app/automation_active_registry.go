@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"denova/internal/automation"
+	"casemagica/internal/automation"
 )
 
 // automationRunState and automationRunClaim keep active execution identity

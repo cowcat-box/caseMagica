@@ -2,7 +2,7 @@
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-FRONTEND_BIND_HOST="${DENOVA_FRONTEND_HOST:-${NOVA_FRONTEND_HOST:-}}"
+FRONTEND_BIND_HOST="${CASEMAGICA_FRONTEND_HOST:-${DENOVA_FRONTEND_HOST:-}}"
 
 cd "${ROOT_DIR}"
 
@@ -45,27 +45,27 @@ expand_path() {
 }
 
 default_data_dir() {
-    if [ -d ".nova" ] && [ ! -d ".denova" ]; then
-        echo "./.nova"
+    if [ -d ".denova" ] && [ ! -d ".casemagica" ]; then
+        echo "./.denova"
         return
     fi
-    echo "./.denova"
+    echo "./.casemagica"
 }
 
 startup_data_dir() {
+    if [ -n "${CASEMAGICA_DIR:-}" ]; then
+        expand_path "${CASEMAGICA_DIR}"
+        return
+    fi
     if [ -n "${DENOVA_DIR:-}" ]; then
         expand_path "${DENOVA_DIR}"
         return
     fi
-    if [ -n "${NOVA_DIR:-}" ]; then
-        expand_path "${NOVA_DIR}"
-        return
-    fi
 
     local configured
-    configured="$(read_config_value "config.toml" "denova_dir")"
+    configured="$(read_config_value "config.toml" "casemagica_dir")"
     if [ -z "${configured}" ]; then
-        configured="$(read_config_value "config.toml" "nova_dir")"
+        configured="$(read_config_value "config.toml" "denova_dir")"
     fi
     if [ -n "${configured}" ]; then
         expand_path "${configured}"
@@ -103,8 +103,8 @@ resolve_port() {
     echo "${port}"
 }
 
-BACKEND_PORT="$(resolve_port "${DENOVA_BACKEND_PORT:-}" "${NOVA_BACKEND_PORT:-}" "backend_port" "8080")"
-FRONTEND_PORT="$(resolve_port "${DENOVA_FRONTEND_PORT:-}" "${NOVA_FRONTEND_PORT:-}" "frontend_port" "5173")"
+BACKEND_PORT="$(resolve_port "${CASEMAGICA_BACKEND_PORT:-}" "${DENOVA_BACKEND_PORT:-}" "backend_port" "8080")"
+FRONTEND_PORT="$(resolve_port "${CASEMAGICA_FRONTEND_PORT:-}" "${DENOVA_FRONTEND_PORT:-}" "frontend_port" "5173")"
 FRONTEND_URL="http://localhost:${FRONTEND_PORT}"
 BACKEND_URL="http://localhost:${BACKEND_PORT}"
 
@@ -183,7 +183,7 @@ done
 
 case "$MODE" in
   fe|frontend)
-    echo "==> Denova 前端开发服务启动"
+    echo "==> CaseMagica 前端开发服务启动"
     echo "  前端地址: ${FRONTEND_URL}"
     if [ "${FRONTEND_BIND_HOST}" = "0.0.0.0" ]; then
         LAN_ADDRESS="$(detect_lan_address)"
@@ -208,8 +208,8 @@ case "$MODE" in
     fi
 
     echo "  按 Ctrl+C 停止服务"
-    export DENOVA_BACKEND_PORT="${BACKEND_PORT}"
-    export DENOVA_FRONTEND_PORT="${FRONTEND_PORT}"
+    export CASEMAGICA_BACKEND_PORT="${BACKEND_PORT}"
+    export CASEMAGICA_FRONTEND_PORT="${FRONTEND_PORT}"
     if [ -n "${FRONTEND_BIND_HOST}" ]; then
         cd web && exec pnpm dev --host "${FRONTEND_BIND_HOST}" --port "${FRONTEND_PORT}"
     fi
@@ -217,7 +217,7 @@ case "$MODE" in
     ;;
 
   be|backend)
-    echo "==> Denova 后端开发服务启动"
+    echo "==> CaseMagica 后端开发服务启动"
     echo "  后端地址: ${BACKEND_URL}"
     echo ""
 
@@ -225,11 +225,11 @@ case "$MODE" in
     go mod tidy
 
     echo "  按 Ctrl+C 停止服务"
-    exec go run ./cmd/denova --dev-mode --no-open --port "${BACKEND_PORT}" --frontend-port "${FRONTEND_PORT}"
+    exec go run ./cmd/casemagica --dev-mode --no-open --port "${BACKEND_PORT}" --frontend-port "${FRONTEND_PORT}"
     ;;
 
   all)
-    echo "==> Denova 开发服务启动"
+    echo "==> CaseMagica 开发服务启动"
     echo "  前端地址: ${FRONTEND_URL}"
     echo "  后端地址: ${BACKEND_URL}"
     echo ""
@@ -251,7 +251,7 @@ case "$MODE" in
     echo "  按 Ctrl+C 停止服务"
     echo ""
 
-    exec go run ./cmd/denova --dev --dev-mode --no-open --port "${BACKEND_PORT}" --frontend-port "${FRONTEND_PORT}"
+    exec go run ./cmd/casemagica --dev --dev-mode --no-open --port "${BACKEND_PORT}" --frontend-port "${FRONTEND_PORT}"
     ;;
 
   *)

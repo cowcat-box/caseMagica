@@ -11,9 +11,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	denovaapp "denova/internal/app"
-	"denova/internal/book"
-	"denova/internal/workspacechange"
+	casemagicaapp "casemagica/internal/app"
+	"casemagica/internal/book"
+	"casemagica/internal/workspacechange"
 )
 
 // handleWorkspaceTree GET /api/workspace/tree — 递归扫描 workspace 目录返回文件树。
@@ -205,13 +205,13 @@ func (h *Handlers) HandleWorkspaceFileWrite(ctx context.Context, c *app.RequestC
 	canonicalWorkspace, err := h.app.WithWorkspaceChangeMutation(
 		ctx,
 		req.Workspace,
-		func(changeService *workspacechange.Service) (denovaapp.WorkspaceChangeMutationHooks, error) {
+		func(changeService *workspacechange.Service) (casemagicaapp.WorkspaceChangeMutationHooks, error) {
 			var saveErr error
 			saveResult, saveErr = changeService.SaveFile(ctx, req.Path, req.Content, req.BaseRevision)
 			if saveErr != nil || !saveResult.Changed {
-				return denovaapp.WorkspaceChangeMutationHooks{}, saveErr
+				return casemagicaapp.WorkspaceChangeMutationHooks{}, saveErr
 			}
-			return denovaapp.WorkspaceChangeMutationHooks{
+			return casemagicaapp.WorkspaceChangeMutationHooks{
 				CreateTimedVersion: true,
 				AutomationSource:   "workspace_file_write",
 				Paths:              []string{req.Path},
@@ -219,7 +219,7 @@ func (h *Handlers) HandleWorkspaceFileWrite(ctx context.Context, c *app.RequestC
 		},
 	)
 	if err != nil {
-		if errors.Is(err, denovaapp.ErrWorkspaceChanged) {
+		if errors.Is(err, casemagicaapp.ErrWorkspaceChanged) {
 			writeJSON(c, consts.StatusConflict, map[string]any{
 				"error": messageKey(c, "api.workspace.changedDuringRequest"),
 				"code":  "workspace_changed",

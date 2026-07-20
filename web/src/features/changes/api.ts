@@ -17,7 +17,7 @@ export interface ListWorkspaceChangeGroupsOptions {
   reviewThreadID?: string
 }
 
-const WORKSPACE_HEADER = 'X-Denova-Workspace'
+const WORKSPACE_HEADER = 'X-CaseMagica-Workspace'
 
 export async function listWorkspaceChangeGroups(workspace: string, options: ListWorkspaceChangeGroupsOptions = {}): Promise<WorkspaceChangeGroupSummary[]> {
   const params = new URLSearchParams()

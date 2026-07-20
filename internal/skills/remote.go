@@ -258,7 +258,7 @@ func downloadSkillArchive(ctx context.Context, archiveURL, sourceLabel string, h
 			req.Header.Set(key, value)
 		}
 	}
-	req.Header.Set("User-Agent", "denova-skill-installer")
+	req.Header.Set("User-Agent", "casemagica-skill-installer")
 	resp, err := skillInstallHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("download %s Skill archive failed: %w", sourceLabel, err)

@@ -118,7 +118,7 @@ func newLoreImageTestApplication(t *testing.T) (*runtimeapp.App, *httptest.Serve
 	root := t.TempDir()
 	application, err := runtimeapp.New(context.Background(), &config.Config{
 		OpenAIModel:         "test-model",
-		DenovaDir:             root,
+		CaseMagicaDir:             root,
 		Workspace:           root,
 		ResumeLastWorkspace: false,
 		ImageAPIKey:         "test-key",

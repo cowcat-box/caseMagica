@@ -13,8 +13,8 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/common/ut"
 
-	"denova/internal/agent"
-	"denova/internal/workspacechange"
+	"casemagica/internal/agent"
+	"casemagica/internal/workspacechange"
 )
 
 func TestWorkspaceChangeReviewCommentUndoRedoAPI(t *testing.T) {
@@ -364,7 +364,7 @@ func performWorkspaceChangeRequest(t *testing.T, server *Server, method, path, w
 		path,
 		requestBody,
 		ut.Header{Key: "Content-Type", Value: "application/json"},
-		ut.Header{Key: "X-Denova-Workspace", Value: url.PathEscape(workspace)},
+		ut.Header{Key: "X-CaseMagica-Workspace", Value: url.PathEscape(workspace)},
 	)
 }
 

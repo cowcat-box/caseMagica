@@ -7,7 +7,7 @@ import { formatDateTime } from '@/i18n'
 import { getMessages, markAllMessagesRead, markMessageRead } from './api'
 import type { AutomationMessageNavigation, ProductMessage } from './types'
 
-const DENOVA_GITHUB_URL = 'https://github.com/alfredxw/denova'
+const CASEMAGICA_GITHUB_URL = 'https://github.com/cowcat-box/caseMagica'
 
 type MessageFilter = 'all' | 'action' | 'automation' | 'product'
 
@@ -269,7 +269,7 @@ function GitHubStarPrompt() {
         <p className="m-0 mt-1">{t('messages.github.description')}</p>
       </div>
       <a
-        href={DENOVA_GITHUB_URL}
+        href={CASEMAGICA_GITHUB_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-1.5 text-xs font-medium text-[var(--nova-text-muted)] transition-colors hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)] sm:self-center"

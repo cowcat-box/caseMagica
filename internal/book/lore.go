@@ -18,7 +18,7 @@ import (
 
 	"github.com/lithammer/fuzzysearch/fuzzy"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 const loreItemsVersion = 2

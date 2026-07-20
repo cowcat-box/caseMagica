@@ -23,6 +23,6 @@ docs/*
 .pnpm-store/
 .DS_Store
 .casemagica
-.denova
+.casemagica
 prd
 .playwright-cli/

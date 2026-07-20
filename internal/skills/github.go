@@ -169,7 +169,7 @@ func resolveGitHubDefaultBranch(ctx context.Context, repo GitHubRepository) (str
 		return "", err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "denova-skill-installer")
+	req.Header.Set("User-Agent", "casemagica-skill-installer")
 	resp, err := skillInstallHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("resolve GitHub default branch failed: %w", err)

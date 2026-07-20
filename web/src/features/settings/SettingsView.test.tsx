@@ -177,7 +177,7 @@ function stagedInstallResult(): UpdateInstallResult {
     staged: true,
     apply_ready: true,
     restart_required: true,
-    staged_path: '/tmp/nova/.nova-updates/pending-0.2.0/nova',
+    staged_path: '/tmp/nova/.denova-updates/pending-0.2.0/nova',
   }
 }
 
@@ -198,7 +198,7 @@ function layeredSettings({ devMode }: { devMode: boolean }): LayeredSettings {
       casemagica_dir: '/tmp/casemagica',
       denova_dir: '/tmp/nova',
       user_config: '/tmp/nova/config.toml',
-      workspace_config: '/tmp/book/.denova/config.toml',
+      workspace_config: '/tmp/book/.casemagica/config.toml',
     },
     runtime: {
       goos: 'darwin',

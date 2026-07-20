@@ -7,11 +7,11 @@ import (
 	"log"
 	"strings"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/imagepreset"
-	"denova/internal/loreimage"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/imagepreset"
+	"casemagica/internal/loreimage"
 )
 
 // LoreAppService 负责资料库 CRUD。
@@ -266,11 +266,11 @@ func (s *LoreAppService) loreImageRuntimeSnapshot() (*book.LoreStore, config.Con
 	cfg := *a.cfg
 	workspace := a.workspace
 	bookService := a.bookService
-	novaDir := cfg.DataDir()
+	denovaDir := cfg.DataDir()
 	a.mu.RUnlock()
 
 	cfg.Workspace = workspace
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&cfg, layered)
 	} else {
 		log.Printf("[lore-image] 加载分层配置失败 workspace=%s err=%v", workspace, err)

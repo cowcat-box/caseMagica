@@ -7,7 +7,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/internal/api/agentui"
+	"casemagica/internal/api/agentui"
 )
 
 func (h *Handlers) HandleAgentSessionMessages(ctx context.Context, c *app.RequestContext) {

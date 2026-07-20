@@ -44,7 +44,7 @@ func TestStructuredRuleStateChangeUsesExactFieldID(t *testing.T) {
 
 func TestLegacyStoryFreezesSchemaAfterBackupOnFirstLoad(t *testing.T) {
 	root := t.TempDir()
-	novaDir := filepath.Join(root, ".nova")
+	denovaDir := filepath.Join(root, ".denova")
 	legacyStore := NewStore(root)
 	story, err := legacyStore.CreateStory(CreateStoryRequest{
 		Title: "旧故事",
@@ -68,7 +68,7 @@ func TestLegacyStoryFreezesSchemaAfterBackupOnFirstLoad(t *testing.T) {
 		t.Fatal("legacy fixture unexpectedly contains a frozen schema")
 	}
 
-	migratedStore := NewStoreWithNovaDir(root, novaDir)
+	migratedStore := NewStoreWithCaseMagicaDir(root, denovaDir)
 	snapshot, err := migratedStore.Snapshot(story.ID, "main")
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func TestLegacyStoryFreezesSchemaAfterBackupOnFirstLoad(t *testing.T) {
 	if field, ok := actorStateFieldByID(legacyActorTemplate, "旧字段"); !ok || field.Type != "bool" {
 		t.Fatalf("legacy actor template should infer and expose its fields: %#v", legacyActorTemplate.Fields)
 	}
-	backups, err := filepath.Glob(filepath.Join(novaDir, "backups", "state-system-v6", "*", "story-"+story.ID+".jsonl"))
+	backups, err := filepath.Glob(filepath.Join(denovaDir, "backups", "state-system-v6", "*", "story-"+story.ID+".jsonl"))
 	if err != nil || len(backups) != 1 {
 		t.Fatalf("expected one pre-migration story backup, paths=%#v err=%v", backups, err)
 	}
@@ -118,7 +118,7 @@ func TestLegacyStoryFreezesSchemaAfterBackupOnFirstLoad(t *testing.T) {
 
 func TestLegacyStoryReplaysFrozenInitialActorsWithoutRewritingHistory(t *testing.T) {
 	root := t.TempDir()
-	novaDir := filepath.Join(root, ".nova")
+	denovaDir := filepath.Join(root, ".denova")
 	legacyStore := NewStore(root)
 	story, err := legacyStore.CreateStory(CreateStoryRequest{Title: "没有 Actor Delta 的旧故事"})
 	if err != nil {
@@ -129,7 +129,7 @@ func TestLegacyStoryReplaysFrozenInitialActorsWithoutRewritingHistory(t *testing
 		t.Fatal(err)
 	}
 
-	migratedStore := NewStoreWithNovaDir(root, novaDir)
+	migratedStore := NewStoreWithCaseMagicaDir(root, denovaDir)
 	snapshot, err := migratedStore.Snapshot(story.ID, "main")
 	if err != nil {
 		t.Fatal(err)

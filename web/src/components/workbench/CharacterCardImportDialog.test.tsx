@@ -40,7 +40,7 @@ function Harness({ cardPreview = preview, onImport = vi.fn() }: { cardPreview?: 
       open
       workspace="/tmp/book"
       currentBookName="当前作品"
-      novaDir="/tmp"
+      denovaDir="/tmp"
       file={new File(['card'], 'card.png', { type: 'image/png' })}
       preview={cardPreview}
       targetMode="new_book"

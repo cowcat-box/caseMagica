@@ -10,17 +10,17 @@ import (
 	"testing"
 	"time"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/automation"
-	"denova/internal/book"
-	"denova/internal/workspacechange"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/automation"
+	"casemagica/internal/book"
+	"casemagica/internal/workspacechange"
 )
 
 func TestAutomationCheckCreatesRetryableInboxWhenAutoRunCannotStart(t *testing.T) {
 	root := t.TempDir()
 	workspace := filepath.Join(root, "workspace")
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 
 	now := time.Now()
@@ -65,7 +65,7 @@ func TestAutomationCheckCreatesRetryableInboxWhenAutoRunCannotStart(t *testing.T
 func TestAutomationCheckSkipsInboxForSilentScheduleTrigger(t *testing.T) {
 	root := t.TempDir()
 	workspace := filepath.Join(root, "workspace")
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 
 	now := time.Now()
@@ -114,7 +114,7 @@ func TestAutomationChapterBatchTriggerCreatesInboxAtBatchBoundaries(t *testing.T
 	for i := 1; i <= 4; i++ {
 		writeTestChapter(t, workspace, i)
 	}
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	t.Cleanup(app.Close)
 	app.bookService = book.NewService(workspace)
@@ -226,7 +226,7 @@ func TestAutomationMutationCheckRunsOnlyContentTriggersForChapterWrites(t *testi
 		t.Fatal(err)
 	}
 	writeTestChapter(t, workspace, 1)
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	app.bookService = book.NewService(workspace)
 
@@ -301,7 +301,7 @@ func TestAutomationMutationCallbackChecksAgentChapterWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeTestChapter(t, workspace, 1)
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	app.bookService = book.NewService(workspace)
 
@@ -382,7 +382,7 @@ func TestAutomationMutationChecksCoalesceRapidSavesWithoutDuplicateInbox(t *test
 	}
 	writeTestChapter(t, workspace, 1)
 	application := &App{
-		cfg:         &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace},
+		cfg:         &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace},
 		workspace:   workspace,
 		bookService: book.NewService(workspace),
 	}
@@ -423,7 +423,7 @@ func TestAutomationMutationEvaluatorIgnoresRequestCancelAndAppCloseDrains(t *tes
 	}
 	writeTestChapter(t, workspace, 1)
 	application := &App{
-		cfg:         &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace},
+		cfg:         &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace},
 		workspace:   workspace,
 		bookService: book.NewService(workspace),
 	}
@@ -492,7 +492,7 @@ func TestUserAutomationTriggerStateAndInboxAreWorkspaceScoped(t *testing.T) {
 		}
 		writeTestChapter(t, workspace, 1)
 	}
-	application := &App{cfg: &config.Config{NovaDir: userDir}}
+	application := &App{cfg: &config.Config{DenovaDir: userDir}}
 	application.ensureServices()
 	defer application.Close()
 	service := &AutomationAppService{app: application}
@@ -500,8 +500,8 @@ func TestUserAutomationTriggerStateAndInboxAreWorkspaceScoped(t *testing.T) {
 	for _, workspace := range workspaces {
 		snapshots = append(snapshots, &automationWorkspaceSnapshot{
 			workspace:   workspace,
-			novaDir:     userDir,
-			cfg:         config.Config{NovaDir: userDir, Workspace: workspace},
+			denovaDir:     userDir,
+			cfg:         config.Config{DenovaDir: userDir, Workspace: workspace},
 			bookService: book.NewService(workspace),
 		})
 	}
@@ -574,9 +574,9 @@ func TestWorkspaceChangeMutationAutomationUsesCapturedWorkspaceAfterSwitch(t *te
 		}
 	}
 	writeTestChapter(t, workspace, 1)
-	novaDir := filepath.Join(root, "nova")
+	denovaDir := filepath.Join(root, "nova")
 	app := &App{
-		cfg:         &config.Config{NovaDir: novaDir, Workspace: workspace},
+		cfg:         &config.Config{DenovaDir: denovaDir, Workspace: workspace},
 		workspace:   workspace,
 		bookService: book.NewService(workspace),
 	}
@@ -645,7 +645,7 @@ func TestWorkspaceChangeMutationAutomationUsesCapturedWorkspaceAfterSwitch(t *te
 	app.mu.Unlock()
 	close(releaseEvaluation)
 
-	oldStore := automation.NewStore(novaDir, workspace)
+	oldStore := automation.NewStore(denovaDir, workspace)
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for {
 		inbox, err := oldStore.ListInbox()
@@ -663,7 +663,7 @@ func TestWorkspaceChangeMutationAutomationUsesCapturedWorkspaceAfterSwitch(t *te
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	newInbox, err := automation.NewStore(novaDir, nextWorkspace).ListInbox()
+	newInbox, err := automation.NewStore(denovaDir, nextWorkspace).ListInbox()
 	if err != nil {
 		t.Fatalf("list next workspace inbox: %v", err)
 	}
@@ -681,7 +681,7 @@ func TestAutomationSemanticTriggerChecksOnlyCompletedChapterBatches(t *testing.T
 	for i := 1; i <= 2; i++ {
 		writeTestChapter(t, workspace, i)
 	}
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	app.bookService = book.NewService(workspace)
 
@@ -792,7 +792,7 @@ func TestAutomationRuntimeConfigUsesTaskModelProfile(t *testing.T) {
 	workspace := filepath.Join(root, "workspace")
 	app := &App{
 		cfg: &config.Config{
-			NovaDir:     filepath.Join(root, "nova"),
+			DenovaDir:     filepath.Join(root, "nova"),
 			Workspace:   workspace,
 			OpenAIModel: "base-model",
 			ModelProfiles: []config.ModelProfileSettings{{
@@ -826,7 +826,7 @@ func TestAutomationRuntimeConfigUsesTaskModelProfile(t *testing.T) {
 		t.Fatalf("review max iteration should stay unlimited by default, got %d", cfg.MaxIteration)
 	}
 	maxIteration := 20
-	if err := config.WriteSettingsFile(config.UserConfigPath(app.cfg.NovaDir), config.Settings{MaxIteration: &maxIteration}); err != nil {
+	if err := config.WriteSettingsFile(config.UserConfigPath(app.cfg.DenovaDir), config.Settings{MaxIteration: &maxIteration}); err != nil {
 		t.Fatal(err)
 	}
 	snap = app.automationSnapshot()

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	runtimeapp "denova/internal/app"
-	"denova/internal/book"
+	runtimeapp "casemagica/internal/app"
+	"casemagica/internal/book"
 )
 
 func TestLoreClassificationPreviewAndApplyAPI(t *testing.T) {

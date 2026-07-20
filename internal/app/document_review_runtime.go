@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"denova/internal/book"
-	"denova/internal/documentreview"
+	"casemagica/internal/book"
+	"casemagica/internal/documentreview"
 )
 
 // WithDocumentReviewService keeps the workspace identity, manuscript reader,

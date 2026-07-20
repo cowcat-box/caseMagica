@@ -9,11 +9,11 @@ import (
 
 	"github.com/cloudwego/eino/adk"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/session"
 )
 
 // App 是 API 层使用的应用门面；具体业务由领域应用服务承接。

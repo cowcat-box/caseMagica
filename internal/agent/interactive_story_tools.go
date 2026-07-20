@@ -10,7 +10,7 @@ import (
 	"github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/schema"
 
-	"denova/internal/interactive"
+	"casemagica/internal/interactive"
 )
 
 // InteractiveStoryToolContext provides story-scoped read tools for one

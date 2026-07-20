@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 // validateDirectorLoreGrounding prevents a Director run from casting new

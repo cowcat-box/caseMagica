@@ -9,8 +9,8 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/interactive"
+	"casemagica/config"
+	"casemagica/internal/interactive"
 )
 
 func TestInteractiveDirectorPlanSubmissionTerminatesAgentRun(t *testing.T) {

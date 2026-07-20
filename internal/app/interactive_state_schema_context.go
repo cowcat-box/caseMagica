@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 // stateSchemaAdaptationWorkspaceSources separates the stable resident Lore

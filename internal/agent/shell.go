@@ -16,7 +16,7 @@ import (
 	"github.com/cloudwego/eino/adk/filesystem"
 	"github.com/cloudwego/eino/schema"
 
-	"denova/internal/workspacechange"
+	"casemagica/internal/workspacechange"
 )
 
 type agentStreamingShell struct {

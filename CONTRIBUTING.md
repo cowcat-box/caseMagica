@@ -1,10 +1,10 @@
-# Contributing to Denova
+# Contributing to CaseMagica
 
-Thanks for helping improve Denova. This project is in beta, so contribution work should favor clear product improvements, simple implementation, and readable code over broad backwards compatibility.
+Thanks for helping improve CaseMagica. This project is in beta, so contribution work should favor clear product improvements, simple implementation, and readable code over broad backwards compatibility.
 
 ## Setup
 
-Denova requires Go 1.26.5+, Node.js 20+, and pnpm.
+CaseMagica requires Go 1.26.5+, Node.js 20+, and pnpm.
 
 ```bash
 corepack enable

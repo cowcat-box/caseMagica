@@ -228,8 +228,8 @@ function isBookSettingPath(path: string, chapterPlanPaths: Set<string>) {
   return normalized.endsWith('.md')
     && !normalized.startsWith('chapters/')
     && !normalized.startsWith('interactive/')
-    && !normalized.startsWith('.nova/')
     && !normalized.startsWith('.denova/')
+    && !normalized.startsWith('.casemagica/')
     && !chapterPlanPaths.has(path)
 }
 

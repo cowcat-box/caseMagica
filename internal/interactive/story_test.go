@@ -782,9 +782,9 @@ func TestRerollRuleResolutionReplacesAutomaticRuleStateOps(t *testing.T) {
 func newStoreWithStaminaTestDirector(t *testing.T) (*Store, StoryDirector) {
 	t.Helper()
 	root := t.TempDir()
-	novaDir := filepath.Join(root, ".nova")
+	denovaDir := filepath.Join(root, ".denova")
 	staminaMin, staminaMax := 0.0, 5.0
-	director, err := NewStoryDirectorLibrary(novaDir).Create(StoryDirector{
+	director, err := NewStoryDirectorLibrary(denovaDir).Create(StoryDirector{
 		ID:   "stamina-test-director",
 		Name: "体力测试导演",
 		ModuleRefs: StoryDirectorModuleRefs{
@@ -820,7 +820,7 @@ func newStoreWithStaminaTestDirector(t *testing.T) (*Store, StoryDirector) {
 	if err != nil {
 		t.Fatalf("create stamina test director failed: %v", err)
 	}
-	return NewStoreWithNovaDir(root, novaDir), director
+	return NewStoreWithCaseMagicaDir(root, denovaDir), director
 }
 
 func TestAppendTurnWithStatePersistsDisplayEventTimelineDetails(t *testing.T) {

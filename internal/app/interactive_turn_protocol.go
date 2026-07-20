@@ -1,6 +1,6 @@
 package app
 
-import "denova/internal/interactive"
+import "casemagica/internal/interactive"
 
 type interactiveTurnPhase uint8
 

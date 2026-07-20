@@ -62,7 +62,7 @@ func NewLibrary(denovaDir string) *Library {
 
 func (l *Library) List() ([]Reference, error) {
 	if l == nil || strings.TrimSpace(l.denovaDir) == "" {
-		return nil, fmt.Errorf("denova_dir 不可用，无法读取文风参考")
+		return nil, fmt.Errorf("casemagica_dir 不可用，无法读取文风参考")
 	}
 	if err := os.MkdirAll(l.dir(), 0o755); err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (l *Library) Resolve(paths []string) []Reference {
 
 func (l *Library) Write(req WriteRequest) (Reference, error) {
 	if l == nil || strings.TrimSpace(l.denovaDir) == "" {
-		return Reference{}, fmt.Errorf("denova_dir 不可用，无法写入文风参考")
+		return Reference{}, fmt.Errorf("casemagica_dir 不可用，无法写入文风参考")
 	}
 	content := strings.TrimSpace(req.Content)
 	if content == "" {
@@ -157,7 +157,7 @@ func (l *Library) Write(req WriteRequest) (Reference, error) {
 
 func (l *Library) Read(path string) (FileDocument, error) {
 	if l == nil || strings.TrimSpace(l.denovaDir) == "" {
-		return FileDocument{}, fmt.Errorf("denova_dir 不可用，无法读取文风参考")
+		return FileDocument{}, fmt.Errorf("casemagica_dir 不可用，无法读取文风参考")
 	}
 	stored := NormalizeStoragePath(path)
 	if stored == "" {
@@ -188,7 +188,7 @@ func (l *Library) Read(path string) (FileDocument, error) {
 
 func (l *Library) Update(req UpdateRequest) (FileDocument, error) {
 	if l == nil || strings.TrimSpace(l.denovaDir) == "" {
-		return FileDocument{}, fmt.Errorf("denova_dir 不可用，无法写入文风参考")
+		return FileDocument{}, fmt.Errorf("casemagica_dir 不可用，无法写入文风参考")
 	}
 	stored := NormalizeStoragePath(req.Path)
 	if stored == "" {
@@ -217,7 +217,7 @@ func (l *Library) Update(req UpdateRequest) (FileDocument, error) {
 
 func (l *Library) Delete(path string) error {
 	if l == nil || strings.TrimSpace(l.denovaDir) == "" {
-		return fmt.Errorf("denova_dir 不可用，无法删除文风参考")
+		return fmt.Errorf("casemagica_dir 不可用，无法删除文风参考")
 	}
 	stored := NormalizeStoragePath(path)
 	if stored == "" {

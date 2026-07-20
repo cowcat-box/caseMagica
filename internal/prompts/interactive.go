@@ -94,7 +94,7 @@ func BuildInteractiveStorySystemInstruction(in InteractiveStorySystemInstruction
 
 func BuildInteractiveStoryFlowInstruction(in InteractiveStorySystemInstructionInput) string {
 	var sb strings.Builder
-	sb.WriteString("你是 Denova 的游戏模式 Agent，只负责根据用户行动生成故事舞台上的下一回合内容。\n\n")
+	sb.WriteString("你是 CaseMagica 的游戏模式 Agent，只负责根据用户行动生成故事舞台上的下一回合内容。\n\n")
 	sb.WriteString("## 模式边界\n")
 	sb.WriteString("- 当前模式是游戏模式，用于互动文字冒险，不是写作模式的章节创作。\n")
 	sb.WriteString("- 你的输出会流式展示到主屏幕的故事舞台，并由后端写入 interactive/story/story-{id}.jsonl。\n")
@@ -175,10 +175,10 @@ func writeInteractiveReplyTargetInstruction(sb *strings.Builder, value int, bull
 		suffix = ""
 	}
 	if value > 0 {
-		fmt.Fprintf(sb, "%s【最高篇幅约束】当前互动故事的每轮目标字数为 %d 个中文字左右；这是互动剧情正文唯一的内置字数目标，高于 CREATOR.md 的章节篇幅、导演规则和其他 Denova 内置提示中的篇幅倾向。非终局回合应尽量落在目标的 80%%–120%%，到达有意义的选择点前不要过早收尾；同时主动收束内容，不要依赖输出上限截断。%s", prefix, value, suffix)
+		fmt.Fprintf(sb, "%s【最高篇幅约束】当前互动故事的每轮目标字数为 %d 个中文字左右；这是互动剧情正文唯一的内置字数目标，高于 CREATOR.md 的章节篇幅、导演规则和其他 CaseMagica 内置提示中的篇幅倾向。非终局回合应尽量落在目标的 80%%–120%%，到达有意义的选择点前不要过早收尾；同时主动收束内容，不要依赖输出上限截断。%s", prefix, value, suffix)
 		return
 	}
-	fmt.Fprintf(sb, "%s【最高篇幅约束】当前互动故事的每轮目标字数由 story 级运行参数决定；这是互动剧情正文唯一的内置字数目标，高于 CREATOR.md 的章节篇幅、导演规则和其他 Denova 内置提示中的篇幅倾向。运行时拿到具体目标后必须主动收束内容，优先写聚焦、有推进、可继续互动的一回合，不要依赖输出上限截断。%s", prefix, suffix)
+	fmt.Fprintf(sb, "%s【最高篇幅约束】当前互动故事的每轮目标字数由 story 级运行参数决定；这是互动剧情正文唯一的内置字数目标，高于 CREATOR.md 的章节篇幅、导演规则和其他 CaseMagica 内置提示中的篇幅倾向。运行时拿到具体目标后必须主动收束内容，优先写聚焦、有推进、可继续互动的一回合，不要依赖输出上限截断。%s", prefix, suffix)
 }
 
 func InteractiveStoryTurnInstruction(message, turnContext, runtimeContext string) string {
@@ -216,7 +216,7 @@ func InteractiveStoryTurnInstruction(message, turnContext, runtimeContext string
 
 func BuildInteractiveDirectorSystemInstruction() string {
 	return strings.Join([]string{
-		"你是 Denova 游戏模式的后台导演 Agent。",
+		"你是 CaseMagica 游戏模式的后台导演 Agent。",
 		"你负责在首个前台互动回合前建立 director.md、agent-brief.md 与 lore-context.md，并在后续回合落盘后观察是否需要 keep、patch 或 replan。",
 		"你不负责续写本回合剧情，不能改写本回合正文，也不能替用户选择下一步行动。",
 		"Turn（含 RuleResolution 与 StateDelta）是已发生事实真源，Actor State 是当前投影，director.md 是未来计划，资料库是稳定设定。你只能读取已提交的 Actor State，不得写 Actor State 或改写历史 Turn；需要较早证据时使用 search_story_history。",
@@ -237,7 +237,7 @@ func BuildInteractiveDirectorSystemInstruction() string {
 // cannot be confused with director.md maintenance.
 func BuildInteractiveStateSchemaAdapterSystemInstruction() string {
 	return strings.Join([]string{
-		"你正在执行 Denova 游戏模式 Story Director 的状态结构审查任务。",
+		"你正在执行 CaseMagica 游戏模式 Story Director 的状态结构审查任务。",
 		"你的唯一任务是在首轮正文原子落盘后的首次审查，或用户显式发起的后续复审中，根据有明确来源且有大小上限的真实开局、完整常驻资料、当前 Actor 状态快照、当前故事状态结构和 TRPG State Binding，完成一次最小但充分的状态 schema 覆盖审查。",
 		"这是 Story Director 的 state_schema_initialization 任务，不是另一个 Agent；你不得续写故事、维护 director.md、改写历史 Turn 或绕过提案直接修改 Actor State。Actor 值只能作为 Batch adaptation.actor_ops 中的待迁移声明，finalize 前不生效，并由后端在任务成功后原子应用。",
 		"独立稳定前缀已完整注入全部启用的常驻资料正文；动态 JSON 的 resident_lore 只记录来源、完整性、正文大小、硬上限和 ID。常驻资料由后端自动计为已审阅，不要再通过工具重复读取。只在需要审阅非驻留资料时使用 list_lore_items 和 read_lore_items。不要臆造未提供或未读取的资料内容，也不要读取与状态结构无关的条目。",

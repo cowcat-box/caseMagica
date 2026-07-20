@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"denova/internal/workspacechange"
+	"casemagica/internal/workspacechange"
 )
 
 func TestDocumentReviewCommentLifecyclePersistsAndRotatesThread(t *testing.T) {
@@ -100,10 +100,10 @@ func TestDocumentReviewRejectsStaleAndForgedAnchors(t *testing.T) {
 func TestDocumentReviewStorageRejectsSymlinkedDirectory(t *testing.T) {
 	workspace := t.TempDir()
 	external := t.TempDir()
-	if err := os.Mkdir(filepath.Join(workspace, ".denova"), 0o700); err != nil {
+	if err := os.Mkdir(filepath.Join(workspace, ".casemagica"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(external, filepath.Join(workspace, ".denova", "reviews")); err != nil {
+	if err := os.Symlink(external, filepath.Join(workspace, ".casemagica", "reviews")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := NewService(workspace); err == nil {
@@ -126,7 +126,7 @@ func TestDocumentReviewRepairsTornLedgerTail(t *testing.T) {
 	}
 	service.store.close()
 
-	ledger := filepath.Join(workspace, ".denova", "reviews", "ledger.jsonl")
+	ledger := filepath.Join(workspace, ".casemagica", "reviews", "ledger.jsonl")
 	complete, err := os.Stat(ledger)
 	if err != nil {
 		t.Fatal(err)

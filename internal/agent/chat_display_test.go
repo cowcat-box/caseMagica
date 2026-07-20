@@ -7,7 +7,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/internal/session"
+	"casemagica/internal/session"
 )
 
 func TestAppendAssistantIfAnyReturnsPersistenceFailure(t *testing.T) {

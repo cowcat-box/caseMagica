@@ -15,18 +15,18 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/agent"
-	agentcontext "denova/internal/agent/context"
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/prompts"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	agentcontext "casemagica/internal/agent/context"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/prompts"
+	"casemagica/internal/session"
 )
 
 type interactiveConversation struct {
 	store                   *interactive.Store
-	novaDir                 string
+	denovaDir                 string
 	workspace               string
 	cfg                     *config.Config
 	storyID                 string
@@ -54,8 +54,8 @@ type interactiveConversation struct {
 
 type interactiveDirectorGenerator func(context.Context, *config.Config, *book.State, agent.InteractiveStoryToolContext, string) (string, error)
 
-func newInteractiveConversation(store *interactive.Store, novaDir, workspace, storyID, branchID, user string, replyTargetChars int, cfg *config.Config) *interactiveConversation {
-	return &interactiveConversation{store: store, novaDir: novaDir, workspace: workspace, cfg: cfg, storyID: storyID, branchID: branchID, user: user, replyTargetChars: replyTargetChars, directorGenerator: generateInteractiveDirector}
+func newInteractiveConversation(store *interactive.Store, denovaDir, workspace, storyID, branchID, user string, replyTargetChars int, cfg *config.Config) *interactiveConversation {
+	return &interactiveConversation{store: store, denovaDir: denovaDir, workspace: workspace, cfg: cfg, storyID: storyID, branchID: branchID, user: user, replyTargetChars: replyTargetChars, directorGenerator: generateInteractiveDirector}
 }
 
 func (c *interactiveConversation) bindDirectorRuntime(tasks *workspaceDirectorTaskGroup, generators ...interactiveDirectorGenerator) *interactiveConversation {
@@ -1285,25 +1285,25 @@ func fitTextToTokenBudget(value string, tokenBudget int) string {
 }
 
 func (c *interactiveConversation) teller(tellerID string) interactive.Teller {
-	return loadInteractiveTeller(c.novaDir, tellerID)
+	return loadInteractiveTeller(c.denovaDir, tellerID)
 }
 
 func (c *interactiveConversation) storyDirector(directorID string) interactive.StoryDirector {
-	return loadStoryDirector(c.novaDir, directorID)
+	return loadStoryDirector(c.denovaDir, directorID)
 }
 
 func (c *interactiveConversation) storyDirectorForMeta(meta interactive.StoryMeta) interactive.StoryDirector {
-	return loadStoryDirectorForMeta(c.novaDir, meta)
+	return loadStoryDirectorForMeta(c.denovaDir, meta)
 }
 
-func loadStoryDirectorForMeta(novaDir string, meta interactive.StoryMeta) interactive.StoryDirector {
-	director := loadStoryDirector(novaDir, meta.StoryDirectorID)
+func loadStoryDirectorForMeta(denovaDir string, meta interactive.StoryMeta) interactive.StoryDirector {
+	director := loadStoryDirector(denovaDir, meta.StoryDirectorID)
 	if meta.ModuleRefs == nil {
 		return director
 	}
 	director.ModuleRefs = interactive.NormalizeStoryDirectorModuleRefs(*meta.ModuleRefs)
 	director.ResolvedSnapshot = interactive.StoryDirectorResolvedSnapshot{}
-	return interactive.ResolveStoryDirectorModules(novaDir, director)
+	return interactive.ResolveStoryDirectorModules(denovaDir, director)
 }
 
 func storyDirectorForSnapshot(director interactive.StoryDirector, snapshot *interactive.ActorStateSchemaSnapshot) interactive.StoryDirector {
@@ -1317,16 +1317,16 @@ func storyDirectorForSnapshot(director interactive.StoryDirector, snapshot *inte
 	return director
 }
 
-func loadInteractiveTeller(novaDir, tellerID string) interactive.Teller {
-	if novaDir == "" {
+func loadInteractiveTeller(denovaDir, tellerID string) interactive.Teller {
+	if denovaDir == "" {
 		return interactive.Teller{}
 	}
-	teller, err := interactive.NewTellerLibrary(novaDir).Get(tellerID)
+	teller, err := interactive.NewTellerLibrary(denovaDir).Get(tellerID)
 	if err == nil {
 		return teller
 	}
 	log.Printf("[interactive-agent] load teller failed id=%s err=%v", tellerID, err)
-	fallback, fallbackErr := interactive.NewTellerLibrary(novaDir).Get("classic")
+	fallback, fallbackErr := interactive.NewTellerLibrary(denovaDir).Get("classic")
 	if fallbackErr != nil {
 		log.Printf("[interactive-agent] load fallback teller failed err=%v", fallbackErr)
 		return interactive.Teller{}
@@ -1334,16 +1334,16 @@ func loadInteractiveTeller(novaDir, tellerID string) interactive.Teller {
 	return fallback
 }
 
-func loadStoryDirector(novaDir, directorID string) interactive.StoryDirector {
-	if novaDir == "" {
+func loadStoryDirector(denovaDir, directorID string) interactive.StoryDirector {
+	if denovaDir == "" {
 		return interactive.DefaultStoryDirector()
 	}
-	director, err := interactive.NewStoryDirectorLibrary(novaDir).Get(directorID)
+	director, err := interactive.NewStoryDirectorLibrary(denovaDir).Get(directorID)
 	if err == nil {
 		return director
 	}
 	log.Printf("[interactive-agent] load story director failed id=%s err=%v", directorID, err)
-	fallback, fallbackErr := interactive.NewStoryDirectorLibrary(novaDir).Get(interactive.DefaultStoryDirectorID)
+	fallback, fallbackErr := interactive.NewStoryDirectorLibrary(denovaDir).Get(interactive.DefaultStoryDirectorID)
 	if fallbackErr != nil {
 		log.Printf("[interactive-agent] load fallback story director failed err=%v", fallbackErr)
 		return interactive.DefaultStoryDirector()

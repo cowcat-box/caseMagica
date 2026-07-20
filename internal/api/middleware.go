@@ -36,7 +36,7 @@ func corsMiddleware(ctx context.Context, c *app.RequestContext) {
 		c.Response.Header.Set("Access-Control-Allow-Origin", origin)
 	}
 	c.Response.Header.Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, PUT, OPTIONS")
-	c.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-CaseMagica-Locale, X-Denova-Locale, Authorization")
+	c.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-CaseMagica-Locale, X-CaseMagica-Locale, Authorization")
 
 	if string(c.Request.Method()) == "OPTIONS" {
 		c.AbortWithStatus(consts.StatusNoContent)
@@ -78,7 +78,7 @@ func localeHeader(c *app.RequestContext) string {
 	if header := strings.TrimSpace(string(c.Request.Header.Peek("X-CaseMagica-Locale"))); header != "" {
 		return header
 	}
-	return strings.TrimSpace(string(c.Request.Header.Peek("X-Denova-Locale")))
+	return strings.TrimSpace(string(c.Request.Header.Peek("X-CaseMagica-Locale")))
 }
 
 func remoteAccessAuthorized(access config.RemoteAccessConfig, header string) bool {

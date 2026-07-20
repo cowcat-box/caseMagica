@@ -40,7 +40,7 @@ func TestInitWorkspaceCreatesIdeasMarkdown(t *testing.T) {
 func TestStateInternalDirsUseLegacyTargetsWhenCurrentIsGeneratedEmpty(t *testing.T) {
 	dir := t.TempDir()
 	currentLore := filepath.Join(dir, ".casemagica", "lore", "items.json")
-	legacyLore := filepath.Join(dir, ".denova", "lore", "items.json")
+	legacyLore := filepath.Join(dir, ".casemagica", "lore", "items.json")
 	if err := os.MkdirAll(filepath.Dir(currentLore), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestStateInternalDirsUseLegacyTargetsWhenCurrentIsGeneratedEmpty(t *testing
 	}
 
 	state := NewState(dir)
-	if got, want := state.LoreDir(), filepath.Join(dir, ".denova", "lore"); got != want {
+	if got, want := state.LoreDir(), filepath.Join(dir, ".casemagica", "lore"); got != want {
 		t.Fatalf("LoreDir should keep using legacy lore target: want=%s got=%s", want, got)
 	}
 }

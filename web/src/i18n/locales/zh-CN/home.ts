@@ -32,7 +32,7 @@ const home = {
   'home.importCard': '导入酒馆角色卡',
   'home.importNovel': '导入现有小说',
   'home.generateCover': '生成封面',
-  'home.denovaDirLoading': 'CaseMagica 数据目录加载中...',
+  'home.casemagicaDirLoading': 'CaseMagica 数据目录加载中...',
   'home.saveError': '保存失败',
   'home.sortLabel': '书籍排序',
   'home.sortManual': '手动排序',
@@ -47,7 +47,7 @@ const home = {
   'home.unnamedBook': '未命名书籍',
   'home.uploadCover': '上传封面',
   'home.coverUploadPending': '封面已选择，创建书籍时保存',
-  'home.waitDenovaDir': 'CaseMagica 数据目录未就绪，请稍后重试',
+  'home.waitCaseMagicaDir': 'CaseMagica 数据目录未就绪，请稍后重试',
 } as const
 
 export default home

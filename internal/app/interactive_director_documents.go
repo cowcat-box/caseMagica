@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"denova/internal/interactive"
+	"casemagica/internal/interactive"
 )
 
 // formatDirectorDocumentsContext keeps model-authored Markdown as Markdown.

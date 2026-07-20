@@ -8,7 +8,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 type agentConfigWriteInput struct {
@@ -167,13 +167,13 @@ func newWriteAgentConfigsTool(cfg *config.Config) (tool.BaseTool, error) {
 }
 
 func loadAgentConfigLayered(cfg *config.Config) (config.LayeredSettings, error) {
-	novaDir := ""
+	denovaDir := ""
 	workspace := ""
 	if cfg != nil {
-		novaDir = cfg.DataDir()
+		denovaDir = cfg.DataDir()
 		workspace = cfg.Workspace
 	}
-	layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace)
+	layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace)
 	if err != nil {
 		return config.LayeredSettings{}, fmt.Errorf("读取 Agent 配置失败: %w", err)
 	}
@@ -181,15 +181,15 @@ func loadAgentConfigLayered(cfg *config.Config) (config.LayeredSettings, error) 
 }
 
 func loadWritableAgentConfigSettings(cfg *config.Config, scope string) (string, config.Settings, error) {
-	novaDir := ""
+	denovaDir := ""
 	workspace := ""
 	if cfg != nil {
-		novaDir = cfg.DataDir()
+		denovaDir = cfg.DataDir()
 		workspace = cfg.Workspace
 	}
 	switch scope {
 	case "user":
-		path := config.UserConfigPath(novaDir)
+		path := config.UserConfigPath(denovaDir)
 		settings, err := config.ReadSettingsFile(path)
 		return path, settings, err
 	case "workspace":

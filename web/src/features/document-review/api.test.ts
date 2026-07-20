@@ -18,11 +18,11 @@ describe('document review API', () => {
     })
     server.use(
       http.get('/api/workspace/document-review', ({ request }) => {
-        expect(request.headers.get('X-Denova-Workspace')).toBe(encodeURIComponent(workspace))
+        expect(request.headers.get('X-CaseMagica-Workspace')).toBe(encodeURIComponent(workspace))
         return HttpResponse.json({ workspace, review_thread: { id: '', comments: null } })
       }),
       http.post('/api/workspace/document-comments', async ({ request }) => {
-        expect(request.headers.get('X-Denova-Workspace')).toBe(encodeURIComponent(workspace))
+        expect(request.headers.get('X-CaseMagica-Workspace')).toBe(encodeURIComponent(workspace))
         requests.push({ method: request.method, body: await request.json() })
         return HttpResponse.json({ workspace, review_thread: thread('修改这里'), comment: thread('修改这里').comments[0] }, { status: 201 })
       }),

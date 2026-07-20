@@ -9,8 +9,8 @@ import (
 
 	"github.com/cloudwego/eino/components/tool"
 
-	"denova/config"
-	"denova/internal/automation"
+	"casemagica/config"
+	"casemagica/internal/automation"
 )
 
 func TestConfigManagerToolsExposeStableSchema(t *testing.T) {
@@ -49,17 +49,17 @@ func TestConfigManagerToolsExposeStableSchema(t *testing.T) {
 }
 
 func TestListAutomationsToolUsesTheUserCatalogAcrossWorkspaces(t *testing.T) {
-	novaDir := filepath.Join(t.TempDir(), "user")
+	denovaDir := filepath.Join(t.TempDir(), "user")
 	workspaceA := filepath.Join(t.TempDir(), "book-a")
 	workspaceB := filepath.Join(t.TempDir(), "book-b")
-	if _, err := automation.NewStore(novaDir, workspaceA).Create(automation.Task{Scope: automation.ScopeWorkspace, Name: "Task A", Template: automation.TemplateReview}); err != nil {
+	if _, err := automation.NewStore(denovaDir, workspaceA).Create(automation.Task{Scope: automation.ScopeWorkspace, Name: "Task A", Template: automation.TemplateReview}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := automation.NewStore(novaDir, workspaceB).Create(automation.Task{Scope: automation.ScopeWorkspace, Name: "Task B", Template: automation.TemplateReview}); err != nil {
+	if _, err := automation.NewStore(denovaDir, workspaceB).Create(automation.Task{Scope: automation.ScopeWorkspace, Name: "Task B", Template: automation.TemplateReview}); err != nil {
 		t.Fatal(err)
 	}
 
-	listTool, err := newListAutomationsTool(novaDir, workspaceA, []string{workspaceA, workspaceB})
+	listTool, err := newListAutomationsTool(denovaDir, workspaceA, []string{workspaceA, workspaceB})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestConfigManagerSubAgentToolsAreCappedBySubAgentOverride(t *testing.T) {
 }
 
 func TestPresetConfigManagerToolIndexesDescribeFixedModuleOwnership(t *testing.T) {
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	for _, tc := range []struct {
 		name     string
 		build    func(string) (tool.BaseTool, error)
@@ -134,7 +134,7 @@ func TestPresetConfigManagerToolIndexesDescribeFixedModuleOwnership(t *testing.T
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			base, err := tc.build(novaDir)
+			base, err := tc.build(denovaDir)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -158,9 +158,9 @@ func TestPresetConfigManagerToolIndexesDescribeFixedModuleOwnership(t *testing.T
 }
 
 func TestListAgentConfigsReturnsAllLayersWithoutAPIKeys(t *testing.T) {
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	workspace := t.TempDir()
-	if err := config.WriteSettingsFile(config.UserConfigPath(novaDir), config.Settings{
+	if err := config.WriteSettingsFile(config.UserConfigPath(denovaDir), config.Settings{
 		OpenAIAPIKey: "user-secret",
 		ModelProfiles: []config.ModelProfileSettings{{
 			ID:           "deepseek",
@@ -181,7 +181,7 @@ func TestListAgentConfigsReturnsAllLayersWithoutAPIKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	listTool, err := newListAgentConfigsTool(&config.Config{NovaDir: novaDir, Workspace: workspace})
+	listTool, err := newListAgentConfigsTool(&config.Config{DenovaDir: denovaDir, Workspace: workspace})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestListAgentConfigsReturnsAllLayersWithoutAPIKeys(t *testing.T) {
 }
 
 func TestWriteAgentConfigsRequiresExplicitScopeAndWorkspace(t *testing.T) {
-	writeTool, err := newWriteAgentConfigsTool(&config.Config{NovaDir: t.TempDir()})
+	writeTool, err := newWriteAgentConfigsTool(&config.Config{DenovaDir: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestWriteAgentConfigsRequiresExplicitScopeAndWorkspace(t *testing.T) {
 		t.Fatalf("write_agent_configs should reject workspace scope without workspace")
 	}
 
-	writeTool, err = newWriteAgentConfigsTool(&config.Config{NovaDir: t.TempDir(), Workspace: t.TempDir()})
+	writeTool, err = newWriteAgentConfigsTool(&config.Config{DenovaDir: t.TempDir(), Workspace: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,8 +223,8 @@ func TestWriteAgentConfigsRequiresExplicitScopeAndWorkspace(t *testing.T) {
 }
 
 func TestWriteAgentConfigsPreservesUnrelatedSettings(t *testing.T) {
-	novaDir := t.TempDir()
-	path := config.UserConfigPath(novaDir)
+	denovaDir := t.TempDir()
+	path := config.UserConfigPath(denovaDir)
 	off := false
 	if err := config.WriteSettingsFile(path, config.Settings{
 		Theme:                    "light",
@@ -235,7 +235,7 @@ func TestWriteAgentConfigsPreservesUnrelatedSettings(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	writeTool, err := newWriteAgentConfigsTool(&config.Config{NovaDir: novaDir, Workspace: filepath.Join(t.TempDir(), "workspace")})
+	writeTool, err := newWriteAgentConfigsTool(&config.Config{DenovaDir: denovaDir, Workspace: filepath.Join(t.TempDir(), "workspace")})
 	if err != nil {
 		t.Fatal(err)
 	}

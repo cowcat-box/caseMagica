@@ -41,10 +41,10 @@ func truncateForLog(s string, n int) string {
 }
 
 // 集成测试，用于人工检查四引擎聚合效果。默认测试套件不访问公网；显式设置
-// DENOVA_LIVE_WEB_SEARCH_TEST=1 后单独运行本测试。
+// CASEMAGICA_LIVE_WEB_SEARCH_TEST=1 后单独运行本测试。
 func TestLiveWebSearch_HelloWorld(t *testing.T) {
-	if os.Getenv("DENOVA_LIVE_WEB_SEARCH_TEST") != "1" {
-		t.Skip("skipping live web search; set DENOVA_LIVE_WEB_SEARCH_TEST=1 to execute")
+	if os.Getenv("CASEMAGICA_LIVE_WEB_SEARCH_TEST") != "1" {
+		t.Skip("skipping live web search; set CASEMAGICA_LIVE_WEB_SEARCH_TEST=1 to execute")
 	}
 
 	const query = "Hello World"

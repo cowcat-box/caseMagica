@@ -11,7 +11,7 @@ import (
 
 	"github.com/cloudwego/eino/components/tool"
 
-	"denova/internal/workspacechange"
+	"casemagica/internal/workspacechange"
 )
 
 func TestWorkspaceReadFileToolReturnsPartialWindowWithoutRevision(t *testing.T) {

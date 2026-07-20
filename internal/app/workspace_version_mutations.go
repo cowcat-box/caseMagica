@@ -4,9 +4,9 @@ import (
 	"context"
 	"log"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/workspacechange"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/workspacechange"
 )
 
 // VersionStatus 返回当前书籍 workspace 的本地版本状态。

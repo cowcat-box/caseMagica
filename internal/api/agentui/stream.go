@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"denova/internal/agent"
+	"casemagica/internal/agent"
 )
 
 // StreamEncoder writes Agent events using the AI SDK UI message stream

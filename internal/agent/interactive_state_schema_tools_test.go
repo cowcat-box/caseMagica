@@ -8,7 +8,7 @@ import (
 
 	"github.com/cloudwego/eino/components/tool"
 
-	"denova/internal/interactive"
+	"casemagica/internal/interactive"
 )
 
 func TestInteractiveStateSchemaToolUsesIncrementalBatchContract(t *testing.T) {

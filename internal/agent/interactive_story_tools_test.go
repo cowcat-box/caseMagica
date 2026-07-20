@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"denova/internal/interactive"
+	"casemagica/internal/interactive"
 )
 
 func TestInteractiveTurnToolsExposeOneStructuredSubmissionTool(t *testing.T) {

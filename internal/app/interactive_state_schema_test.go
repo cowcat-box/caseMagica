@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/workspacepath"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/workspacepath"
 )
 
 func TestBuildStateSchemaAdaptationInstructionIncludesFrozenSchemaAndCurrentActorValues(t *testing.T) {

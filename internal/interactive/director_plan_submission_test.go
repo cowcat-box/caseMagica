@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 type directorPatchTestRun struct {

@@ -110,11 +110,11 @@ func sortedRegistryBooks(data bookRegistryData) []BookRecord {
 }
 
 func (r *BookRegistry) scanNovaBooks(data bookRegistryData) ([]BookRecord, error) {
-	absDenovaDir, err := filepath.Abs(r.denovaDir)
+	absCaseMagicaDir, err := filepath.Abs(r.denovaDir)
 	if err != nil {
 		return nil, err
 	}
-	entries, err := os.ReadDir(absDenovaDir)
+	entries, err := os.ReadDir(absCaseMagicaDir)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (r *BookRegistry) scanNovaBooks(data bookRegistryData) ([]BookRecord, error
 
 	seen := make(map[string]bool, len(entries))
 	books := make([]BookRecord, 0, len(entries))
-	projectsDir := filepath.Join(absDenovaDir, bookProjectsDirName)
+	projectsDir := filepath.Join(absCaseMagicaDir, bookProjectsDirName)
 	if info, err := os.Stat(projectsDir); err == nil && info.IsDir() {
 		projectBooks, err := scanBooksInDir(projectsDir, openedAt, hidden, seen, false)
 		if err != nil {
@@ -145,7 +145,7 @@ func (r *BookRegistry) scanNovaBooks(data bookRegistryData) ([]BookRecord, error
 		return nil, err
 	}
 
-	rootBooks, err := scanBooksInDir(absDenovaDir, openedAt, hidden, seen, true)
+	rootBooks, err := scanBooksInDir(absCaseMagicaDir, openedAt, hidden, seen, true)
 	if err != nil {
 		return nil, err
 	}
@@ -282,8 +282,8 @@ func bookCreationParentDir(parentDir, denovaDir string) (string, error) {
 	if denovaDir == "" {
 		return absParent, nil
 	}
-	absDenovaDir, err := filepath.Abs(denovaDir)
-	if err == nil && absParent == absDenovaDir {
+	absCaseMagicaDir, err := filepath.Abs(denovaDir)
+	if err == nil && absParent == absCaseMagicaDir {
 		return filepath.Join(absParent, bookProjectsDirName), nil
 	}
 	return absParent, nil
@@ -500,5 +500,5 @@ func legacyBookRegistryPath() string {
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
 		return filepath.Join(home, workspacepath.LegacyDataDirName, "books.json")
 	}
-	return filepath.Join(".", ".denova-books.json")
+	return filepath.Join(".", ".casemagica-books.json")
 }

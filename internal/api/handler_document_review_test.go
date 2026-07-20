@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"denova/internal/documentreview"
-	"denova/internal/workspacechange"
+	"casemagica/internal/documentreview"
+	"casemagica/internal/workspacechange"
 )
 
 func TestDocumentReviewCommentLifecycleAPI(t *testing.T) {

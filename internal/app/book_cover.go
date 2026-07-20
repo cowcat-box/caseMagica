@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/bookcover"
-	"denova/internal/imagepreset"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/bookcover"
+	"casemagica/internal/imagepreset"
 )
 
 type BookCoverGenerateRequest struct {
@@ -77,12 +77,12 @@ func (a *App) ReadBookCover(path string) ([]byte, string, error) {
 
 func (a *App) bookCoverConfig(workspace string) (config.Config, error) {
 	a.mu.RLock()
-	novaDir := ""
+	denovaDir := ""
 	if a.cfg != nil {
-		novaDir = a.cfg.DataDir()
+		denovaDir = a.cfg.DataDir()
 	}
 	a.mu.RUnlock()
-	layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace)
+	layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace)
 	if err != nil {
 		return config.Config{}, err
 	}
@@ -93,8 +93,8 @@ func (a *App) bookCoverConfig(workspace string) (config.Config, error) {
 		ImageAPIModel:            effective.ImageAPIModel,
 		DefaultImageAPIProfileID: effective.DefaultImageAPIProfileID,
 		ImageAPIProfiles:         effective.ImageAPIProfiles,
-		DenovaDir:                layered.Paths.DenovaDir,
-		NovaDir:                  layered.Paths.DenovaDir,
+		CaseMagicaDir:                layered.Paths.CaseMagicaDir,
+		DenovaDir:                  layered.Paths.CaseMagicaDir,
 		Workspace:                workspace,
 		IDEImagePresetID:         effective.IDEImagePresetID,
 	}

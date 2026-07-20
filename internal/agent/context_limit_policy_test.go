@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 const minimumCompleteAgentContextBytes = 128 * 1024

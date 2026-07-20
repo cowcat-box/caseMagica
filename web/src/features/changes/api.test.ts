@@ -23,11 +23,11 @@ describe('workspace change API', () => {
         expect(params.get('run_id')).toBe('run-1')
         expect(params.get('session_id')).toBe('session-1')
         expect(params.get('review_thread_id')).toBe('thread-1')
-        expect(request.headers.get('X-Denova-Workspace')).toBe(encodeURIComponent(workspace))
+        expect(request.headers.get('X-CaseMagica-Workspace')).toBe(encodeURIComponent(workspace))
         return HttpResponse.json({ groups: [{ id: 'group-1', review_status: 'pending', apply_state: 'applied', created_at: '2026-07-16T00:00:00Z', change_set_count: 1, paths: ['chapters/ch01.md'] }] })
       }),
       http.get('/api/workspace/change-groups/group-1', ({ request }) => {
-        expect(request.headers.get('X-Denova-Workspace')).toBe(encodeURIComponent(workspace))
+        expect(request.headers.get('X-CaseMagica-Workspace')).toBe(encodeURIComponent(workspace))
         return HttpResponse.json({
           group: { id: 'group-1', review_status: 'pending', apply_state: 'applied', created_at: '2026-07-16T00:00:00Z', change_sets: [], comments: [] },
         })
@@ -49,7 +49,7 @@ describe('workspace change API', () => {
     const workspace = '/books/中文作品'
     server.use(
       http.get('/api/workspace/change-review-threads/thread-1', ({ request }) => {
-        expect(request.headers.get('X-Denova-Workspace')).toBe(encodeURIComponent(workspace))
+        expect(request.headers.get('X-CaseMagica-Workspace')).toBe(encodeURIComponent(workspace))
         return HttpResponse.json({
           workspace,
           review_thread: {
@@ -116,7 +116,7 @@ describe('workspace change API', () => {
 
   it('rejects a successful non-API response instead of presenting an empty review', async () => {
     server.use(
-      http.get('/api/workspace/change-review-threads/thread-invalid', () => HttpResponse.text('<!doctype html><title>Denova</title>')),
+      http.get('/api/workspace/change-review-threads/thread-invalid', () => HttpResponse.text('<!doctype html><title>CaseMagica</title>')),
     )
 
     await expect(getWorkspaceChangeReviewThread('/books/demo', 'thread-invalid')).rejects.toThrow('Invalid workspace change review thread response')
@@ -127,7 +127,7 @@ describe('workspace change API', () => {
     const requests: Array<{ path: string; body: unknown; workspace: string | null }> = []
     const record = async (path: string, request: Request) => {
       const body = request.method === 'DELETE' ? undefined : await request.json().catch(() => undefined)
-      requests.push({ path, body, workspace: request.headers.get('X-Denova-Workspace') })
+      requests.push({ path, body, workspace: request.headers.get('X-CaseMagica-Workspace') })
     }
     server.use(
       http.post('/api/workspace/change-groups/group-1/review', async ({ request }) => {

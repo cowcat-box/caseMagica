@@ -292,7 +292,7 @@ func TestAnalyzeInteractiveDirectorContextUsesCurrentDirectorInputs(t *testing.T
 		t.Fatal(err)
 	}
 	app := &App{
-		cfg:         &config.Config{Workspace: workspace, DenovaDir: denovaDir},
+		cfg:         &config.Config{Workspace: workspace, CaseMagicaDir: denovaDir},
 		workspace:   workspace,
 		bookState:   book.NewState(workspace),
 		bookService: book.NewService(workspace),

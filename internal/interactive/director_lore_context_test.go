@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 func TestParseDirectorLoreContextReferencesSeparatesActiveCandidateAndOffstage(t *testing.T) {

@@ -34,7 +34,7 @@ interface HomeViewProps {
   /** 当前工作区路径，用于高亮当前书籍并作为父目录推断默认值 */
   workspace: string
   /** 用户 Nova 数据目录，新建书籍默认创建在该目录下 */
-  novaDir: string
+  denovaDir: string
   /** Nova 数据目录下实际存在的书籍 */
   books: BookRecord[]
   /** 书架与标题快捷入口共用的持久化排序方式。 */
@@ -57,7 +57,7 @@ const iconButtonCls = 'nova-nav-item text-[var(--nova-text-faint)] hover:bg-[var
 type BookDialogState = { mode: 'create'; book: null } | { mode: 'edit'; book: BookRecord }
 
 /** 书籍管理视图：集中展示、创建、打开和编辑 Nova 数据目录中的书籍。 */
-export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, onBeforeSwitch, onBooksChange, onOpenCharacterCardImport, onClose }: HomeViewProps) {
+export function HomeView({ workspace, denovaDir, books, bookSortMode, onSwitch, onBeforeSwitch, onBooksChange, onOpenCharacterCardImport, onClose }: HomeViewProps) {
   const { t } = useTranslation()
   const [showNovelImport, setShowNovelImport] = useState(false)
   const [bookDialog, setBookDialog] = useState<BookDialogState | null>(null)
@@ -426,7 +426,7 @@ export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, on
       </ScrollArea>
       <NovelImportDialog
         open={showNovelImport}
-        novaDir={novaDir}
+        denovaDir={denovaDir}
         onOpenChange={setShowNovelImport}
         onImported={(result) => {
           onSwitch(result.workspace)
@@ -438,7 +438,7 @@ export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, on
         open={Boolean(bookDialog)}
         mode={bookDialog?.mode || 'create'}
         book={bookDialog?.book || null}
-        novaDir={novaDir}
+        denovaDir={denovaDir}
         imagePresetOptions={imagePresetOptions}
         defaultImagePresetId={defaultImagePresetId}
         coverVersion={coverVersion}

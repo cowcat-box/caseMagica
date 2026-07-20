@@ -10,8 +10,8 @@ import (
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/book"
+	"casemagica/config"
+	"casemagica/internal/book"
 )
 
 const loreClassificationInputMaxBytes = 64 * 1024
@@ -136,7 +136,7 @@ func isLoreClassificationType(value string) bool {
 
 func loreClassificationSystemInstruction() string {
 	return strings.Join([]string{
-		"你负责给 Denova 资料库条目分类。",
+		"你负责给 CaseMagica 资料库条目分类。",
 		"只输出 JSON object：{\"items\":[{\"id\":\"输入 id\",\"type\":\"character|world|location|faction|rule|item|other\",\"confidence\":\"high|medium|low\",\"reason\":\"简短依据\"}]}。",
 		"名称优先于正文：人物详情、角色档案等名称应归为 character；地点、势力、规则、物品等明确名称同理。",
 		"world 只用于跨地点的世界观、历史、文化或时代背景；无法稳定判断时使用 other 和 low，不要猜测。",

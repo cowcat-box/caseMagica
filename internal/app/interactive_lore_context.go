@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"denova/internal/book"
-	"denova/internal/interactive"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
 )
 
 const (

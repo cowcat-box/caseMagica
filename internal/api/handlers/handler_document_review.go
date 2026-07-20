@@ -8,9 +8,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	denovaapp "denova/internal/app"
-	"denova/internal/book"
-	"denova/internal/documentreview"
+	casemagicaapp "casemagica/internal/app"
+	"casemagica/internal/book"
+	"casemagica/internal/documentreview"
 )
 
 // HandleDocumentReview returns the author's current one-shot review batch.
@@ -106,7 +106,7 @@ func (h *Handlers) withDocumentReviewService(c *app.RequestContext, action func(
 }
 
 func (h *Handlers) writeDocumentReviewError(c *app.RequestContext, expectedWorkspace string, err error) {
-	if errors.Is(err, denovaapp.ErrWorkspaceChanged) || errors.Is(err, denovaapp.ErrNoWorkspace) {
+	if errors.Is(err, casemagicaapp.ErrWorkspaceChanged) || errors.Is(err, casemagicaapp.ErrNoWorkspace) {
 		h.writeWorkspaceChangeLeaseError(c, expectedWorkspace, err)
 		return
 	}

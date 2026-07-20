@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/automation"
-	"denova/internal/book"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/automation"
+	"casemagica/internal/book"
+	"casemagica/internal/session"
 )
 
 // automationSnapshotForTarget resolves an execution context without changing the
@@ -54,7 +54,7 @@ func (s *AutomationAppService) automationSnapshotForTarget(ctx context.Context, 
 	}
 	return &automationWorkspaceSnapshot{
 		workspace:    workspace,
-		novaDir:      baseCfg.DataDir(),
+		denovaDir:      baseCfg.DataDir(),
 		cfg:          baseCfg,
 		bookState:    state,
 		bookService:  book.NewService(workspace),
@@ -72,11 +72,11 @@ func (s *AutomationAppService) globalAutomationSnapshot() (*automationWorkspaceS
 	chatService := s.app.chatService
 	s.app.mu.RUnlock()
 	baseCfg.Workspace = ""
-	novaDir := strings.TrimSpace(baseCfg.DataDir())
-	if novaDir == "" {
+	denovaDir := strings.TrimSpace(baseCfg.DataDir())
+	if denovaDir == "" {
 		return nil, fmt.Errorf("user data directory is required for global automation")
 	}
-	sessionStore, err := session.NewStore(filepath.Join(novaDir, "automations", "sessions"))
+	sessionStore, err := session.NewStore(filepath.Join(denovaDir, "automations", "sessions"))
 	if err != nil {
 		return nil, fmt.Errorf("open global automation sessions: %w", err)
 	}
@@ -84,7 +84,7 @@ func (s *AutomationAppService) globalAutomationSnapshot() (*automationWorkspaceS
 		chatService = agent.NewChatService()
 	}
 	return &automationWorkspaceSnapshot{
-		novaDir:      novaDir,
+		denovaDir:      denovaDir,
 		cfg:          baseCfg,
 		sessionStore: sessionStore,
 		chatService:  chatService,

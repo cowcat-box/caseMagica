@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"denova/internal/agent"
-	"denova/internal/automation"
+	"casemagica/internal/agent"
+	"casemagica/internal/automation"
 )
 
 func TestActiveAutomationRegistryScopesSameIDsByCanonicalWorkspace(t *testing.T) {

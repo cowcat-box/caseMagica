@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"denova/internal/keyedlock"
+	"casemagica/internal/keyedlock"
 )
 
 // automationTriggerCoordinator owns mutation-trigger evaluation for the App

@@ -298,7 +298,7 @@ describe('MessageItem', () => {
 
   it('隐藏章节正文的工具卡片展示写入状态和说明详情', async () => {
     const user = userEvent.setup()
-    const path = '/Users/me/nova/.denova/测试/chapters/ch01.md'
+    const path = '/Users/me/nova/.casemagica/测试/chapters/ch01.md'
 
     render(
       <MessageItem

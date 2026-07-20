@@ -1,7 +1,7 @@
 package app
 
 import (
-	"denova/internal/styleref"
+	"casemagica/internal/styleref"
 )
 
 func (a *App) StyleReferences() ([]styleref.Reference, error) {

@@ -8,10 +8,10 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 
-	"denova/internal/agent"
-	agentmiddleware "denova/internal/agent/middleware"
-	"denova/internal/api/agentui"
-	novaApp "denova/internal/app"
+	"casemagica/internal/agent"
+	agentmiddleware "casemagica/internal/agent/middleware"
+	"casemagica/internal/api/agentui"
+	novaApp "casemagica/internal/app"
 )
 
 type StreamOptions struct {

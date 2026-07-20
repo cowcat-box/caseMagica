@@ -16,8 +16,8 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/common/ut"
 
-	"denova/internal/book"
-	"denova/internal/bookcover"
+	"casemagica/internal/book"
+	"casemagica/internal/bookcover"
 )
 
 func TestCharacterCardImportAsNewBookAboveRecommendation(t *testing.T) {
@@ -96,7 +96,7 @@ func TestBookCoverUploadAPI(t *testing.T) {
 
 func TestBookExportTextAPI(t *testing.T) {
 	application := newTestApplication(t)
-	if _, err := application.UpdateBookInfo(application.Workspace(), "星河边境", "Denova", ""); err != nil {
+	if _, err := application.UpdateBookInfo(application.Workspace(), "星河边境", "CaseMagica", ""); err != nil {
 		t.Fatalf("写入书籍元信息失败: %v", err)
 	}
 	if err := application.BookService().Create("chapters/ch00002-第二章-追光.md", "file", "第二章 追光\n\n林川踏入雨夜。"); err != nil {
@@ -127,7 +127,7 @@ func TestBookExportTextAPI(t *testing.T) {
 		t.Fatalf("content disposition = %q", disposition)
 	}
 	body := resp.Body.String()
-	for _, want := range []string{"星河边境", "作者: Denova", "第一章 开局", "天亮了。", "第二章 追光", "林川踏入雨夜。"} {
+	for _, want := range []string{"星河边境", "作者: CaseMagica", "第一章 开局", "天亮了。", "第二章 追光", "林川踏入雨夜。"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("export missing %q:\n%s", want, body)
 		}
