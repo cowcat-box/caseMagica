@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"denova/internal/agent"
-	"denova/internal/interactive"
+	"casemagica/internal/agent"
+	"casemagica/internal/interactive"
 )
 
 func TestEmitInteractiveTurnPersistedUsesCurrentSnapshot(t *testing.T) {

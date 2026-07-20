@@ -1,4 +1,4 @@
-module denova
+module casemagica
 
 go 1.26.1
 

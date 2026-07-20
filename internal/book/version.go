@@ -1,6 +1,6 @@
 package book
 
-import "denova/internal/book/versions"
+import "casemagica/internal/book/versions"
 
 const (
 	DefaultTimedVersionIntervalMinutes = versions.DefaultTimedVersionIntervalMinutes

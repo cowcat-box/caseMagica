@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"denova/internal/buildinfo"
-	"denova/internal/update"
+	"casemagica/internal/buildinfo"
+	"casemagica/internal/update"
 )
 
 func main() {

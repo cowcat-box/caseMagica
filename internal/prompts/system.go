@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 // SystemInstructionInput 用于构建 Agent 系统指令的可注入上下文。
@@ -35,7 +35,7 @@ type SystemInstructionInput struct {
 	ChapterGroupMax int
 }
 
-// BuildSystemInstruction 拼装 Denova Agent 的稳定系统指令：
+// BuildSystemInstruction 拼装 CaseMagica Agent 的稳定系统指令：
 // 创作者指令（最高优先级）+ 导演规则 + 基础规则。作品状态由运行时追加到本轮用户消息末尾。
 func BuildSystemInstruction(in SystemInstructionInput) string {
 	var sb strings.Builder
@@ -124,8 +124,8 @@ func normalizedVolumeDirFormat(format string) string {
 	return format
 }
 
-// systemInstructionBody Denova 的基础规则与工作流。包含 12 个 %s 占位符。
-const systemInstructionBody = `你是 Denova，一个专业的 AI 小说创作助手。你的任务是帮助作者进行小说创作，包括构思大纲、续写章节、重写修改、角色管理等。
+// systemInstructionBody CaseMagica 的基础规则与工作流。包含 12 个 %s 占位符。
+const systemInstructionBody = `你是 CaseMagica，一个专业的 AI 小说创作助手。你的任务是帮助作者进行小说创作，包括构思大纲、续写章节、重写修改、角色管理等。
 
 ## 重要规则
 

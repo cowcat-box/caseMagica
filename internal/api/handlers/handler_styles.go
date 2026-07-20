@@ -9,8 +9,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	novaApp "denova/internal/app"
-	"denova/internal/styleref"
+	novaApp "casemagica/internal/app"
+	"casemagica/internal/styleref"
 )
 
 func (h *Handlers) HandleStyleReferences(ctx context.Context, c *app.RequestContext) {

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/styleref"
+	"casemagica/internal/styleref"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 )
 
 type TellerLibrary struct {
-	novaDir string
+	denovaDir string
 }
 
 var ErrTellerRevisionConflict = errors.New("叙事风格已被其他操作更新，请重新加载后再保存")
@@ -129,8 +129,8 @@ type StyleRule struct {
 	StyleContents []string `json:"style_contents,omitempty"`
 }
 
-func NewTellerLibrary(novaDir string) *TellerLibrary {
-	return &TellerLibrary{novaDir: novaDir}
+func NewTellerLibrary(denovaDir string) *TellerLibrary {
+	return &TellerLibrary{denovaDir: denovaDir}
 }
 
 func (l *TellerLibrary) List() ([]Teller, error) {
@@ -276,7 +276,7 @@ func (l *TellerLibrary) restoreBuiltin(id string) error {
 }
 
 func (l *TellerLibrary) dir() string {
-	return filepath.Join(l.novaDir, "story-tellers")
+	return filepath.Join(l.denovaDir, "story-tellers")
 }
 
 func (l *TellerLibrary) ensureBuiltins() error {

@@ -38,12 +38,12 @@ export function scheduleFrontendReloadAfterUpdate(version: string | undefined, o
 export function buildFrontendReloadURL(version: string | undefined, nonce: number, currentHref: string) {
   const url = new URL(currentHref)
   const label = sanitizeReloadLabel(version) || 'update'
-  url.searchParams.set('denova_reload', `${label}-${nonce}`)
+  url.searchParams.set('casemagica_reload', `${label}-${nonce}`)
   return url.toString()
 }
 
 async function defaultPollBackend() {
-  const res = await fetchAPI(`/api/status?denova_reload_probe=${Date.now()}`, {
+  const res = await fetchAPI(`/api/status?casemagica_reload_probe=${Date.now()}`, {
     cache: 'no-store',
     suppressBackendUnavailableToast: true,
   })

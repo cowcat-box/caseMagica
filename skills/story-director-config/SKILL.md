@@ -1,6 +1,6 @@
 ---
 name: story-director-config
-description: Use when config_manager creates or updates Denova Story Director resources.
+description: Use when config_manager creates or updates CaseMagica Story Director resources.
 agent: config_manager
 ---
 

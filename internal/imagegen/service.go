@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 var (

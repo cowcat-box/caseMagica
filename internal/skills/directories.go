@@ -5,16 +5,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
-// NewDirectories returns the canonical skill search path for Denova.
-func NewDirectories(builtinDir, novaDir, workspace string) []Directory {
+// NewDirectories returns the canonical skill search path for CaseMagica.
+func NewDirectories(builtinDir, denovaDir, workspace string) []Directory {
 	dirs := make([]Directory, 0, 3)
 	if path := normalizePath(builtinDir); path != "" {
 		dirs = append(dirs, Directory{Scope: ScopeBuiltin, Path: path, Writable: false})
 	}
-	if path := normalizePath(filepath.Join(novaDir, "skills")); novaDir != "" && path != "" {
+	if path := normalizePath(filepath.Join(denovaDir, "skills")); denovaDir != "" && path != "" {
 		dirs = append(dirs, Directory{Scope: ScopeUser, Path: path, Writable: true})
 	}
 	if path := normalizePath(workspacepath.Path(workspace, "skills")); workspace != "" && path != "" {

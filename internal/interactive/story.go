@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"denova/internal/imagepreset"
+	"casemagica/internal/imagepreset"
 )
 
 const schemaVersion = 1
@@ -36,7 +36,7 @@ const (
 // Store manages interactive story data inside a workspace.
 type Store struct {
 	root    string
-	novaDir string
+	denovaDir string
 	mu      sync.Mutex
 }
 
@@ -45,10 +45,10 @@ func NewStore(root string) *Store {
 	return &Store{root: root}
 }
 
-// NewStoreWithNovaDir creates an interactive store that can resolve reusable
-// director modules from the workspace .denova directory.
-func NewStoreWithNovaDir(root, novaDir string) *Store {
-	return &Store{root: root, novaDir: strings.TrimSpace(novaDir)}
+// NewStoreWithDenovaDir creates an interactive store that can resolve reusable
+// director modules from the workspace .casemagica directory.
+func NewStoreWithDenovaDir(root, denovaDir string) *Store {
+	return &Store{root: root, denovaDir: strings.TrimSpace(denovaDir)}
 }
 
 // Root returns the workspace root.

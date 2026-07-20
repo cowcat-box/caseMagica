@@ -9,8 +9,8 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/prompts"
+	"casemagica/config"
+	"casemagica/internal/prompts"
 )
 
 type interactiveHotChoicesPayload struct {

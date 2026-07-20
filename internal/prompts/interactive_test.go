@@ -91,14 +91,14 @@ func TestInteractiveStoryPromptUsesDirectNarrativeOutputContract(t *testing.T) {
 func TestInteractiveStoryPromptRequiresGlobalStyleReferenceRead(t *testing.T) {
 	system := BuildInteractiveStorySystemInstruction(InteractiveStorySystemInstructionInput{
 		StyleRules: []StyleRule{
-			{Global: true, StyleReferences: []StyleReference{{Name: "全局克制", Path: "/tmp/.denova/styles/global.md", DisplayPath: ".denova/styles/global.md"}}},
-			{Scene: "激烈打斗", StyleReferences: []StyleReference{{Name: "短促打斗", Path: "/tmp/.denova/styles/fight.md", DisplayPath: ".denova/styles/fight.md"}}},
+			{Global: true, StyleReferences: []StyleReference{{Name: "全局克制", Path: "/tmp/.casemagica/styles/global.md", DisplayPath: ".casemagica/styles/global.md"}}},
+			{Scene: "激烈打斗", StyleReferences: []StyleReference{{Name: "短促打斗", Path: "/tmp/.casemagica/styles/fight.md", DisplayPath: ".casemagica/styles/fight.md"}}},
 		},
 	})
 
 	for _, want := range []string{
 		"全局文风参考：所有正文生成默认生效",
-		"path: /tmp/.denova/styles/global.md",
+		"path: /tmp/.casemagica/styles/global.md",
 		"互动故事下一回合正文生成时",
 		"编制故事正文前必须先用 read_file 读取这些全局参考文件",
 		"分场景文风参考仍根据当前章节内容、互动场景或本轮 # 场景选择",

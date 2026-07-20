@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 // ErrUnsupportedBookExportFormat indicates that the requested export format is not implemented.

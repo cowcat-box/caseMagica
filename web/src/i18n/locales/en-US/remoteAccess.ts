@@ -1,5 +1,5 @@
 const remoteAccess = {
-  'remoteAccess.title': 'Sign in to Denova',
+  'remoteAccess.title': 'Sign in to CaseMagica',
   'remoteAccess.description': 'Enter the remote access username and password configured in Settings.',
   'remoteAccess.username': 'Username',
   'remoteAccess.password': 'Password',

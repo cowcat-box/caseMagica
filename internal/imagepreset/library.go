@@ -22,7 +22,7 @@ const (
 )
 
 type Library struct {
-	novaDir string
+	denovaDir string
 }
 
 var ErrPresetRevisionConflict = errors.New("图像方案已被其他操作更新，请重新加载后再保存")
@@ -52,8 +52,8 @@ type Slot struct {
 	Content string `json:"content"`
 }
 
-func NewLibrary(novaDir string) *Library {
-	return &Library{novaDir: novaDir}
+func NewLibrary(denovaDir string) *Library {
+	return &Library{denovaDir: denovaDir}
 }
 
 func (l *Library) List() ([]Preset, error) {
@@ -198,7 +198,7 @@ func (l *Library) restoreBuiltin(id string) error {
 }
 
 func (l *Library) dir() string {
-	return filepath.Join(l.novaDir, "image-presets")
+	return filepath.Join(l.denovaDir, "image-presets")
 }
 
 func (l *Library) ensureBuiltins() error {

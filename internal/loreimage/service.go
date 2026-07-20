@@ -11,9 +11,9 @@ import (
 	"time"
 	"unicode"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/imagegen"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/imagegen"
 )
 
 const (

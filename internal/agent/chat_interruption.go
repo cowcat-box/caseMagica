@@ -4,8 +4,8 @@ import (
 	"log"
 	"strings"
 
-	"denova/internal/prompts"
-	"denova/internal/session"
+	"casemagica/internal/prompts"
+	"casemagica/internal/session"
 )
 
 func markInterruptionIfNeeded(conversation Conversation, resumed *session.Interruption, userMessage, assistantContent, reason string) {

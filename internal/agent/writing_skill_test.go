@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 func TestResolveWritingSkillNameDefaultsAndSelection(t *testing.T) {

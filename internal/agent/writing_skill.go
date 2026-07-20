@@ -3,7 +3,7 @@ package agent
 import (
 	"strings"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 // ResolveWritingSkillName selects the effective Writing Skill name for this IDE

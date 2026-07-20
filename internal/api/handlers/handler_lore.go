@@ -7,9 +7,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/internal/api/sse"
-	novaApp "denova/internal/app"
-	"denova/internal/book"
+	"casemagica/internal/api/sse"
+	novaApp "casemagica/internal/app"
+	"casemagica/internal/book"
 )
 
 func (h *Handlers) HandleLoreItems(ctx context.Context, c *app.RequestContext) {

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/imagegen"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/imagegen"
 )
 
 func TestGenerateImageSavesOpenAIResultToAssets(t *testing.T) {

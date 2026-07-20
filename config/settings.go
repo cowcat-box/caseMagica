@@ -11,7 +11,7 @@ import (
 
 	toml "github.com/pelletier/go-toml/v2"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 // Settings 是用户可见且可在三层配置中持久化的字段。
@@ -39,8 +39,8 @@ type Settings struct {
 
 	// 路径
 	SkillsDir    string `toml:"skills_dir,omitempty" json:"skills_dir,omitempty"`
-	DenovaDir    string `toml:"denova_dir,omitempty" json:"denova_dir,omitempty"`
-	NovaDir      string `toml:"nova_dir,omitempty" json:"nova_dir,omitempty"`
+	CaseMagicaDir    string `toml:"casemagica_dir,omitempty" json:"casemagica_dir,omitempty"`
+	DenovaDir      string `toml:"denova_dir,omitempty" json:"denova_dir,omitempty"`
 	BackendPort  *int   `toml:"backend_port,omitempty" json:"backend_port,omitempty"`
 	FrontendPort *int   `toml:"frontend_port,omitempty" json:"frontend_port,omitempty"`
 
@@ -119,8 +119,8 @@ func DefaultSettings() Settings {
 		ImageAPIModel:               DefaultImageAPIModel,
 		DefaultImageAPIProfileID:    DefaultImageAPIProfileID,
 		SkillsDir:                   "./skills",
-		DenovaDir:                   "./" + workspacepath.DataDirName,
-		NovaDir:                     "./" + workspacepath.DataDirName,
+		CaseMagicaDir:                   "./" + workspacepath.DataDirName,
+		DenovaDir:                     "./" + workspacepath.DataDirName,
 		BackendPort:                 intPtr(8080),
 		FrontendPort:                intPtr(5173),
 		AllowLANAccess:              boolPtr(false),
@@ -213,13 +213,13 @@ func Merge(parent, child Settings) Settings {
 	if child.SkillsDir != "" {
 		out.SkillsDir = child.SkillsDir
 	}
-	if child.NovaDir != "" {
-		out.DenovaDir = child.NovaDir
-		out.NovaDir = child.NovaDir
-	}
 	if child.DenovaDir != "" {
+		out.CaseMagicaDir = child.DenovaDir
 		out.DenovaDir = child.DenovaDir
-		out.NovaDir = child.DenovaDir
+	}
+	if child.CaseMagicaDir != "" {
+		out.CaseMagicaDir = child.CaseMagicaDir
+		out.DenovaDir = child.CaseMagicaDir
 	}
 	if child.BackendPort != nil {
 		out.BackendPort = child.BackendPort
@@ -346,7 +346,7 @@ func Merge(parent, child Settings) Settings {
 }
 
 const (
-	// UserConfigFilename 是用户级配置文件名（位于 DenovaDir 下）。
+	// UserConfigFilename 是用户级配置文件名（位于 CaseMagicaDir 下）。
 	UserConfigFilename = "config.toml"
 	// WorkspaceConfigDir 是工作区级配置目录（相对于 workspace）。
 	WorkspaceConfigDir = workspacepath.DataDirName
@@ -376,8 +376,8 @@ var ErrSettingsRevisionConflict = errors.New("配置已被其他操作更新，�
 
 // SettingsPaths 是设置页只读展示的真实配置路径。
 type SettingsPaths struct {
-	DenovaDir       string `json:"denova_dir"`
-	NovaDir         string `json:"nova_dir"`
+	CaseMagicaDir       string `json:"casemagica_dir"`
+	DenovaDir         string `json:"denova_dir"`
 	UserConfig      string `json:"user_config"`
 	WorkspaceConfig string `json:"workspace_config"`
 }
@@ -388,7 +388,7 @@ type SettingsRevisions struct {
 	Workspace string `json:"workspace"`
 }
 
-// SettingsAccess exposes the Denova entry addresses users can open in browsers.
+// SettingsAccess exposes the CaseMagica entry addresses users can open in browsers.
 type SettingsAccess struct {
 	LocalURL string `json:"local_url"`
 	LANURL   string `json:"lan_url"`
@@ -459,12 +459,12 @@ func SettingsFileRevision(path string) (string, error) {
 	return fmt.Sprintf("sha256:%x", sum), nil
 }
 
-// UserConfigPath 计算用户级配置路径。novaDir 已经过 normalizePath 处理。
-func UserConfigPath(novaDir string) string {
-	if novaDir == "" {
-		novaDir = normalizePath(defaultNovaDir())
+// UserConfigPath 计算用户级配置路径。denovaDir 已经过 normalizePath 处理。
+func UserConfigPath(denovaDir string) string {
+	if denovaDir == "" {
+		denovaDir = normalizePath(defaultDenovaDir())
 	}
-	return filepath.Join(novaDir, UserConfigFilename)
+	return filepath.Join(denovaDir, UserConfigFilename)
 }
 
 // WorkspaceConfigPath 计算工作区级配置路径。
@@ -473,19 +473,19 @@ func WorkspaceConfigPath(workspace string) string {
 }
 
 // LoadLayered 读取用户级 + 工作区级配置并与默认值合并。
-// novaDir 为空时使用默认 ./.denova（后端运行目录下），已有 ./.nova 时兼容沿用。
-func LoadLayered(novaDir, workspace string) (LayeredSettings, error) {
-	return LoadLayeredWithGlobal(novaDir, workspace, Settings{})
+// denovaDir 为空时使用默认 ./.casemagica（后端运行目录下），已有 ./.denova 时兼容沿用。
+func LoadLayered(denovaDir, workspace string) (LayeredSettings, error) {
+	return LoadLayeredWithGlobal(denovaDir, workspace, Settings{})
 }
 
 // LoadLayeredWithGlobal 读取用户级 + 工作区级配置，并加入全局启动配置层。
-func LoadLayeredWithGlobal(novaDir, workspace string, global Settings) (LayeredSettings, error) {
-	if strings.TrimSpace(novaDir) == "" {
-		novaDir = normalizePath(defaultNovaDir())
+func LoadLayeredWithGlobal(denovaDir, workspace string, global Settings) (LayeredSettings, error) {
+	if strings.TrimSpace(denovaDir) == "" {
+		denovaDir = normalizePath(defaultDenovaDir())
 	} else {
-		novaDir = normalizePath(novaDir)
+		denovaDir = normalizePath(denovaDir)
 	}
-	user, err := ReadSettingsFile(UserConfigPath(novaDir))
+	user, err := ReadSettingsFile(UserConfigPath(denovaDir))
 	if err != nil {
 		return LayeredSettings{}, err
 	}
@@ -511,21 +511,21 @@ func LoadLayeredWithGlobal(novaDir, workspace string, global Settings) (LayeredS
 		ws.TraceRetentionRuns = nil
 	}
 	def := DefaultSettings()
-	def.DenovaDir = novaDir
-	def.NovaDir = novaDir
-	globalDir := firstNonEmpty(global.DenovaDir, global.NovaDir)
+	def.CaseMagicaDir = denovaDir
+	def.DenovaDir = denovaDir
+	globalDir := firstNonEmpty(global.CaseMagicaDir, global.DenovaDir)
 	if globalDir == "" {
-		global.DenovaDir = novaDir
-		global.NovaDir = novaDir
+		global.CaseMagicaDir = denovaDir
+		global.DenovaDir = denovaDir
 	} else {
 		globalDir = normalizePath(globalDir)
+		global.CaseMagicaDir = globalDir
 		global.DenovaDir = globalDir
-		global.NovaDir = globalDir
 	}
 	eff := Merge(Merge(Merge(def, global), user), ws)
 	backendPort := settingsInt(eff.BackendPort, 8080)
 	revisions := SettingsRevisions{}
-	userConfigPath := UserConfigPath(novaDir)
+	userConfigPath := UserConfigPath(denovaDir)
 	workspaceConfigPath := WorkspaceConfigPath(workspace)
 	if rev, err := SettingsFileRevision(userConfigPath); err == nil {
 		revisions.User = rev
@@ -546,8 +546,8 @@ func LoadLayeredWithGlobal(novaDir, workspace string, global Settings) (LayeredS
 		Workspace: ws,
 		Effective: eff,
 		Paths: SettingsPaths{
-			DenovaDir:       novaDir,
-			NovaDir:         novaDir,
+			CaseMagicaDir:       denovaDir,
+			DenovaDir:         denovaDir,
 			UserConfig:      userConfigPath,
 			WorkspaceConfig: workspaceConfigPath,
 		},
@@ -561,9 +561,9 @@ func LoadLayeredWithGlobal(novaDir, workspace string, global Settings) (LayeredS
 }
 
 func sanitizeEditableSettings(s Settings) Settings {
-	// denova_dir/nova_dir 是启动级定位参数，不能由用户级/工作区级配置反向修改自身位置。
+	// casemagica_dir/denova_dir 是启动级定位参数，不能由用户级/工作区级配置反向修改自身位置。
+	s.CaseMagicaDir = ""
 	s.DenovaDir = ""
-	s.NovaDir = ""
 	s.BackendPort = normalizePort(s.BackendPort)
 	s.FrontendPort = normalizePort(s.FrontendPort)
 	s.RemoteAccessUsername = strings.TrimSpace(s.RemoteAccessUsername)

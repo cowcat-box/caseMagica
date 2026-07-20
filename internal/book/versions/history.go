@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	versionSourceTrailer       = "Denova-Source:"
+	versionSourceTrailer       = "CaseMagica-Source:"
 	legacyVersionSourceTrailer = "Nova-Source:"
 )
 

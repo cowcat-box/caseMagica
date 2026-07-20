@@ -15,11 +15,11 @@ if [[ -z "${VERSION}" ]]; then
 fi
 
 TARGETS=(
-  "darwin-arm64:darwin:arm64:denova:denova-updater:tar.gz"
-  "darwin-x64:darwin:amd64:denova:denova-updater:tar.gz"
-  "linux-arm64:linux:arm64:denova:denova-updater:tar.gz"
-  "linux-x64:linux:amd64:denova:denova-updater:tar.gz"
-  "windows-x64:windows:amd64:denova.exe:denova-updater.exe:zip"
+  "darwin-arm64:darwin:arm64:casemagica:casemagica-updater:tar.gz"
+  "darwin-x64:darwin:amd64:casemagica:casemagica-updater:tar.gz"
+  "linux-arm64:linux:arm64:casemagica:casemagica-updater:tar.gz"
+  "linux-x64:linux:amd64:casemagica:casemagica-updater:tar.gz"
+  "windows-x64:windows:amd64:casemagica.exe:casemagica-updater.exe:zip"
 )
 
 require_command() {
@@ -72,16 +72,16 @@ run_pnpm -C "${ROOT_DIR}/web" build
 echo "==> 交叉编译并打包"
 for target in "${TARGETS[@]}"; do
   IFS=":" read -r key goos goarch exe updater_exe archive_type <<<"${target}"
-  package_name="denova-${VERSION}-${key}"
-  package_dir="${BUILD_DIR}/${package_name}/denova"
+  package_name="casemagica-${VERSION}-${key}"
+  package_dir="${BUILD_DIR}/${package_name}/casemagica"
   mkdir -p "${package_dir}"
 
   echo "  -> ${key}"
   binary_version="${VERSION#v}"
   CGO_ENABLED=0 GOOS="${goos}" GOARCH="${goarch}" \
-    go build -trimpath -ldflags "-s -w -X denova/internal/buildinfo.Version=${binary_version}" -o "${package_dir}/${exe}" ./cmd/denova
+    go build -trimpath -ldflags "-s -w -X casemagica/internal/buildinfo.Version=${binary_version}" -o "${package_dir}/${exe}" ./cmd/casemagica
   CGO_ENABLED=0 GOOS="${goos}" GOARCH="${goarch}" \
-    go build -trimpath -ldflags "-s -w -X denova/internal/buildinfo.Version=${binary_version}" -o "${package_dir}/${updater_exe}" ./cmd/denova-updater
+    go build -trimpath -ldflags "-s -w -X casemagica/internal/buildinfo.Version=${binary_version}" -o "${package_dir}/${updater_exe}" ./cmd/casemagica-updater
 
   if [[ "${goos}" != "windows" ]]; then
     chmod 0755 "${package_dir}/${exe}"
@@ -99,9 +99,9 @@ for target in "${TARGETS[@]}"; do
     (
       cd "${BUILD_DIR}/${package_name}"
       if command -v zip >/dev/null 2>&1; then
-        zip -qr "${DIST_DIR}/${package_name}.zip" denova
+        zip -qr "${DIST_DIR}/${package_name}.zip" casemagica
       elif command -v python3 >/dev/null 2>&1; then
-        python3 -m zipfile -c "${DIST_DIR}/${package_name}.zip" denova
+        python3 -m zipfile -c "${DIST_DIR}/${package_name}.zip" casemagica
       else
         echo "错误: 未找到命令 zip 或 python3，无法生成 Windows zip 包" >&2
         exit 1
@@ -110,30 +110,30 @@ for target in "${TARGETS[@]}"; do
   else
     (
       cd "${BUILD_DIR}/${package_name}"
-      tar -czf "${DIST_DIR}/${package_name}.tar.gz" denova
+      tar -czf "${DIST_DIR}/${package_name}.tar.gz" casemagica
     )
   fi
 done
 
 echo "==> 生成 checksums.txt"
 : > "${DIST_DIR}/checksums.txt"
-for file in "${DIST_DIR}"/denova-*; do
+for file in "${DIST_DIR}"/casemagica-*; do
   checksum_file "${file}" >> "${DIST_DIR}/checksums.txt"
 done
 
 cat > "${DIST_DIR}/RELEASE_NOTES.md" <<EOF
-Denova ${VERSION}
+CaseMagica ${VERSION}
 
-下载对应平台压缩包，解压后进入 denova 目录运行：
+下载对应平台压缩包，解压后进入 casemagica 目录运行：
 
 \`\`\`bash
-./denova
+./casemagica
 \`\`\`
 
 Windows 用户运行：
 
 \`\`\`powershell
-denova.exe
+casemagica.exe
 \`\`\`
 
 校验文件完整性请使用 checksums.txt。

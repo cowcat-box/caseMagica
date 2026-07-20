@@ -193,7 +193,7 @@ func TestSaveDocumentCreatesWorkspaceOverrideForBuiltinSkill(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
 	builtin := filepath.Join(root, "builtin")
-	workspace := filepath.Join(root, "workspace", ".nova", "skills")
+	workspace := filepath.Join(root, "workspace", ".denova", "skills")
 	writeSkillFile(t, builtin, "outline", "outline", "builtin outline")
 	dirs := []Directory{
 		{Scope: ScopeBuiltin, Path: builtin},

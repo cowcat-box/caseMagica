@@ -594,19 +594,19 @@ function fallbackPromptSources(blocks?: AgentPromptBlocks, builtin?: string): Ag
     blocks?.runtime_contract ? {
       id: 'runtime_contract',
       title: 'Runtime Contract',
-      source: 'Denova runtime',
+      source: 'CaseMagica runtime',
       content: blocks.runtime_contract,
     } : null,
     blocks?.output_protocol ? {
       id: 'output_protocol',
       title: 'Output Format',
-      source: 'Denova runtime',
+      source: 'CaseMagica runtime',
       content: blocks.output_protocol,
     } : null,
     {
       id: 'flow',
       title: 'Flow Rules',
-      source: 'Denova built-in',
+      source: 'CaseMagica built-in',
       content: blocks?.editable_system_prompt || builtin || '',
       editable: true,
       field: 'flow_prompt' as const,

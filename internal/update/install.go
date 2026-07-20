@@ -97,11 +97,11 @@ func (s *Service) downloadAsset(ctx context.Context, url, target string, expecte
 		req.Size = expectedSize
 	}
 	req.HTTPRequest.Header.Set("Accept", "application/octet-stream")
-	req.HTTPRequest.Header.Set("User-Agent", "denova-updater")
+	req.HTTPRequest.Header.Set("User-Agent", "casemagica-updater")
 
 	client := grab.NewClient()
 	client.HTTPClient = s.downloadHTTPClient()
-	client.UserAgent = "denova-updater"
+	client.UserAgent = "casemagica-updater"
 	resp := client.Do(req)
 	assetName := filepath.Base(target)
 	reportInstallProgress(progress, downloadProgress(assetName, target, resp, expectedSize, "正在下载更新包"))

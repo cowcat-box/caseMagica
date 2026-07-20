@@ -29,7 +29,7 @@ const common = {
   'common.messages': '{{count}} 条消息',
   'common.items': '{{count}} 项',
   'common.backendUnavailable.title': '后端未启动',
-  'common.backendUnavailable.description': '请先启动或重启 Denova 后端服务，然后再继续操作。',
+  'common.backendUnavailable.description': '请先启动或重启 CaseMagica 后端服务，然后再继续操作。',
   'common.imageViewer.zoomIn': '放大',
   'common.imageViewer.zoomOut': '缩小',
   'common.imageViewer.resetZoom': '重置缩放',

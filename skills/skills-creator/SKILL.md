@@ -1,12 +1,12 @@
 ---
 name: skills-creator
-description: Use this skill when the user wants to create, revise, review, or organize Denova custom Skills in user or workspace scope.
+description: Use this skill when the user wants to create, revise, review, or organize CaseMagica custom Skills in user or workspace scope.
 agent: ide,config_manager,automation
 ---
 
 # Skills Creator
 
-Help the user create or revise a Denova Skill compatible with Denova's Skills layout:
+Help the user create or revise a CaseMagica Skill compatible with CaseMagica's Skills layout:
 
 ```text
 <skills-root>/<skill-name>/SKILL.md
@@ -15,9 +15,9 @@ Help the user create or revise a Denova Skill compatible with Denova's Skills la
 Use this workflow:
 
 1. Confirm the target scope when it is not explicit:
-   - user scope: reusable across books, stored under the Denova user skills directory
-   - workspace scope: specific to the current book, stored under `<workspace>/.denova/skills`
-   - built-in or preset Skills are read-only; to customize one, create or update a same-name user scope Skill by default, falling back to workspace scope only when the user scope is unavailable, instead of editing `DENOVA_SKILLS_DIR` / `skills_dir`
+   - user scope: reusable across books, stored under the CaseMagica user skills directory
+   - workspace scope: specific to the current book, stored under `<workspace>/.casemagica/skills`
+   - built-in or preset Skills are read-only; to customize one, create or update a same-name user scope Skill by default, falling back to workspace scope only when the user scope is unavailable, instead of editing `CASEMAGICA_SKILLS_DIR` / `skills_dir`
 2. Choose a slash-command-friendly skill name: lowercase letters, digits, `_`, or `-`; start with a letter or digit.
 3. Write one concise `SKILL.md` with YAML frontmatter:
    - `name`: exact skill name and directory name

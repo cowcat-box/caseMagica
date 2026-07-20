@@ -8,10 +8,10 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/prompts"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/prompts"
+	"casemagica/internal/session"
 )
 
 func TestInteractiveContextAnalysisLabelsDynamicContextAtFinalMessage(t *testing.T) {
@@ -150,7 +150,7 @@ func TestInteractiveDirectorContextAnalysisSplitsInstructionSources(t *testing.T
 	}
 }
 
-func TestIDEContextAnalysisShowsToolContextWithoutDenovaMetadata(t *testing.T) {
+func TestIDEContextAnalysisShowsToolContextWithoutCaseMagicaMetadata(t *testing.T) {
 	analysis, err := BuildIDEContextAnalysis(
 		&config.Config{},
 		nil,
@@ -370,7 +370,7 @@ func TestIDEContextAnalysisSplitsStableAndDynamicWorkspaceState(t *testing.T) {
 	}
 
 	for _, part := range analysis.SystemPromptParts {
-		if part.Source == ".nova/lore/items.json" {
+		if part.Source == ".denova/lore/items.json" {
 			t.Fatalf("workspace state should not be part of system prompt sources: %#v", part)
 		}
 		if part.Title == "角色小标题" || part.Source == "作品状态注入" {

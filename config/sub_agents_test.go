@@ -100,9 +100,9 @@ func TestSubAgentRequiresExplicitParent(t *testing.T) {
 
 func TestLoadLayeredWithStartupConfigKeepsGlobalSubAgents(t *testing.T) {
 	root := t.TempDir()
-	novaDir := filepath.Join(root, ".nova")
+	denovaDir := filepath.Join(root, ".denova")
 	t.Chdir(root)
-	t.Setenv("NOVA_DIR", novaDir)
+	t.Setenv("DENOVA_DIR", denovaDir)
 
 	global := Settings{SubAgents: []SubAgentConfig{
 		testSubAgent("context-planner"),
@@ -121,11 +121,11 @@ func TestLoadLayeredWithStartupConfigKeepsGlobalSubAgents(t *testing.T) {
 	if err := WriteSettingsFile(filepath.Join(root, "config.toml"), global); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteSettingsFile(filepath.Join(novaDir, "config.toml"), user); err != nil {
+	if err := WriteSettingsFile(filepath.Join(denovaDir, "config.toml"), user); err != nil {
 		t.Fatal(err)
 	}
 
-	layered, err := LoadLayeredWithStartupConfig(novaDir, "")
+	layered, err := LoadLayeredWithStartupConfig(denovaDir, "")
 	if err != nil {
 		t.Fatal(err)
 	}

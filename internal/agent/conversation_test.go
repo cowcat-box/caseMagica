@@ -7,8 +7,8 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/session"
 )
 
 func TestSessionConversationKeepsFullEffectiveHistoryBeforeCompaction(t *testing.T) {

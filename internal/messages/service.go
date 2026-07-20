@@ -15,7 +15,7 @@ const stateFileName = "state.json"
 var stateMu sync.Mutex
 
 type Service struct {
-	novaDir       string
+	denovaDir       string
 	changelogPath string
 }
 
@@ -23,12 +23,12 @@ type stateFile struct {
 	Read map[string]string `json:"read,omitempty"`
 }
 
-func NewService(novaDir string) *Service {
-	return &Service{novaDir: novaDir}
+func NewService(denovaDir string) *Service {
+	return &Service{denovaDir: denovaDir}
 }
 
-func NewServiceWithChangelog(novaDir, changelogPath string) *Service {
-	return &Service{novaDir: novaDir, changelogPath: changelogPath}
+func NewServiceWithChangelog(denovaDir, changelogPath string) *Service {
+	return &Service{denovaDir: denovaDir, changelogPath: changelogPath}
 }
 
 func (s *Service) List() (ListResult, error) {
@@ -156,7 +156,7 @@ func (s *Service) resolveChangelogPath() string {
 	if strings.TrimSpace(s.changelogPath) != "" {
 		candidates = append(candidates, s.changelogPath)
 	}
-	if env := strings.TrimSpace(os.Getenv("DENOVA_CHANGELOG_PATH")); env != "" {
+	if env := strings.TrimSpace(os.Getenv("CASEMAGICA_CHANGELOG_PATH")); env != "" {
 		candidates = append(candidates, env)
 	} else if env := strings.TrimSpace(os.Getenv("NOVA_CHANGELOG_PATH")); env != "" {
 		candidates = append(candidates, env)
@@ -231,8 +231,8 @@ func (s *Service) writeState(state map[string]time.Time) error {
 }
 
 func (s *Service) statePath() (string, error) {
-	if strings.TrimSpace(s.novaDir) == "" {
+	if strings.TrimSpace(s.denovaDir) == "" {
 		return "", fmt.Errorf("nova dir is required")
 	}
-	return filepath.Join(s.novaDir, "messages", stateFileName), nil
+	return filepath.Join(s.denovaDir, "messages", stateFileName), nil
 }

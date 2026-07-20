@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/automation"
-	"denova/internal/book"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/automation"
+	"casemagica/internal/book"
 )
 
 func TestAutomationCheckCreatesRetryableInboxWhenAutoRunCannotStart(t *testing.T) {
 	root := t.TempDir()
 	workspace := filepath.Join(root, "workspace")
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 
 	now := time.Now()
@@ -63,7 +63,7 @@ func TestAutomationCheckCreatesRetryableInboxWhenAutoRunCannotStart(t *testing.T
 func TestAutomationCheckSkipsInboxForSilentScheduleTrigger(t *testing.T) {
 	root := t.TempDir()
 	workspace := filepath.Join(root, "workspace")
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 
 	now := time.Now()
@@ -112,7 +112,7 @@ func TestAutomationChapterBatchTriggerCreatesInboxAtBatchBoundaries(t *testing.T
 	for i := 1; i <= 4; i++ {
 		writeTestChapter(t, workspace, i)
 	}
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	app.bookService = book.NewService(workspace)
 
@@ -223,7 +223,7 @@ func TestAutomationMutationCheckRunsOnlyContentTriggersForChapterWrites(t *testi
 		t.Fatal(err)
 	}
 	writeTestChapter(t, workspace, 1)
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	app.bookService = book.NewService(workspace)
 
@@ -298,7 +298,7 @@ func TestAutomationMutationCallbackChecksAgentChapterWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeTestChapter(t, workspace, 1)
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	app.bookService = book.NewService(workspace)
 
@@ -342,7 +342,7 @@ func TestAutomationSemanticTriggerChecksOnlyCompletedChapterBatches(t *testing.T
 	for i := 1; i <= 2; i++ {
 		writeTestChapter(t, workspace, i)
 	}
-	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	app.bookService = book.NewService(workspace)
 
@@ -444,7 +444,7 @@ func TestAutomationRuntimeConfigUsesTaskModelProfile(t *testing.T) {
 	workspace := filepath.Join(root, "workspace")
 	app := &App{
 		cfg: &config.Config{
-			NovaDir:     filepath.Join(root, "nova"),
+			DenovaDir:     filepath.Join(root, "nova"),
 			Workspace:   workspace,
 			OpenAIModel: "base-model",
 			ModelProfiles: []config.ModelProfileSettings{{
@@ -474,7 +474,7 @@ func TestAutomationRuntimeConfigUsesTaskModelProfile(t *testing.T) {
 		t.Fatalf("review max iteration should stay unlimited by default, got %d", cfg.MaxIteration)
 	}
 	maxIteration := 20
-	if err := config.WriteSettingsFile(config.UserConfigPath(app.cfg.NovaDir), config.Settings{MaxIteration: &maxIteration}); err != nil {
+	if err := config.WriteSettingsFile(config.UserConfigPath(app.cfg.DenovaDir), config.Settings{MaxIteration: &maxIteration}); err != nil {
 		t.Fatal(err)
 	}
 	cfg = app.automation().runtimeConfigForTask(automation.Task{Template: automation.TemplateReview})

@@ -1,6 +1,6 @@
 package handlers
 
-import novaApp "denova/internal/app"
+import novaApp "casemagica/internal/app"
 
 // Handlers owns HTTP request handlers and adapts requests to application services.
 type Handlers struct {

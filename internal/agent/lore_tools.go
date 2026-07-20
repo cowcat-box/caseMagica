@@ -9,7 +9,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 type readLoreItemsInput struct {

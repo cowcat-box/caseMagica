@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"denova/internal/imagepreset"
-	"denova/internal/interactive"
+	"casemagica/internal/imagepreset"
+	"casemagica/internal/interactive"
 )
 
 func TestShouldGenerateInteractiveImageModes(t *testing.T) {

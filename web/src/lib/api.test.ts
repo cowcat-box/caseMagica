@@ -97,7 +97,7 @@ describe('api', () => {
           name: 'beat-plan',
           description: 'Beat planning',
           scope: 'workspace',
-          path: '/books/demo/.nova/skills/beat-plan/SKILL.md',
+          path: '/books/demo/.denova/skills/beat-plan/SKILL.md',
           editable: true,
           active: true,
           content: '---\nname: beat-plan\ndescription: Beat planning\n---\n',

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/imagepreset"
-	"denova/internal/interactive"
-	"denova/internal/interactiveimage"
+	"casemagica/internal/imagepreset"
+	"casemagica/internal/interactive"
+	"casemagica/internal/interactiveimage"
 )
 
 const (
@@ -36,9 +36,9 @@ func (s *InteractiveAppService) GenerateInteractiveImage(ctx context.Context, st
 	a.mu.RLock()
 	store := a.interactive
 	workspace := a.workspace
-	novaDir := ""
+	denovaDir := ""
 	if a.cfg != nil {
-		novaDir = a.cfg.NovaDir
+		denovaDir = a.cfg.DenovaDir
 	}
 	a.mu.RUnlock()
 	if store == nil || strings.TrimSpace(workspace) == "" {
@@ -72,7 +72,7 @@ func (s *InteractiveAppService) GenerateInteractiveImage(ctx context.Context, st
 		return InteractiveImageGenerateResult{}, err
 	}
 
-	preset := loadImagePreset(novaDir, storyCtx.Meta.ImageSettings.PresetID)
+	preset := loadImagePreset(denovaDir, storyCtx.Meta.ImageSettings.PresetID)
 	sourceContext := interactiveImageSourceContext(storyCtx.Meta, storyCtx.Snapshot.BranchID, storyCtx.Snapshot.Turns, turnIndex, store)
 	systemPrompt := interactiveImageSystemPrompt(preset)
 	toolPrompt := preset.PromptForTargets(imagepreset.TargetToolRequest)
@@ -229,15 +229,15 @@ func interactiveImageErrorResult(err error) string {
 	return string(data)
 }
 
-func loadImagePreset(novaDir, id string) imagepreset.Preset {
+func loadImagePreset(denovaDir, id string) imagepreset.Preset {
 	presetID := imagepreset.NormalizeID(id)
 	if presetID == "" {
 		presetID = imagepreset.DefaultID
 	}
-	if strings.TrimSpace(novaDir) == "" {
+	if strings.TrimSpace(denovaDir) == "" {
 		return imagepreset.DefaultPreset()
 	}
-	preset, err := imagepreset.NewLibrary(novaDir).Get(presetID)
+	preset, err := imagepreset.NewLibrary(denovaDir).Get(presetID)
 	if err != nil {
 		log.Printf("[interactive-image] load image preset failed id=%s err=%v; fallback=%s", presetID, err, imagepreset.DefaultID)
 		return imagepreset.DefaultPreset()

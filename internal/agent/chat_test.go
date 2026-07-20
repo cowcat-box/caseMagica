@@ -8,8 +8,8 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/internal/book"
-	"denova/internal/session"
+	"casemagica/internal/book"
+	"casemagica/internal/session"
 )
 
 func TestMergeToolCalls(t *testing.T) {
@@ -154,8 +154,8 @@ func TestAppendContextBoundaryInstructionEmphasizesCurrentRequest(t *testing.T) 
 
 func TestStyleRulesSystemInstructionEmitsSceneAndStyles(t *testing.T) {
 	got := styleRulesSystemInstruction([]StyleRule{
-		{Global: true, StyleReferences: []StyleReference{{Name: "默认克制", Path: "/tmp/.denova/styles/global.md", DisplayPath: ".denova/styles/global.md"}}},
-		{Scene: "激烈打斗", StyleReferences: []StyleReference{{Name: "克制细腻", Description: "短句留白", Path: "/tmp/.denova/styles/restraint.md", DisplayPath: ".denova/styles/restraint.md"}}, StyleContents: []string{"短句留白", "强冲突快节奏"}},
+		{Global: true, StyleReferences: []StyleReference{{Name: "默认克制", Path: "/tmp/.casemagica/styles/global.md", DisplayPath: ".casemagica/styles/global.md"}}},
+		{Scene: "激烈打斗", StyleReferences: []StyleReference{{Name: "克制细腻", Description: "短句留白", Path: "/tmp/.casemagica/styles/restraint.md", DisplayPath: ".casemagica/styles/restraint.md"}}, StyleContents: []string{"短句留白", "强冲突快节奏"}},
 		{Scene: "日常对话", StyleContents: []string{"温吞对白"}},
 		{Scene: "", StyleContents: []string{"无效内容"}},     // 应被跳过
 		{Scene: "空风格", StyleContents: []string{"", " "}}, // 空内容应被跳过
@@ -168,7 +168,7 @@ func TestStyleRulesSystemInstructionEmitsSceneAndStyles(t *testing.T) {
 	assertContains(t, got, "短句留白")
 	assertContains(t, got, "强冲突快节奏")
 	assertContains(t, got, "name: 克制细腻")
-	assertContains(t, got, "path: /tmp/.denova/styles/restraint.md")
+	assertContains(t, got, "path: /tmp/.casemagica/styles/restraint.md")
 	assertContains(t, got, "场景：日常对话")
 	assertContains(t, got, "温吞对白")
 	assertContains(t, got, "全局文风参考默认适用于所有正文生成")
@@ -187,10 +187,10 @@ func TestBoundedStyleRulesBoundsReferenceIndex(t *testing.T) {
 	got := boundedStyleRules([]StyleRule{{
 		Scene: "日常对话",
 		StyleReferences: []StyleReference{
-			{Name: "短", Path: "/tmp/.denova/styles/short.md", DisplayPath: ".denova/styles/short.md"},
-			{Name: strings.Repeat("长", 100), Description: strings.Repeat("风", 100), Path: "/tmp/.denova/styles/long.md", DisplayPath: ".denova/styles/long.md"},
+			{Name: "短", Path: "/tmp/.casemagica/styles/short.md", DisplayPath: ".casemagica/styles/short.md"},
+			{Name: strings.Repeat("长", 100), Description: strings.Repeat("风", 100), Path: "/tmp/.casemagica/styles/long.md", DisplayPath: ".casemagica/styles/long.md"},
 		},
-	}}, 120)
+	}}, 130)
 	if len(got) != 1 || len(got[0].StyleReferences) != 1 {
 		t.Fatalf("bounded refs = %#v, want only first ref", got)
 	}

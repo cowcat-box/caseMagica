@@ -10,11 +10,11 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/automation"
-	"denova/internal/book"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/automation"
+	"casemagica/internal/book"
+	"casemagica/internal/session"
 )
 
 type AutomationAppService struct {
@@ -465,13 +465,13 @@ func (s *AutomationAppService) RunDue(ctx context.Context, now time.Time) []auto
 func (s *AutomationAppService) store() *automation.Store {
 	a := s.app
 	a.mu.RLock()
-	novaDir := ""
+	denovaDir := ""
 	if a.cfg != nil {
-		novaDir = a.cfg.NovaDir
+		denovaDir = a.cfg.DenovaDir
 	}
 	workspace := a.workspace
 	a.mu.RUnlock()
-	return automation.NewStore(novaDir, workspace)
+	return automation.NewStore(denovaDir, workspace)
 }
 
 func (s *AutomationAppService) workspace() string {
@@ -678,10 +678,10 @@ func (s *AutomationAppService) runtimeConfig() config.Config {
 		runtimeCfg = *a.cfg
 	}
 	workspace := a.workspace
-	novaDir := runtimeCfg.NovaDir
+	denovaDir := runtimeCfg.DenovaDir
 	a.mu.RUnlock()
 	runtimeCfg.Workspace = workspace
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[automation] load layered settings failed workspace=%s err=%v", workspace, err)
@@ -846,7 +846,7 @@ func eventMessage(data interface{}) string {
 
 func (s *AutomationAppService) buildAutomationUserMessage(task automation.Task, run automation.RunRecord, writeMode, writeScope string) string {
 	var sb strings.Builder
-	sb.WriteString("执行 Denova 自动化任务。\n\n")
+	sb.WriteString("执行 CaseMagica 自动化任务。\n\n")
 	sb.WriteString(fmt.Sprintf("任务名称：%s\n", task.Name))
 	sb.WriteString(fmt.Sprintf("触发来源：%s\n", run.Trigger))
 	sb.WriteString(fmt.Sprintf("执行模式：%s\n", writeMode))

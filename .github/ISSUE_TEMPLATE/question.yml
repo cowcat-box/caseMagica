@@ -6,9 +6,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this form for Denova usage questions, setup confusion, or documentation gaps. For reproducible bugs, please use the Bug Report form.
+        Use this form for CaseMagica usage questions, setup confusion, or documentation gaps. For reproducible bugs, please use the Bug Report form.
 
-        这个表单适合 Denova 使用问题、安装配置疑问或文档缺口。可复现缺陷请使用缺陷反馈表单。
+        这个表单适合 CaseMagica 使用问题、安装配置疑问或文档缺口。可复现缺陷请使用缺陷反馈表单。
 
   - type: dropdown
     id: topic

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/bookcover"
-	"denova/internal/imagepreset"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/bookcover"
+	"casemagica/internal/imagepreset"
 )
 
 type BookCoverGenerateRequest struct {
@@ -77,12 +77,12 @@ func (a *App) ReadBookCover(path string) ([]byte, string, error) {
 
 func (a *App) bookCoverConfig(workspace string) (config.Config, error) {
 	a.mu.RLock()
-	novaDir := ""
+	denovaDir := ""
 	if a.cfg != nil {
-		novaDir = a.cfg.NovaDir
+		denovaDir = a.cfg.DenovaDir
 	}
 	a.mu.RUnlock()
-	layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace)
+	layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace)
 	if err != nil {
 		return config.Config{}, err
 	}
@@ -93,7 +93,7 @@ func (a *App) bookCoverConfig(workspace string) (config.Config, error) {
 		ImageAPIModel:            effective.ImageAPIModel,
 		DefaultImageAPIProfileID: effective.DefaultImageAPIProfileID,
 		ImageAPIProfiles:         effective.ImageAPIProfiles,
-		NovaDir:                  layered.Paths.NovaDir,
+		DenovaDir:                  layered.Paths.DenovaDir,
 		Workspace:                workspace,
 		IDEImagePresetID:         effective.IDEImagePresetID,
 	}
@@ -117,10 +117,10 @@ func resolveBookCoverImagePreset(cfg config.Config, requestedID string) (imagepr
 	if presetID == "" {
 		presetID = imagepreset.DefaultID
 	}
-	if strings.TrimSpace(cfg.NovaDir) == "" {
+	if strings.TrimSpace(cfg.DenovaDir) == "" {
 		return imagepreset.DefaultPreset(), nil
 	}
-	preset, err := imagepreset.NewLibrary(cfg.NovaDir).Get(presetID)
+	preset, err := imagepreset.NewLibrary(cfg.DenovaDir).Get(presetID)
 	if err != nil {
 		return imagepreset.Preset{}, err
 	}

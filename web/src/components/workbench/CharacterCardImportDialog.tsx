@@ -12,7 +12,7 @@ interface CharacterCardImportDialogProps {
   open: boolean
   workspace: string
   currentBookName: string
-  novaDir: string
+  denovaDir: string
   file: File | null
   preview: CharacterCardPreview | null
   targetMode: CharacterCardTargetMode
@@ -34,7 +34,7 @@ export function CharacterCardImportDialog({
   open,
   workspace,
   currentBookName,
-  novaDir,
+  denovaDir,
   file,
   preview,
   targetMode,
@@ -145,7 +145,7 @@ export function CharacterCardImportDialog({
                     className="nova-field w-full rounded-[var(--nova-radius)] border px-2.5 py-1.5 outline-none placeholder:text-[var(--nova-text-faint)] focus:border-[var(--nova-field-focus-border)] focus:bg-[var(--nova-surface-3)]"
                     disabled={importing}
                   />
-                  <div className="truncate text-[11px] text-[var(--nova-text-faint)]">{t('importCard.createIn', { dir: novaDir || t('importCard.novaDir') })}</div>
+                  <div className="truncate text-[11px] text-[var(--nova-text-faint)]">{t('importCard.createIn', { dir: denovaDir || t('importCard.denovaDir') })}</div>
                 </div>
               )
             )}

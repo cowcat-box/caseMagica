@@ -1,6 +1,6 @@
 package middleware
 
-import "denova/internal/agent"
+import "casemagica/internal/agent"
 
 // SSEEventHandler writes or forwards one outbound SSE event.
 type SSEEventHandler func(agent.Event) error

@@ -20,11 +20,11 @@ import (
 func TestSelectAssetForPlatform(t *testing.T) {
 	assets := []githubAsset{
 		{Name: "checksums.txt"},
-		{Name: "denova-v0.1.11-darwin-arm64.tar.gz", DownloadURL: "asset-api-url"},
-		{Name: "denova-v0.1.11-linux-x64.tar.gz"},
+		{Name: "casemagica-v0.1.11-darwin-arm64.tar.gz", DownloadURL: "asset-api-url"},
+		{Name: "casemagica-v0.1.11-linux-x64.tar.gz"},
 	}
 	asset := selectAsset(assets, "darwin-arm64")
-	if asset == nil || asset.Name != "denova-v0.1.11-darwin-arm64.tar.gz" {
+	if asset == nil || asset.Name != "casemagica-v0.1.11-darwin-arm64.tar.gz" {
 		t.Fatalf("unexpected asset: %#v", asset)
 	}
 	if got := selectAsset(assets, "windows-x64"); got != nil {
@@ -41,17 +41,17 @@ func TestPlatformKeyNormalizesAMD64(t *testing.T) {
 	}
 }
 
-func TestDefaultServiceUsesDenovaReleaseRepository(t *testing.T) {
+func TestDefaultServiceUsesCaseMagicaReleaseRepository(t *testing.T) {
 	service := NewService()
 	service.githubAPIBase = "https://api.example.test/repos"
-	if got, want := service.githubLatestReleaseURL(), "https://api.example.test/repos/alfredxw/denova/releases/latest"; got != want {
+	if got, want := service.githubLatestReleaseURL(), "https://api.example.test/repos/cowcat-box/caseMagica/releases/latest"; got != want {
 		t.Fatalf("githubLatestReleaseURL = %s, want %s", got, want)
 	}
 }
 
 func TestValidateReleasePackageRequiresUpdater(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "denova"), []byte("exe"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "casemagica"), []byte("exe"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(dir, "web"), 0o755); err != nil {
@@ -60,17 +60,17 @@ func TestValidateReleasePackageRequiresUpdater(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "skills"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateReleasePackage(dir, "denova", updaterExecutableName()); err == nil {
+	if err := validateReleasePackage(dir, "casemagica", updaterExecutableName()); err == nil {
 		t.Fatal("validateReleasePackage should fail when updater is missing")
 	}
 }
 
 func TestInstallStagesUpdateAndIgnoresRequestCancel(t *testing.T) {
 	platform := platformKey(runtime.GOOS, runtime.GOARCH)
-	assetName := "denova-v0.2.0-" + platform + ".tar.gz"
+	assetName := "casemagica-v0.2.0-" + platform + ".tar.gz"
 	updaterName := updaterExecutableName()
-	archive := testReleaseArchive(t, "denova", map[string]string{
-		"denova":               "new executable",
+	archive := testReleaseArchive(t, "casemagica", map[string]string{
+		"casemagica":               "new executable",
 		updaterName:            "new updater",
 		"web/index.html":       "<html>new</html>",
 		"skills/demo/SKILL.md": "skill",
@@ -119,7 +119,7 @@ func TestInstallStagesUpdateAndIgnoresRequestCancel(t *testing.T) {
 	defer server.Close()
 
 	installDir := t.TempDir()
-	exePath := filepath.Join(installDir, "denova")
+	exePath := filepath.Join(installDir, "casemagica")
 	if err := os.WriteFile(exePath, []byte("old executable"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -162,17 +162,17 @@ func TestInstallStagesUpdateAndIgnoresRequestCancel(t *testing.T) {
 	if got, err := os.ReadFile(filepath.Join(installDir, "web", "index.html")); err != nil || string(got) != "old web" {
 		t.Fatalf("web assets should not be replaced before apply: %q err=%v", got, err)
 	}
-	if got, err := os.ReadFile(filepath.Join(result.StagedPath, "denova")); err != nil || string(got) != "new executable" {
+	if got, err := os.ReadFile(filepath.Join(result.StagedPath, "casemagica")); err != nil || string(got) != "new executable" {
 		t.Fatalf("staged executable missing: %q err=%v", got, err)
 	}
 	if got, err := os.ReadFile(filepath.Join(result.StagedPath, updaterName)); err != nil || string(got) != "new updater" {
 		t.Fatalf("staged updater missing: %q err=%v", got, err)
 	}
-	archivePath := filepath.Join(installDir, ".denova-updates", "downloads", assetName)
+	archivePath := filepath.Join(installDir, ".casemagica-updates", "downloads", assetName)
 	if _, err := os.Stat(archivePath); err != nil {
 		t.Fatalf("downloaded archive should be kept in install dir: %v", err)
 	}
-	manifestPath, err := readPendingManifestRef(filepath.Join(installDir, ".denova-updates"))
+	manifestPath, err := readPendingManifestRef(filepath.Join(installDir, ".casemagica-updates"))
 	if err != nil {
 		t.Fatalf("pending manifest ref missing: %v", err)
 	}
@@ -204,7 +204,7 @@ func testReleaseArchive(t *testing.T, exeName string, files map[string]string) [
 		if name == exeName {
 			mode = 0o755
 		}
-		path := filepath.ToSlash(filepath.Join("denova", name))
+		path := filepath.ToSlash(filepath.Join("casemagica", name))
 		if err := tw.WriteHeader(&tar.Header{
 			Name: path,
 			Mode: mode,

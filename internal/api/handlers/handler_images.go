@@ -6,8 +6,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	novaApp "denova/internal/app"
-	"denova/internal/imagegen"
+	novaApp "casemagica/internal/app"
+	"casemagica/internal/imagegen"
 )
 
 func (h *Handlers) HandleImageGenerate(ctx context.Context, c *app.RequestContext) {

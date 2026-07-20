@@ -12,10 +12,10 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/prompts"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/prompts"
+	"casemagica/internal/session"
 )
 
 const interactiveDirectorAgentLabel = "interactive-director-agent"

@@ -9,8 +9,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/internal/api/sse"
-	"denova/internal/automation"
+	"casemagica/internal/api/sse"
+	"casemagica/internal/automation"
 )
 
 func (h *Handlers) HandleAutomations(ctx context.Context, c *app.RequestContext) {

@@ -38,13 +38,13 @@ func TestBookRegistryTouchListAndCurrent(t *testing.T) {
 	}
 }
 
-func TestBookRegistryListScansNovaDirBooks(t *testing.T) {
+func TestBookRegistryListScansDenovaDirBooks(t *testing.T) {
 	root := t.TempDir()
 	bookA := filepath.Join(root, "zeta")
 	bookB := filepath.Join(root, "alpha")
 	missingBook := filepath.Join(root, "missing")
 	for _, dir := range []string{
-		filepath.Join(bookA, ".nova"),
+		filepath.Join(bookA, ".denova"),
 		filepath.Join(bookB, "chapters"),
 		filepath.Join(root, "book_meta"),
 		filepath.Join(root, "styles"),
@@ -55,7 +55,7 @@ func TestBookRegistryListScansNovaDirBooks(t *testing.T) {
 		}
 	}
 
-	registry := &BookRegistry{path: filepath.Join(root, "books.json"), novaDir: root}
+	registry := &BookRegistry{path: filepath.Join(root, "books.json"), denovaDir: root}
 	if err := registry.save(bookRegistryData{
 		Books: []BookRecord{
 			{Path: missingBook, LastOpenedAt: "2026-01-03T00:00:00Z"},
@@ -82,8 +82,8 @@ func TestBookRegistryListScansProjectsAndLegacyRootBooks(t *testing.T) {
 	legacyBook := filepath.Join(root, "alpha")
 	projectBook := filepath.Join(root, bookProjectsDirName, "beta")
 	for _, dir := range []string{
-		filepath.Join(legacyBook, ".nova"),
-		filepath.Join(projectBook, ".denova"),
+		filepath.Join(legacyBook, ".denova"),
+		filepath.Join(projectBook, ".casemagica"),
 		filepath.Join(root, bookProjectsDirName, "notes"),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -91,7 +91,7 @@ func TestBookRegistryListScansProjectsAndLegacyRootBooks(t *testing.T) {
 		}
 	}
 
-	registry := &BookRegistry{path: filepath.Join(root, "books.json"), novaDir: root}
+	registry := &BookRegistry{path: filepath.Join(root, "books.json"), denovaDir: root}
 	books := registry.List()
 	if len(books) != 2 {
 		t.Fatalf("书籍数量不符合预期: %#v", books)
@@ -101,7 +101,7 @@ func TestBookRegistryListScansProjectsAndLegacyRootBooks(t *testing.T) {
 	}
 }
 
-func TestBookCreationParentDirUsesProjectsForNovaDir(t *testing.T) {
+func TestBookCreationParentDirUsesProjectsForDenovaDir(t *testing.T) {
 	root := t.TempDir()
 	parent, err := bookCreationParentDir(root, root)
 	if err != nil {
@@ -124,7 +124,7 @@ func TestBookCreationParentDirUsesProjectsForNovaDir(t *testing.T) {
 func TestBooksIncludesCoverUpdatedAt(t *testing.T) {
 	root := t.TempDir()
 	bookDir := filepath.Join(root, "alpha")
-	if err := os.MkdirAll(filepath.Join(bookDir, ".nova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(bookDir, ".denova"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(bookDir, "assets", "image"), 0o755); err != nil {
@@ -134,7 +134,7 @@ func TestBooksIncludesCoverUpdatedAt(t *testing.T) {
 		t.Fatal(err)
 	}
 	application := &App{
-		bookRegistry:  &BookRegistry{path: filepath.Join(root, "books.json"), novaDir: root},
+		bookRegistry:  &BookRegistry{path: filepath.Join(root, "books.json"), denovaDir: root},
 		bookMetaStore: NewBookMetaStore(root),
 	}
 
@@ -183,15 +183,15 @@ func TestBookRegistryRemoveHidesScannedNovaBook(t *testing.T) {
 	bookA := filepath.Join(root, "book-a")
 	bookB := filepath.Join(root, "book-b")
 	for _, dir := range []string{
-		filepath.Join(bookA, ".nova"),
-		filepath.Join(bookB, ".nova"),
+		filepath.Join(bookA, ".denova"),
+		filepath.Join(bookB, ".denova"),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	registry := &BookRegistry{path: filepath.Join(root, "books.json"), novaDir: root}
+	registry := &BookRegistry{path: filepath.Join(root, "books.json"), denovaDir: root}
 	if err := registry.Remove(bookB); err != nil {
 		t.Fatalf("软删除书籍失败: %v", err)
 	}
@@ -210,15 +210,15 @@ func TestBookRegistryReorderScannedNovaBooks(t *testing.T) {
 	bookA := filepath.Join(root, "alpha")
 	bookB := filepath.Join(root, "zeta")
 	for _, dir := range []string{
-		filepath.Join(bookA, ".nova"),
-		filepath.Join(bookB, ".nova"),
+		filepath.Join(bookA, ".denova"),
+		filepath.Join(bookB, ".denova"),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	registry := &BookRegistry{path: filepath.Join(root, "books.json"), novaDir: root}
+	registry := &BookRegistry{path: filepath.Join(root, "books.json"), denovaDir: root}
 	if err := registry.Reorder([]string{bookB, bookA}); err != nil {
 		t.Fatalf("保存排序失败: %v", err)
 	}
@@ -237,10 +237,10 @@ func TestBookRegistryReorderScannedNovaBooks(t *testing.T) {
 	}
 }
 
-func TestNewBookRegistryUsesNovaDir(t *testing.T) {
-	novaDir := t.TempDir()
-	registry := NewBookRegistry(novaDir)
-	want := filepath.Join(novaDir, "books.json")
+func TestNewBookRegistryUsesDenovaDir(t *testing.T) {
+	denovaDir := t.TempDir()
+	registry := NewBookRegistry(denovaDir)
+	want := filepath.Join(denovaDir, "books.json")
 	if registry.path != want {
 		t.Fatalf("注册表路径不符合预期: want=%s got=%s", want, registry.path)
 	}

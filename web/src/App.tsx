@@ -67,7 +67,7 @@ function App() {
   const [updateCheckEnabled, setUpdateCheckEnabled] = useState<boolean | null>(null)
   const [updateNotice, setUpdateNotice] = useState<UpdateNotice | null>(null)
   const [motionIntensity, setMotionIntensity] = useState('system')
-  const [novaDir, setNovaDir] = useState('')
+  const [denovaDir, setDenovaDir] = useState('')
   const [sidebarView, setSidebarView] = useState<SidebarView>('outline')
   const [editorSearchIntent, setEditorSearchIntent] = useState<{ path: string; query: string; line: number; nonce: number } | null>(null)
   const [characterCardDialogOpen, setCharacterCardDialogOpen] = useState(false)
@@ -234,7 +234,7 @@ function App() {
           setEditorAutoSaveEnabled(effective?.auto_save_enabled ?? AUTO_SAVE_ENABLED_FALLBACK)
           setEditorAutoSaveDelayMs(normalizeAutoSaveDelayMs(effective?.auto_save_interval_ms))
           setUpdateCheckEnabled(effective?.update_check_enabled !== false)
-          setNovaDir(data?.paths?.denova_dir || data?.paths?.nova_dir || '')
+          setDenovaDir(data?.paths?.casemagica_dir || data?.paths?.denova_dir || '')
           setConfiguredLocale(effective?.language)
           setTheme(normalizeAppTheme(effective?.theme))
           setMotionIntensity(normalizeMotionIntensity(effective?.motion_intensity))
@@ -687,7 +687,7 @@ function App() {
         rightPanel={rightPanel}
         settingsOpen={settingsOpen}
         interactiveRightVisible={interactiveRightVisible}
-        novaDir={novaDir}
+        denovaDir={denovaDir}
         books={books}
         tree={tree}
         loading={loading}
@@ -776,7 +776,7 @@ function App() {
         open={characterCardDialogOpen}
         workspace={workspace}
         currentBookName={currentBookName}
-        novaDir={novaDir}
+        denovaDir={denovaDir}
         file={characterCardFile}
         preview={characterCardPreview}
         targetMode={characterCardTargetMode}

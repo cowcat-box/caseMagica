@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/imagepreset"
-	"denova/internal/interactive"
-	"denova/internal/session"
-	"denova/internal/styleref"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/imagepreset"
+	"casemagica/internal/interactive"
+	"casemagica/internal/session"
+	"casemagica/internal/styleref"
 )
 
 // ChatAppService 负责普通创作 Agent 任务与会话管理。
@@ -412,10 +412,10 @@ func (s *ChatAppService) prepareIDEChatRuntime(req agent.ChatRequest, abortRunni
 	}
 	runtime.cfg.Workspace = runtime.workspace
 	runtime.ideTeller = ideStoryTellerForConfig(&runtime.cfg)
-	novaDir := runtime.cfg.NovaDir
+	denovaDir := runtime.cfg.DenovaDir
 	a.mu.Unlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, runtime.workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, runtime.workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtime.cfg, layered)
 		applyRequestLocaleToConfig(&runtime.cfg, req.Locale)
 		runtime.cfg.IDEStoryTellerID = layered.Effective.IDEStoryTellerID
@@ -428,9 +428,9 @@ func (s *ChatAppService) prepareIDEChatRuntime(req agent.ChatRequest, abortRunni
 		req.TellerID = runtime.cfg.IDEStoryTellerID
 		log.Printf("[agent-task] load ide teller id=%s workspace=%s", runtime.cfg.IDEStoryTellerID, runtime.workspace)
 
-		teller := loadInteractiveTeller(novaDir, runtime.cfg.IDEStoryTellerID)
+		teller := loadInteractiveTeller(denovaDir, runtime.cfg.IDEStoryTellerID)
 		if len(teller.StyleRefs) > 0 || len(teller.StyleRules) > 0 {
-			converted := convertTellerStyleRules(novaDir, teller.StyleRefs, teller.StyleRules, req.StyleScenes)
+			converted := convertTellerStyleRules(denovaDir, teller.StyleRefs, teller.StyleRules, req.StyleScenes)
 			req.StyleRules = converted
 			log.Printf("[agent-task] inject teller style rules teller_id=%s scenes=%q count=%d rules=%q", teller.ID, req.StyleScenes, len(converted), appStyleRuleNames(converted))
 		}
@@ -459,8 +459,8 @@ func applyImagePresetRuntimePolicy(runtime *ideChatRuntime, req *agent.ChatReque
 	}
 	req.ImagePresetID = presetID
 	preset := imagepreset.DefaultPreset()
-	if strings.TrimSpace(runtime.cfg.NovaDir) != "" {
-		loaded, err := imagepreset.NewLibrary(runtime.cfg.NovaDir).Get(presetID)
+	if strings.TrimSpace(runtime.cfg.DenovaDir) != "" {
+		loaded, err := imagepreset.NewLibrary(runtime.cfg.DenovaDir).Get(presetID)
 		if err != nil {
 			log.Printf("[agent-task] load image preset failed id=%s workspace=%s err=%v; fallback=%s", presetID, runtime.workspace, err, imagepreset.DefaultID)
 		} else {
@@ -530,10 +530,10 @@ func appStyleRuleNames(rules []agent.StyleRule) []string {
 	return names
 }
 
-func convertTellerStyleRules(novaDir string, globalRefs []string, rules []interactive.StyleRule, scenes []string) []agent.StyleRule {
+func convertTellerStyleRules(denovaDir string, globalRefs []string, rules []interactive.StyleRule, scenes []string) []agent.StyleRule {
 	converted := make([]agent.StyleRule, 0, len(rules)+1)
 	allowed := styleSceneSet(scenes)
-	styleRefs := styleref.NewLibrary(novaDir)
+	styleRefs := styleref.NewLibrary(denovaDir)
 	if len(globalRefs) > 0 {
 		converted = append(converted, agent.StyleRule{
 			Global:          true,

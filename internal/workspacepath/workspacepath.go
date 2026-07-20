@@ -9,15 +9,15 @@ import (
 
 const (
 	// DataDirName is the current workspace-private data directory.
-	DataDirName = ".denova"
+	DataDirName = ".casemagica"
 	// LegacyDataDirName is the pre-rename workspace-private data directory.
-	LegacyDataDirName = ".nova"
+	LegacyDataDirName = ".denova"
 )
 
 // DirName returns the active workspace-private directory name.
-// Existing .denova wins for new workspaces. When both names exist because a
-// legacy workspace was opened during the Denova rename, old .nova state is kept
-// active if .denova only contains generated or ephemeral files.
+// Existing .casemagica wins for new workspaces. When both names exist because a
+// legacy workspace was opened during the CaseMagica rename, old .denova state is kept
+// active if .casemagica only contains generated or ephemeral files.
 func DirName(workspace string) string {
 	return dirNameFor(workspace)
 }
@@ -66,7 +66,7 @@ func Rel(workspace string, elem ...string) string {
 	return filepath.ToSlash(filepath.Join(parts...))
 }
 
-// CurrentRel joins elem under the current Denova data directory name.
+// CurrentRel joins elem under the current CaseMagica data directory name.
 func CurrentRel(elem ...string) string {
 	parts := append([]string{DataDirName}, elem...)
 	return filepath.ToSlash(filepath.Join(parts...))

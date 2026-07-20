@@ -7,7 +7,7 @@ import (
 
 	"github.com/cloudwego/eino/components/tool"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 func TestNewWebSearchToolsRegistersWebSearch(t *testing.T) {

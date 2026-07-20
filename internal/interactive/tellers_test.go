@@ -10,8 +10,8 @@ import (
 )
 
 func TestTellerLibraryMaterializesBuiltinsAndListsThem(t *testing.T) {
-	novaDir := t.TempDir()
-	library := NewTellerLibrary(novaDir)
+	denovaDir := t.TempDir()
+	library := NewTellerLibrary(denovaDir)
 
 	tellers, err := library.List()
 	if err != nil {
@@ -24,7 +24,7 @@ func TestTellerLibraryMaterializesBuiltinsAndListsThem(t *testing.T) {
 		t.Fatalf("teller metadata should be parsed: %#v", tellers[0])
 	}
 
-	classicPath := filepath.Join(novaDir, "story-tellers", "classic.json")
+	classicPath := filepath.Join(denovaDir, "story-tellers", "classic.json")
 	data, err := os.ReadFile(classicPath)
 	if err != nil {
 		t.Fatalf("classic teller should be materialized: %v", err)
@@ -51,8 +51,8 @@ func TestTellerLibraryMaterializesBuiltinsAndListsThem(t *testing.T) {
 }
 
 func TestTellerLibraryRefreshesOldBuiltinVersion(t *testing.T) {
-	novaDir := t.TempDir()
-	tellerDir := filepath.Join(novaDir, "story-tellers")
+	denovaDir := t.TempDir()
+	tellerDir := filepath.Join(denovaDir, "story-tellers")
 	if err := os.MkdirAll(tellerDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestTellerLibraryRefreshesOldBuiltinVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	library := NewTellerLibrary(novaDir)
+	library := NewTellerLibrary(denovaDir)
 	classic, err := library.Get("classic")
 	if err != nil {
 		t.Fatalf("Get classic failed: %v", err)
@@ -93,8 +93,8 @@ func TestTellerLibraryRefreshesOldBuiltinVersion(t *testing.T) {
 }
 
 func TestTellerLibraryOverridesAndRestoresBuiltinInUserSpace(t *testing.T) {
-	novaDir := t.TempDir()
-	library := NewTellerLibrary(novaDir)
+	denovaDir := t.TempDir()
+	library := NewTellerLibrary(denovaDir)
 
 	classic, err := library.Get("classic")
 	if err != nil {
@@ -131,7 +131,7 @@ func TestTellerLibraryOverridesAndRestoresBuiltinInUserSpace(t *testing.T) {
 		t.Fatalf("classic teller missing from list: %#v", listed)
 	}
 
-	path := filepath.Join(novaDir, "story-tellers", "classic.json")
+	path := filepath.Join(denovaDir, "story-tellers", "classic.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read overridden classic: %v", err)
@@ -203,16 +203,16 @@ func TestTellerLibraryUpdateRejectsStaleRevision(t *testing.T) {
 func TestNormalizeStyleRulesStoresRefsAndLegacyContents(t *testing.T) {
 	longContent := strings.Repeat("风", MaxStyleContentChars+20)
 	teller := normalizeTeller(Teller{
-		StyleRefs: []string{" default.md ", ".denova/styles/default.md", "../bad.md"},
+		StyleRefs: []string{" default.md ", ".casemagica/styles/default.md", "../bad.md"},
 		StyleRules: []StyleRule{
-			{Scene: " 激烈打斗 ", StyleRefs: []string{" style.md ", ".denova/styles/style.md", "../bad.md"}, StyleContents: []string{" 短句留白 ", "短句留白", longContent}},
+			{Scene: " 激烈打斗 ", StyleRefs: []string{" style.md ", ".casemagica/styles/style.md", "../bad.md"}, StyleContents: []string{" 短句留白 ", "短句留白", longContent}},
 			{Scene: "", StyleContents: []string{"无效"}},
 			{Scene: "空内容", StyleContents: []string{"", " "}},
 		},
 	})
 	rules := teller.StyleRules
 
-	if len(teller.StyleRefs) != 2 || teller.StyleRefs[0] != ".denova/styles/default.md" || teller.StyleRefs[1] != ".denova/styles/bad.md" {
+	if len(teller.StyleRefs) != 2 || teller.StyleRefs[0] != ".casemagica/styles/default.md" || teller.StyleRefs[1] != ".casemagica/styles/bad.md" {
 		t.Fatalf("global style refs = %#v, want normalized deduped refs", teller.StyleRefs)
 	}
 
@@ -223,7 +223,7 @@ func TestNormalizeStyleRulesStoresRefsAndLegacyContents(t *testing.T) {
 	if rule.Scene != "激烈打斗" {
 		t.Fatalf("scene = %q", rule.Scene)
 	}
-	if len(rule.StyleRefs) != 2 || rule.StyleRefs[0] != ".denova/styles/style.md" || rule.StyleRefs[1] != ".denova/styles/bad.md" {
+	if len(rule.StyleRefs) != 2 || rule.StyleRefs[0] != ".casemagica/styles/style.md" || rule.StyleRefs[1] != ".casemagica/styles/bad.md" {
 		t.Fatalf("style refs = %#v, want normalized deduped refs", rule.StyleRefs)
 	}
 	if len(rule.StyleContents) != 2 {
@@ -468,8 +468,8 @@ func directorEventByID(events []DirectorEvent, id string) DirectorEvent {
 }
 
 func TestTellerLibraryIgnoresLegacyStylePathField(t *testing.T) {
-	novaDir := t.TempDir()
-	tellerDir := filepath.Join(novaDir, "story-tellers")
+	denovaDir := t.TempDir()
+	tellerDir := filepath.Join(denovaDir, "story-tellers")
 	if err := os.MkdirAll(tellerDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -488,7 +488,7 @@ func TestTellerLibraryIgnoresLegacyStylePathField(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	library := NewTellerLibrary(novaDir)
+	library := NewTellerLibrary(denovaDir)
 	teller, err := library.Get("custom")
 	if err != nil {
 		t.Fatalf("Get custom failed: %v", err)

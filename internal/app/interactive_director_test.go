@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/interactive"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
 )
 
 func TestInteractiveDirectorTaskCompletesPlanMetadataAfterFileUpdate(t *testing.T) {
@@ -346,7 +346,7 @@ func TestInteractiveDirectorTaskMarksFailureWithoutBlockingTurn(t *testing.T) {
 
 func TestAnalyzeInteractiveDirectorContextUsesCurrentDirectorInputs(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	store := interactive.NewStore(workspace)
 	story, err := store.CreateStory(interactive.CreateStoryRequest{
 		Title:         "外门逆袭",
@@ -379,7 +379,7 @@ func TestAnalyzeInteractiveDirectorContextUsesCurrentDirectorInputs(t *testing.T
 		t.Fatal(err)
 	}
 	app := &App{
-		cfg:         &config.Config{Workspace: workspace, NovaDir: novaDir},
+		cfg:         &config.Config{Workspace: workspace, DenovaDir: denovaDir},
 		workspace:   workspace,
 		bookState:   book.NewState(workspace),
 		bookService: book.NewService(workspace),

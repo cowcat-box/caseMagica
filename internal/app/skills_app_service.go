@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	novaskills "denova/internal/skills"
+	novaskills "casemagica/internal/skills"
 )
 
 // SkillsAppService exposes user and workspace skill management.
@@ -136,5 +136,5 @@ func (s *SkillsAppService) directories() []novaskills.Directory {
 	if a.cfg == nil {
 		return nil
 	}
-	return novaskills.NewDirectories(a.cfg.SkillsDir, a.cfg.NovaDir, a.workspace)
+	return novaskills.NewDirectories(a.cfg.SkillsDir, a.cfg.DenovaDir, a.workspace)
 }

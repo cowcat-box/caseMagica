@@ -14,7 +14,7 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 // toolOrchestratorMiddleware centralizes Nova's internal tool execution policy.

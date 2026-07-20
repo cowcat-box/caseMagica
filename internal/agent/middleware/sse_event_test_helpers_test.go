@@ -3,7 +3,7 @@ package middleware
 import (
 	"testing"
 
-	"denova/internal/agent"
+	"casemagica/internal/agent"
 )
 
 type sseEventCollector struct {

@@ -525,7 +525,7 @@ function storyMemoryState() {
 function contextAnalysisFixture() {
   const systemPart = contextAnalysisPart({
     id: 'output_protocol',
-    source: 'Denova runtime',
+    source: 'CaseMagica runtime',
     title: '输出格式',
     content: '必须通过 read_file/write_file/edit_file 更新当前分支 director.md。',
   })

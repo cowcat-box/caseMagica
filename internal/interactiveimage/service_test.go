@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/imagegen"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/imagegen"
 )
 
 func TestServiceGenerateSavesInteractiveImageAndMeta(t *testing.T) {

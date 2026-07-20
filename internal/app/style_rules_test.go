@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	"denova/internal/interactive"
-	"denova/internal/styleref"
+	"casemagica/internal/interactive"
+	"casemagica/internal/styleref"
 )
 
 func TestConvertTellerStyleRulesFiltersSelectedScenes(t *testing.T) {
@@ -32,8 +32,8 @@ func TestConvertTellerStyleRulesUsesAllScenesWhenUnspecified(t *testing.T) {
 }
 
 func TestConvertTellerStyleRulesResolvesSharedStyleRefs(t *testing.T) {
-	novaDir := t.TempDir()
-	ref, err := styleref.NewLibrary(novaDir).Write(styleref.WriteRequest{
+	denovaDir := t.TempDir()
+	ref, err := styleref.NewLibrary(denovaDir).Write(styleref.WriteRequest{
 		Name:        "克制细腻",
 		Description: "动作和停顿承载情绪",
 		Filename:    "restraint.md",
@@ -42,21 +42,21 @@ func TestConvertTellerStyleRulesResolvesSharedStyleRefs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := convertTellerStyleRules(novaDir, nil, []interactive.StyleRule{{
+	got := convertTellerStyleRules(denovaDir, nil, []interactive.StyleRule{{
 		Scene:     "日常对话",
 		StyleRefs: []string{ref.DisplayPath},
 	}}, nil)
 	if len(got) != 1 || len(got[0].StyleReferences) != 1 {
 		t.Fatalf("style refs not resolved: %#v", got)
 	}
-	if got[0].StyleReferences[0].Path == "" || got[0].StyleReferences[0].DisplayPath != ".denova/styles/restraint.md" {
+	if got[0].StyleReferences[0].Path == "" || got[0].StyleReferences[0].DisplayPath != ".casemagica/styles/restraint.md" {
 		t.Fatalf("resolved ref mismatch: %#v", got[0].StyleReferences[0])
 	}
 }
 
 func TestConvertTellerStyleRulesKeepsGlobalRefsWhenSceneFiltered(t *testing.T) {
-	novaDir := t.TempDir()
-	ref, err := styleref.NewLibrary(novaDir).Write(styleref.WriteRequest{
+	denovaDir := t.TempDir()
+	ref, err := styleref.NewLibrary(denovaDir).Write(styleref.WriteRequest{
 		Name:        "全局克制",
 		Description: "所有正文默认参考",
 		Filename:    "global-restraint.md",
@@ -66,7 +66,7 @@ func TestConvertTellerStyleRulesKeepsGlobalRefsWhenSceneFiltered(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := convertTellerStyleRules(novaDir, []string{ref.DisplayPath}, []interactive.StyleRule{
+	got := convertTellerStyleRules(denovaDir, []string{ref.DisplayPath}, []interactive.StyleRule{
 		{Scene: "激烈打斗", StyleContents: []string{"短句留白"}},
 		{Scene: "日常对话", StyleContents: []string{"温吞对白"}},
 	}, []string{"日常对话"})

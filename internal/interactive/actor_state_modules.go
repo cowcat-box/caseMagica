@@ -121,7 +121,7 @@ func (l *ActorStateLibrary) Delete(id string) error {
 }
 
 func (l *ActorStateLibrary) dir() string {
-	return filepath.Join(l.novaDir, "story-director-modules", "actor-states")
+	return filepath.Join(l.denovaDir, "story-director-modules", "actor-states")
 }
 
 func (l *ActorStateLibrary) ensureBuiltins() error {

@@ -134,8 +134,8 @@ export const handlers = [
         {
           name: '克制细腻',
           description: '动作、对白和停顿承载情绪',
-          path: '/tmp/.denova/styles/restraint.md',
-          display_path: '.denova/styles/restraint.md',
+          path: '/tmp/.casemagica/styles/restraint.md',
+          display_path: '.casemagica/styles/restraint.md',
         },
       ],
     }),
@@ -146,17 +146,17 @@ export const handlers = [
     return HttpResponse.json({
       name: body.name || filename,
       description: '',
-      path: `/tmp/.denova/styles/${filename}`,
-      display_path: `.denova/styles/${filename}`,
+      path: `/tmp/.casemagica/styles/${filename}`,
+      display_path: `.casemagica/styles/${filename}`,
     })
   }),
   http.get('/api/styles/file', ({ request }) => {
-    const path = new URL(request.url).searchParams.get('path') || '.denova/styles/restraint.md'
+    const path = new URL(request.url).searchParams.get('path') || '.casemagica/styles/restraint.md'
     return HttpResponse.json({
       reference: {
         name: '克制细腻',
         description: '动作、对白和停顿承载情绪',
-        path: `/tmp/${path.replace(/^\.denova\//, '.denova/')}`,
+        path: `/tmp/${path.replace(/^\.casemagica\//, '.casemagica/')}`,
         display_path: path,
       },
       content: '# 克制细腻\n\n动作、对白和停顿承载情绪。\n',
@@ -165,12 +165,12 @@ export const handlers = [
   }),
   http.put('/api/styles/file', async ({ request }) => {
     const body = await request.json() as { path?: string; content?: string }
-    const path = body.path || '.denova/styles/restraint.md'
+    const path = body.path || '.casemagica/styles/restraint.md'
     return HttpResponse.json({
       reference: {
         name: '克制细腻',
         description: '动作、对白和停顿承载情绪',
-        path: `/tmp/${path.replace(/^\.denova\//, '.denova/')}`,
+        path: `/tmp/${path.replace(/^\.casemagica\//, '.casemagica/')}`,
         display_path: path,
       },
       content: body.content || '',
@@ -221,23 +221,23 @@ export const handlers = [
       builtin_agent_prompt_sources: {
         ide: {
           sources: [
-            { id: 'runtime_contract', title: '运行契约', source: 'Denova runtime', content: '运行契约测试' },
-            { id: 'output_protocol', title: '输出格式', source: 'Denova runtime', content: '输出格式测试' },
+            { id: 'runtime_contract', title: '运行契约', source: 'CaseMagica runtime', content: '运行契约测试' },
+            { id: 'output_protocol', title: '输出格式', source: 'CaseMagica runtime', content: '输出格式测试' },
             { id: 'creator', title: 'CREATOR.md', source: 'CREATOR.md', content: '创作者指令测试' },
-            { id: 'flow', title: '流程规则', source: 'Denova built-in', content: '默认流程测试', editable: true, field: 'flow_prompt' },
+            { id: 'flow', title: '流程规则', source: 'CaseMagica built-in', content: '默认流程测试', editable: true, field: 'flow_prompt' },
             { id: 'custom', title: '用户自定义', source: 'user/workspace config', content: '', editable: true, field: 'system_prompt' },
           ],
         },
         interactive_story: {
           sources: [
-            { id: 'runtime_contract', title: '互动运行契约', source: 'Denova runtime', content: '互动运行契约测试' },
-            { id: 'output_protocol', title: '互动输出格式', source: 'Denova runtime', content: '互动输出格式测试' },
-            { id: 'flow', title: '流程规则', source: 'Denova built-in', content: 'list_interactive_memories read_interactive_memories', editable: true, field: 'flow_prompt' },
+            { id: 'runtime_contract', title: '互动运行契约', source: 'CaseMagica runtime', content: '互动运行契约测试' },
+            { id: 'output_protocol', title: '互动输出格式', source: 'CaseMagica runtime', content: '互动输出格式测试' },
+            { id: 'flow', title: '流程规则', source: 'CaseMagica built-in', content: 'list_interactive_memories read_interactive_memories', editable: true, field: 'flow_prompt' },
             { id: 'custom', title: '用户自定义', source: 'user/workspace config', content: '', editable: true, field: 'system_prompt' },
           ],
         },
       },
-      paths: { nova_dir: '', user_config: '', workspace_config: '' },
+      paths: { denova_dir: '', user_config: '', workspace_config: '' },
     }),
   ),
   http.get('/api/lore/items', () => HttpResponse.json({ items: [] })),

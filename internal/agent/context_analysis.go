@@ -8,12 +8,12 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	agentcontext "denova/internal/agent/context"
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/prompts"
-	"denova/internal/session"
+	"casemagica/config"
+	agentcontext "casemagica/internal/agent/context"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/prompts"
+	"casemagica/internal/session"
 )
 
 type ContextAnalysis struct {
@@ -452,7 +452,7 @@ func buildIDESystemPromptAnalysis(cfg *config.Config, state *book.State, teller 
 	parts := []ContextAnalysisPart{
 		NewContextAnalysisPart(ContextAnalysisPartInput{
 			ID:      "runtime_contract",
-			Source:  "Denova runtime",
+			Source:  "CaseMagica runtime",
 			Title:   "运行契约",
 			Content: runtimeContractForAgent(cfg, config.AgentKindIDE),
 		}),
@@ -460,7 +460,7 @@ func buildIDESystemPromptAnalysis(cfg *config.Config, state *book.State, teller 
 	if outputProtocol := strings.TrimSpace(outputProtocolForAgent(config.AgentKindIDE)); outputProtocol != "" {
 		parts = append(parts, NewContextAnalysisPart(ContextAnalysisPartInput{
 			ID:      "output_protocol",
-			Source:  "Denova runtime",
+			Source:  "CaseMagica runtime",
 			Title:   "输出格式",
 			Content: outputProtocol,
 		}))
@@ -513,7 +513,7 @@ func buildIDESystemPromptAnalysis(cfg *config.Config, state *book.State, teller 
 	parts = append(parts, styleRuleContextAnalysisParts(teller.StyleRules)...)
 	parts = append(parts, NewContextAnalysisPart(ContextAnalysisPartInput{
 		ID:      "flow",
-		Source:  "Denova built-in",
+		Source:  "CaseMagica built-in",
 		Title:   "写作模式流程配置",
 		Content: ideFlowInstruction(cfg, workspace),
 	}))
@@ -527,7 +527,7 @@ func buildInteractiveStorySystemPromptAnalysis(cfg *config.Config, state *book.S
 	parts := []ContextAnalysisPart{
 		NewContextAnalysisPart(ContextAnalysisPartInput{
 			ID:      "runtime_contract",
-			Source:  "Denova runtime",
+			Source:  "CaseMagica runtime",
 			Title:   "运行契约",
 			Content: runtimeContractForAgent(cfg, config.AgentKindInteractiveStory),
 		}),
@@ -535,7 +535,7 @@ func buildInteractiveStorySystemPromptAnalysis(cfg *config.Config, state *book.S
 	if outputProtocol := strings.TrimSpace(outputProtocolForAgent(config.AgentKindInteractiveStory)); outputProtocol != "" {
 		parts = append(parts, NewContextAnalysisPart(ContextAnalysisPartInput{
 			ID:      "output_protocol",
-			Source:  "Denova runtime",
+			Source:  "CaseMagica runtime",
 			Title:   "输出格式",
 			Content: outputProtocol,
 		}))
@@ -575,7 +575,7 @@ func buildInteractiveStorySystemPromptAnalysis(cfg *config.Config, state *book.S
 	parts = append(parts, styleRuleContextAnalysisParts(teller.StyleRules)...)
 	parts = append(parts, NewContextAnalysisPart(ContextAnalysisPartInput{
 		ID:      "flow",
-		Source:  "Denova built-in",
+		Source:  "CaseMagica built-in",
 		Title:   "互动故事流程规则",
 		Content: interactiveStoryFlowInstruction(cfg, workspace),
 	}))
@@ -589,7 +589,7 @@ func buildInteractiveDirectorSystemPromptAnalysis(cfg *config.Config) (string, [
 	parts := []ContextAnalysisPart{
 		NewContextAnalysisPart(ContextAnalysisPartInput{
 			ID:      "runtime_contract",
-			Source:  "Denova runtime",
+			Source:  "CaseMagica runtime",
 			Title:   "运行契约",
 			Content: runtimeContractForAgent(cfg, config.AgentKindInteractiveDirector),
 		}),
@@ -597,7 +597,7 @@ func buildInteractiveDirectorSystemPromptAnalysis(cfg *config.Config) (string, [
 	if outputProtocol := strings.TrimSpace(outputProtocolForAgent(config.AgentKindInteractiveDirector)); outputProtocol != "" {
 		parts = append(parts, NewContextAnalysisPart(ContextAnalysisPartInput{
 			ID:      "output_protocol",
-			Source:  "Denova runtime",
+			Source:  "CaseMagica runtime",
 			Title:   "输出格式",
 			Content: outputProtocol,
 		}))
@@ -620,7 +620,7 @@ func buildInteractiveDirectorSystemPromptAnalysis(cfg *config.Config) (string, [
 	}
 	parts = append(parts, NewContextAnalysisPart(ContextAnalysisPartInput{
 		ID:      "flow",
-		Source:  "Denova built-in",
+		Source:  "CaseMagica built-in",
 		Title:   "后台导演系统规则",
 		Content: builtIn,
 	}))
@@ -694,7 +694,7 @@ func directorInstructionHeadingMeta(heading string) (title, source, note string)
 	}
 	switch title {
 	case "文件操作要求", "固定标题", "更新原则":
-		source = "Denova built-in"
+		source = "CaseMagica built-in"
 		if note == "" {
 			note = "final_user_message"
 		} else {

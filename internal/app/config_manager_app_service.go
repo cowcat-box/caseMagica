@@ -7,9 +7,9 @@ import (
 	"log"
 	"strings"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/session"
 )
 
 type ConfigManagerAppService struct {
@@ -48,7 +48,7 @@ func (s *ConfigManagerAppService) StartTask(req ConfigManagerRequest) *Task {
 	}
 	runtimeCfg := *cfg
 	runtimeCfg.Workspace = workspace
-	if layered, err := config.LoadLayeredWithStartupConfig(runtimeCfg.NovaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(runtimeCfg.DenovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[config-manager] load layered settings failed workspace=%s err=%v", workspace, err)

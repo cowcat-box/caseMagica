@@ -47,7 +47,7 @@ const versions = {
   'versions.restorePlanFailed': 'Failed to load restore preview',
   'versions.restorePlanLoading': 'Calculating restore impact...',
   'versions.restoreAffectedFiles': 'Affected files',
-  'versions.restoreBackupNotice': 'Denova will create "{{message}}" before restoring, so current unsaved changes can be recovered from that version.',
+  'versions.restoreBackupNotice': 'CaseMagica will create "{{message}}" before restoring, so current unsaved changes can be recovered from that version.',
   'versions.restoreNoopWarning': 'The target version matches the current workspace. There are no files to restore.',
   'versions.restorePathNotice': 'File restore is applied as unsaved changes. You can keep editing or manually save a new version afterward.',
   'versions.restoreSuccess': 'Version restored',

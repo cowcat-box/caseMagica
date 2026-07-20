@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	"denova/internal/agent"
+	"casemagica/internal/agent"
 )
 
 func (a *App) automationMutationCallback(source string) func(context.Context, []agent.ToolMutation, agent.PostRunVerification) {

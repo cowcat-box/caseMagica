@@ -15,7 +15,7 @@ import (
 	"time"
 	"unicode"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 const tavernCardCoverPath = "assets/image/cover.png"

@@ -435,8 +435,8 @@ func TestStoryMemorySchemaContextIncludesStructuresWithoutRecords(t *testing.T) 
 
 func TestStoryMemoryUsesDirectorMemoryStructureModule(t *testing.T) {
 	root := t.TempDir()
-	novaDir := t.TempDir()
-	memoryLibrary := NewStoryMemoryStructureLibrary(novaDir)
+	denovaDir := t.TempDir()
+	memoryLibrary := NewStoryMemoryStructureLibrary(denovaDir)
 	module, err := memoryLibrary.Create(StoryMemoryStructureModule{
 		ID:   "quest-memory",
 		Name: "任务记忆结构",
@@ -456,7 +456,7 @@ func TestStoryMemoryUsesDirectorMemoryStructureModule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create memory module failed: %v", err)
 	}
-	directorLibrary := NewStoryDirectorLibrary(novaDir)
+	directorLibrary := NewStoryDirectorLibrary(denovaDir)
 	director, err := directorLibrary.Create(StoryDirector{
 		ID:   "quest-director",
 		Name: "任务导演",
@@ -469,7 +469,7 @@ func TestStoryMemoryUsesDirectorMemoryStructureModule(t *testing.T) {
 		t.Fatalf("create director failed: %v", err)
 	}
 
-	store := NewStoreWithNovaDir(root, novaDir)
+	store := NewStoreWithDenovaDir(root, denovaDir)
 	story, err := store.CreateStory(CreateStoryRequest{Title: "模块记忆", StoryDirectorID: director.ID})
 	if err != nil {
 		t.Fatalf("CreateStory failed: %v", err)
@@ -510,8 +510,8 @@ func TestStoryMemoryUsesDirectorMemoryStructureModule(t *testing.T) {
 
 func TestDisabledDirectorMemoryStructureSkipsRuntimeMemory(t *testing.T) {
 	root := t.TempDir()
-	novaDir := t.TempDir()
-	directorLibrary := NewStoryDirectorLibrary(novaDir)
+	denovaDir := t.TempDir()
+	directorLibrary := NewStoryDirectorLibrary(denovaDir)
 	director, err := directorLibrary.Create(StoryDirector{
 		ID:   "memory-off",
 		Name: "关闭记忆导演",
@@ -524,7 +524,7 @@ func TestDisabledDirectorMemoryStructureSkipsRuntimeMemory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create director failed: %v", err)
 	}
-	store := NewStoreWithNovaDir(root, novaDir)
+	store := NewStoreWithDenovaDir(root, denovaDir)
 	story, err := store.CreateStory(CreateStoryRequest{Title: "关闭记忆", StoryDirectorID: director.ID})
 	if err != nil {
 		t.Fatalf("CreateStory failed: %v", err)
@@ -564,7 +564,7 @@ func TestDisabledDirectorMemoryStructureSkipsRuntimeMemory(t *testing.T) {
 
 func TestMigrateStoryMemoryStructuresToDirectorModulesPreservesRecords(t *testing.T) {
 	root := t.TempDir()
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	legacyStore := NewStore(root)
 	story, err := legacyStore.CreateStory(CreateStoryRequest{Title: "旧结构故事", StoryDirectorID: DefaultStoryDirectorID})
 	if err != nil {
@@ -594,7 +594,7 @@ func TestMigrateStoryMemoryStructuresToDirectorModulesPreservesRecords(t *testin
 		t.Fatalf("SaveStoryMemoryRecord failed: %v", err)
 	}
 
-	store := NewStoreWithNovaDir(root, novaDir)
+	store := NewStoreWithDenovaDir(root, denovaDir)
 	if err := store.MigrateStoryMemoryStructuresToDirectorModules(); err != nil {
 		t.Fatalf("MigrateStoryMemoryStructuresToDirectorModules failed: %v", err)
 	}
@@ -616,14 +616,14 @@ func TestMigrateStoryMemoryStructuresToDirectorModulesPreservesRecords(t *testin
 		t.Fatalf("story using built-in director should be moved to story-specific director: %#v", migratedStory)
 	}
 	wantMemoryID := normalizeDirectorModuleID(fmt.Sprintf("story-%s-memory", story.ID))
-	director, err := NewStoryDirectorLibrary(novaDir).Get(migratedStory.StoryDirectorID)
+	director, err := NewStoryDirectorLibrary(denovaDir).Get(migratedStory.StoryDirectorID)
 	if err != nil {
 		t.Fatalf("get migrated director failed: %v", err)
 	}
 	if director.ModuleRefs.MemoryStructureID != wantMemoryID || director.ModuleRefs.MemoryStructureDisabled {
 		t.Fatalf("migrated director should reference story memory module: %#v", director.ModuleRefs)
 	}
-	module, err := NewStoryMemoryStructureLibrary(novaDir).Get(wantMemoryID)
+	module, err := NewStoryMemoryStructureLibrary(denovaDir).Get(wantMemoryID)
 	if err != nil {
 		t.Fatalf("get migrated memory module failed: %v", err)
 	}

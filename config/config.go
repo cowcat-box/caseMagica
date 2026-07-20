@@ -8,10 +8,10 @@ import (
 
 	toml "github.com/pelletier/go-toml/v2"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
-// Config 保存 Denova 的全局配置。
+// Config 保存 CaseMagica 的全局配置。
 type Config struct {
 	OpenAIAPIKey                string                       `toml:"openai_api_key"`
 	OpenAIBaseURL               string                       `toml:"openai_base_url"`
@@ -37,8 +37,8 @@ type Config struct {
 	RemoteAccessUsername        string                       `toml:"remote_access_username"`
 	RemoteAccessPasswordHash    string                       `toml:"remote_access_password_hash"`
 	Language                    string                       `toml:"language"`
-	DenovaDir                   string                       `toml:"denova_dir"`
-	NovaDir                     string                       `toml:"nova_dir"`
+	CaseMagicaDir                   string                       `toml:"casemagica_dir"`
+	DenovaDir                     string                       `toml:"denova_dir"`
 	Workspace                   string                       `toml:"workspace"`
 	RuntimeWebPort              int                          `toml:"-"`
 	DevMode                     bool                         `toml:"-"`
@@ -71,8 +71,8 @@ type Config struct {
 
 // LoadWithWorkspace 在已知 workspace 时读取分层配置（默认 < 用户级 < 工作区级 < 环境变量）。
 func LoadWithWorkspace(workspace string) (*Config, LayeredSettings, error) {
-	novaDir := startupNovaDir()
-	layered, err := LoadLayeredWithStartupConfig(novaDir, workspace)
+	denovaDir := startupDenovaDir()
+	layered, err := LoadLayeredWithStartupConfig(denovaDir, workspace)
 	if err != nil {
 		return nil, LayeredSettings{}, err
 	}
@@ -103,8 +103,8 @@ func LoadWithWorkspace(workspace string) (*Config, LayeredSettings, error) {
 		RemoteAccessUsername:        s.RemoteAccessUsername,
 		RemoteAccessPasswordHash:    s.RemoteAccessPasswordHash,
 		Language:                    s.Language,
-		DenovaDir:                   novaDir,
-		NovaDir:                     novaDir,
+		CaseMagicaDir:                   denovaDir,
+		DenovaDir:                     denovaDir,
 		Workspace:                   workspace,
 		IDEStoryTellerID:            s.IDEStoryTellerID,
 		IDEImagePresetID:            s.IDEImagePresetID,
@@ -149,31 +149,31 @@ func LoadWithWorkspace(workspace string) (*Config, LayeredSettings, error) {
 
 // LoadLayeredWithStartupConfig reads layered settings with the same global
 // startup config layer used by LoadWithWorkspace.
-func LoadLayeredWithStartupConfig(novaDir, workspace string) (LayeredSettings, error) {
-	if strings.TrimSpace(novaDir) == "" {
-		novaDir = startupNovaDir()
+func LoadLayeredWithStartupConfig(denovaDir, workspace string) (LayeredSettings, error) {
+	if strings.TrimSpace(denovaDir) == "" {
+		denovaDir = startupDenovaDir()
 	} else {
-		novaDir = normalizePath(novaDir)
+		denovaDir = normalizePath(denovaDir)
 	}
 	globalSettings := settingsFromConfig(loadGlobalConfig())
-	globalSettings.DenovaDir = novaDir
-	globalSettings.NovaDir = novaDir
-	return LoadLayeredWithGlobal(novaDir, workspace, globalSettings)
+	globalSettings.CaseMagicaDir = denovaDir
+	globalSettings.DenovaDir = denovaDir
+	return LoadLayeredWithGlobal(denovaDir, workspace, globalSettings)
 }
 
-func startupNovaDir() string {
+func startupDenovaDir() string {
 	global := loadGlobalConfig()
-	novaDir := firstNonEmpty(global.DenovaDir, global.NovaDir)
-	if novaDir == "" {
-		novaDir = defaultNovaDir()
+	denovaDir := firstNonEmpty(global.CaseMagicaDir, global.DenovaDir)
+	if denovaDir == "" {
+		denovaDir = defaultDenovaDir()
 	}
-	if v := envCompat("DENOVA_DIR", "NOVA_DIR"); v != "" {
-		novaDir = v
+	if v := envCompat("CASEMAGICA_DIR", "DENOVA_DIR"); v != "" {
+		denovaDir = v
 	}
-	if novaDir == "" {
-		novaDir = defaultNovaDir()
+	if denovaDir == "" {
+		denovaDir = defaultDenovaDir()
 	}
-	return normalizePath(novaDir)
+	return normalizePath(denovaDir)
 }
 
 func loadGlobalConfig() *Config {
@@ -213,8 +213,8 @@ func settingsFromConfig(cfg *Config) Settings {
 		GeneralSubAgents:         cfg.GeneralSubAgents,
 		SubAgents:                cfg.SubAgents,
 		SkillsDir:                cfg.SkillsDir,
-		DenovaDir:                firstNonEmpty(cfg.DenovaDir, cfg.NovaDir),
-		NovaDir:                  firstNonEmpty(cfg.DenovaDir, cfg.NovaDir),
+		CaseMagicaDir:                firstNonEmpty(cfg.CaseMagicaDir, cfg.DenovaDir),
+		DenovaDir:                  firstNonEmpty(cfg.CaseMagicaDir, cfg.DenovaDir),
 		RemoteAccessUsername:     cfg.RemoteAccessUsername,
 		RemoteAccessPasswordHash: cfg.RemoteAccessPasswordHash,
 		Language:                 cfg.Language,
@@ -301,8 +301,8 @@ func Load() *Config {
 			RemoteAccessUsername:        d.RemoteAccessUsername,
 			RemoteAccessPasswordHash:    d.RemoteAccessPasswordHash,
 			Language:                    d.Language,
-			DenovaDir:                   normalizePath(d.DenovaDir),
-			NovaDir:                     normalizePath(d.NovaDir),
+			CaseMagicaDir:                   normalizePath(d.CaseMagicaDir),
+			DenovaDir:                     normalizePath(d.DenovaDir),
 			IDEStoryTellerID:            d.IDEStoryTellerID,
 			IDEImagePresetID:            d.IDEImagePresetID,
 			WritingSkillDefault:         d.WritingSkillDefault,
@@ -397,27 +397,27 @@ func overrideFromEnv(cfg *Config) {
 	if v := os.Getenv("OPENAI_IMAGE_MODEL"); v != "" {
 		cfg.ImageAPIModel = v
 	}
-	if v := envCompat("DENOVA_SKILLS_DIR", "NOVA_SKILLS_DIR"); v != "" {
+	if v := envCompat("CASEMAGICA_SKILLS_DIR", "DENOVA_SKILLS_DIR"); v != "" {
 		cfg.SkillsDir = v
 	}
-	if v := envCompat("DENOVA_DIR", "NOVA_DIR"); v != "" {
+	if v := envCompat("CASEMAGICA_DIR", "DENOVA_DIR"); v != "" {
+		cfg.CaseMagicaDir = v
 		cfg.DenovaDir = v
-		cfg.NovaDir = v
 	}
-	if v := envCompat("DENOVA_WORKSPACE", "NOVA_WORKSPACE"); v != "" {
+	if v := envCompat("CASEMAGICA_WORKSPACE", "DENOVA_WORKSPACE"); v != "" {
 		cfg.Workspace = v
 	}
-	if v := envCompat("DENOVA_BACKEND_PORT", "NOVA_BACKEND_PORT"); v != "" {
+	if v := envCompat("CASEMAGICA_BACKEND_PORT", "DENOVA_BACKEND_PORT"); v != "" {
 		if port, err := strconv.Atoi(v); err == nil && port >= 1 && port <= 65535 {
 			cfg.BackendPort = port
 		}
 	}
-	if v := envCompat("DENOVA_FRONTEND_PORT", "NOVA_FRONTEND_PORT"); v != "" {
+	if v := envCompat("CASEMAGICA_FRONTEND_PORT", "DENOVA_FRONTEND_PORT"); v != "" {
 		if port, err := strconv.Atoi(v); err == nil && port >= 1 && port <= 65535 {
 			cfg.FrontendPort = port
 		}
 	}
-	if v := envCompat("DENOVA_AGENT_IDLE_TIMEOUT_SECONDS", "NOVA_AGENT_IDLE_TIMEOUT_SECONDS"); v != "" {
+	if v := envCompat("CASEMAGICA_AGENT_IDLE_TIMEOUT_SECONDS", "DENOVA_AGENT_IDLE_TIMEOUT_SECONDS"); v != "" {
 		if seconds, err := strconv.Atoi(v); err == nil && seconds >= 0 {
 			cfg.AgentIdleTimeoutSeconds = seconds
 		}
@@ -435,7 +435,7 @@ func (cfg *Config) RemoteAccessConfig() RemoteAccessConfig {
 	}
 }
 
-func defaultNovaDir() string {
+func defaultDenovaDir() string {
 	if dirExists(workspacepath.LegacyDataDirName) && !dirExists(workspacepath.DataDirName) {
 		return "./" + workspacepath.LegacyDataDirName
 	}
@@ -446,13 +446,13 @@ func normalizeConfigDataDir(cfg *Config) {
 	if cfg == nil {
 		return
 	}
-	dataDir := firstNonEmpty(cfg.DenovaDir, cfg.NovaDir)
+	dataDir := firstNonEmpty(cfg.CaseMagicaDir, cfg.DenovaDir)
 	if dataDir == "" {
-		dataDir = defaultNovaDir()
+		dataDir = defaultDenovaDir()
 	}
 	dataDir = normalizePath(dataDir)
+	cfg.CaseMagicaDir = dataDir
 	cfg.DenovaDir = dataDir
-	cfg.NovaDir = dataDir
 }
 
 func envCompat(current, legacy string) string {

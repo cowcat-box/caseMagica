@@ -1,6 +1,6 @@
 package app
 
-import "denova/internal/agent"
+import "casemagica/internal/agent"
 
 func (a *App) AgentRunTraces(limit int) ([]agent.RunTraceSummary, error) {
 	if !a.HasWorkspace() {

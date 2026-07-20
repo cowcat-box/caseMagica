@@ -19,7 +19,7 @@ func TestLibraryWriteListAndDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ref.DisplayPath != ".denova/styles/restraint.md" {
+	if ref.DisplayPath != ".casemagica/styles/restraint.md" {
 		t.Fatalf("display path = %s", ref.DisplayPath)
 	}
 	if filepath.Ext(ref.Path) != ".md" {
@@ -47,11 +47,11 @@ func TestLibraryWriteListAndDelete(t *testing.T) {
 func TestNormalizeStoragePathUsesStylesDisplayDir(t *testing.T) {
 	for _, input := range []string{
 		"style.md",
-		".denova/styles/style.md",
-		"/tmp/.denova/styles/style.md",
+		".casemagica/styles/style.md",
+		"/tmp/.casemagica/styles/style.md",
 		"../style.md",
 	} {
-		if got := NormalizeStoragePath(input); got != ".denova/styles/style.md" {
+		if got := NormalizeStoragePath(input); got != ".casemagica/styles/style.md" {
 			t.Fatalf("NormalizeStoragePath(%q) = %q", input, got)
 		}
 	}

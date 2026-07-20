@@ -2,7 +2,7 @@
 set -e
 
 OUTPUT_DIR="output"
-VERSION="${DENOVA_VERSION:-${NOVA_VERSION:-$(node -p "require('./web/package.json').version" 2>/dev/null || echo dev)}}"
+VERSION="${CASEMAGICA_VERSION:-${NOVA_VERSION:-$(node -p "require('./web/package.json').version" 2>/dev/null || echo dev)}}"
 
 echo "==> 清理 output 目录"
 rm -rf "${OUTPUT_DIR}"
@@ -25,14 +25,14 @@ if [ -d "web" ]; then
     cp -r web/dist internal/webfs/dist
     EMBED_TAG="-tags embedweb"
 else
-    echo "警告: web/ 目录不存在，跳过前端构建（denova 将不含内嵌前端）"
+    echo "警告: web/ 目录不存在，跳过前端构建（casemagica 将不含内嵌前端）"
 fi
 
-echo "==> 编译 denova"
-go build ${EMBED_TAG} -ldflags "-X denova/internal/buildinfo.Version=${VERSION}" -o "${OUTPUT_DIR}/denova" ./cmd/denova/
+echo "==> 编译 casemagica"
+go build ${EMBED_TAG} -ldflags "-X casemagica/internal/buildinfo.Version=${VERSION}" -o "${OUTPUT_DIR}/casemagica" ./cmd/casemagica/
 
-echo "==> 编译 denova-updater"
-go build -ldflags "-X denova/internal/buildinfo.Version=${VERSION}" -o "${OUTPUT_DIR}/denova-updater" ./cmd/denova-updater/
+echo "==> 编译 casemagica-updater"
+go build -ldflags "-X casemagica/internal/buildinfo.Version=${VERSION}" -o "${OUTPUT_DIR}/casemagica-updater" ./cmd/casemagica-updater/
 
 echo "==> 复制 skills 目录"
 cp -r skills "${OUTPUT_DIR}/skills"
@@ -56,4 +56,4 @@ echo "  输出目录: ${OUTPUT_DIR}/"
 ls -la "${OUTPUT_DIR}/"
 echo ""
 echo "使用方式:"
-echo "  cd ${OUTPUT_DIR} && ./denova --workspace /path/to/my-novel"
+echo "  cd ${OUTPUT_DIR} && ./casemagica --workspace /path/to/my-novel"

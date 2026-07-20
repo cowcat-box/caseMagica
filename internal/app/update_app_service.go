@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 
-	"denova/internal/agent"
-	"denova/internal/update"
+	"casemagica/internal/agent"
+	"casemagica/internal/update"
 )
 
 func (a *App) CheckUpdate(ctx context.Context) (update.CheckResult, error) {

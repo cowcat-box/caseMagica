@@ -7,16 +7,16 @@ import (
 )
 
 const (
-	updateDataDirName       = ".denova-updates"
-	legacyUpdateDataDirName = ".nova-updates"
-	releasePackageRootName  = "denova"
+	updateDataDirName       = ".casemagica-updates"
+	legacyUpdateDataDirName = ".denova-updates"
+	releasePackageRootName  = "casemagica"
 )
 
 func updaterExecutableName() string {
 	if runtime.GOOS == "windows" {
-		return "denova-updater.exe"
+		return "casemagica-updater.exe"
 	}
-	return "denova-updater"
+	return "casemagica-updater"
 }
 
 func relaunchArgs(args []string, executable string) []string {

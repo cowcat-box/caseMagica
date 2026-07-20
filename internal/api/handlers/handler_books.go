@@ -11,8 +11,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	novaApp "denova/internal/app"
-	"denova/internal/book"
+	novaApp "casemagica/internal/app"
+	"casemagica/internal/book"
 )
 
 const MaxBookCoverUploadBytes int64 = 16 * 1024 * 1024
@@ -44,11 +44,11 @@ func (h *Handlers) HandleCreateBook(ctx context.Context, c *app.RequestContext) 
 		writeError(c, consts.StatusInternalServerError, err.Error())
 		return
 	}
-	if layered.Paths.NovaDir == "" {
-		writeErrorKey(c, consts.StatusInternalServerError, "api.books.novaDirMissing")
+	if layered.Paths.DenovaDir == "" {
+		writeErrorKey(c, consts.StatusInternalServerError, "api.books.denovaDirMissing")
 		return
 	}
-	workspace, meta, err := h.app.CreateBook(ctx, layered.Paths.NovaDir, req.Title, req.Author, req.Description)
+	workspace, meta, err := h.app.CreateBook(ctx, layered.Paths.DenovaDir, req.Title, req.Author, req.Description)
 	if err != nil {
 		status := consts.StatusInternalServerError
 		if strings.Contains(err.Error(), "已存在") {

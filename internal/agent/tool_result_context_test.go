@@ -71,8 +71,8 @@ func TestToolResultContextRecorderBoundsLargeResults(t *testing.T) {
 	}
 }
 
-func TestToolResultContextRemovesDenovaMetadata(t *testing.T) {
-	raw := "章节内容\n\n[Denova tool result metadata]\nschema: tool_result.v1\nmutates_workspace: false"
+func TestToolResultContextRemovesCaseMagicaMetadata(t *testing.T) {
+	raw := "章节内容\n\n[CaseMagica tool result metadata]\nschema: tool_result.v1\nmutates_workspace: false"
 	content := toolResultContextContent("read_file", "call-1", raw, ToolResultContextPolicy{PreviewChars: 100})
 	if content != "章节内容" {
 		t.Fatalf("retained content should remove metadata, got %q", content)

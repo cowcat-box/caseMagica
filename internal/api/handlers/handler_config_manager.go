@@ -7,8 +7,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/internal/api/sse"
-	appsvc "denova/internal/app"
+	"casemagica/internal/api/sse"
+	appsvc "casemagica/internal/app"
 )
 
 func (h *Handlers) HandleConfigManagerStream(ctx context.Context, c *app.RequestContext) {

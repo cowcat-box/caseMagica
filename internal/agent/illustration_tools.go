@@ -13,11 +13,11 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/illustration"
-	"denova/internal/imagegen"
-	"denova/internal/interactiveimage"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/illustration"
+	"casemagica/internal/imagegen"
+	"casemagica/internal/interactiveimage"
 )
 
 const (
@@ -210,7 +210,7 @@ func parseChapterIllustrationToolResult(toolName, content string) (*illustration
 		return nil, nil
 	}
 	body := strings.TrimSpace(content)
-	if before, _, ok := strings.Cut(body, "\n\n[Denova tool result metadata]"); ok {
+	if before, _, ok := strings.Cut(body, "\n\n[CaseMagica tool result metadata]"); ok {
 		body = strings.TrimSpace(before)
 	}
 	if body == "" {
@@ -231,7 +231,7 @@ func parseGeneratedImageToolTarget(toolName, content string) string {
 		return ""
 	}
 	body := strings.TrimSpace(content)
-	if before, _, ok := strings.Cut(body, "\n\n[Denova tool result metadata]"); ok {
+	if before, _, ok := strings.Cut(body, "\n\n[CaseMagica tool result metadata]"); ok {
 		body = strings.TrimSpace(before)
 	}
 	if body == "" {
@@ -252,7 +252,7 @@ func parseInteractiveImageToolResult(toolName, content string) (*interactiveimag
 		return nil, nil
 	}
 	body := strings.TrimSpace(content)
-	if before, _, ok := strings.Cut(body, "\n\n[Denova tool result metadata]"); ok {
+	if before, _, ok := strings.Cut(body, "\n\n[CaseMagica tool result metadata]"); ok {
 		body = strings.TrimSpace(before)
 	}
 	if body == "" {

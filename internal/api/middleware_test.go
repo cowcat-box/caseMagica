@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"denova/config"
-	runtimeapp "denova/internal/app"
+	"casemagica/config"
+	runtimeapp "casemagica/internal/app"
 )
 
 func TestNewServerUsesLocalHostByDefault(t *testing.T) {
@@ -25,7 +25,7 @@ func TestNewServerUsesLANHostWhenEnabled(t *testing.T) {
 	}
 	application, err := runtimeapp.New(context.Background(), &config.Config{
 		OpenAIModel:              "test-model",
-		NovaDir:                  root,
+		DenovaDir:                  root,
 		Workspace:                root,
 		ResumeLastWorkspace:      false,
 		AllowLANAccess:           true,

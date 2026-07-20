@@ -20,7 +20,7 @@ func TestSafePath(t *testing.T) {
 		{name: "普通相对路径", path: "chapters/ch01.md"},
 		{name: "拒绝绝对路径", path: filepath.Join(workspace, "chapters/ch01.md"), wantErr: true},
 		{name: "拒绝越界路径", path: "../outside.md", wantErr: true},
-		{name: "拒绝隐藏目录", path: ".nova/session.jsonl", wantErr: true},
+		{name: "拒绝隐藏目录", path: ".denova/session.jsonl", wantErr: true},
 		{name: "拒绝隐藏文件", path: "chapters/.secret", wantErr: true},
 	}
 
@@ -87,7 +87,7 @@ func TestServiceWriteFileIfRevisionRejectsStaleRevision(t *testing.T) {
 
 func TestBuildFileTreeSkipsHiddenFiles(t *testing.T) {
 	workspace := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(workspace, ".nova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(workspace, ".denova"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(workspace, "chapters"), 0o755); err != nil {

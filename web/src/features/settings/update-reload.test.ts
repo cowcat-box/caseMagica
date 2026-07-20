@@ -5,7 +5,7 @@ describe('update frontend reload', () => {
   it('builds a cache-busting reload URL without dropping the current path or query', () => {
     const url = buildFrontendReloadURL('v0.2.0 beta', 123, 'http://localhost:8080/settings?section=updates')
 
-    expect(url).toBe('http://localhost:8080/settings?section=updates&denova_reload=v0.2.0-beta-123')
+    expect(url).toBe('http://localhost:8080/settings?section=updates&casemagica_reload=v0.2.0-beta-123')
   })
 
   it('waits for the restarted backend before reloading the page', async () => {
@@ -41,7 +41,7 @@ describe('update frontend reload', () => {
 
     timers.shift()?.()
     await flushMicrotasks()
-    expect(reload).toHaveBeenCalledWith('http://localhost:8080/settings?denova_reload=0.2.0-456')
+    expect(reload).toHaveBeenCalledWith('http://localhost:8080/settings?casemagica_reload=0.2.0-456')
     expect(pollBackend).toHaveBeenCalledTimes(3)
   })
 })

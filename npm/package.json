@@ -1,10 +1,10 @@
 {
-  "name": "@alfredxw/denova",
+  "name": "@cowcat-box/casemagica",
   "version": "0.1.18",
   "description": "面向长篇小说创作的 AI 写作工作台",
   "type": "module",
   "bin": {
-    "denova": "./bin/denova.js"
+    "casemagica": "./bin/casemagica.js"
   },
   "scripts": {
     "build": "node ../scripts/build-npm-package.mjs",

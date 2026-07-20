@@ -6,27 +6,27 @@ import (
 	"testing"
 )
 
-func TestLoadDefaultsDenovaDir(t *testing.T) {
+func TestLoadDefaultsCaseMagicaDir(t *testing.T) {
 	t.Chdir(t.TempDir())
+	t.Setenv("CASEMAGICA_DIR", "")
 	t.Setenv("DENOVA_DIR", "")
-	t.Setenv("NOVA_DIR", "")
 
 	cfg := Load()
-	want := normalizePath("./.denova")
-	if cfg.NovaDir != want {
-		t.Fatalf("默认 NovaDir 不符合预期: want=%s got=%s", want, cfg.NovaDir)
-	}
+	want := normalizePath("./.casemagica")
 	if cfg.DenovaDir != want {
 		t.Fatalf("默认 DenovaDir 不符合预期: want=%s got=%s", want, cfg.DenovaDir)
+	}
+	if cfg.CaseMagicaDir != want {
+		t.Fatalf("默认 CaseMagicaDir 不符合预期: want=%s got=%s", want, cfg.CaseMagicaDir)
 	}
 }
 
 func TestLoadDoesNotDefaultWorkspaceToCurrentDir(t *testing.T) {
 	t.Chdir(t.TempDir())
+	t.Setenv("CASEMAGICA_DIR", "")
 	t.Setenv("DENOVA_DIR", "")
-	t.Setenv("NOVA_DIR", "")
+	t.Setenv("CASEMAGICA_WORKSPACE", "")
 	t.Setenv("DENOVA_WORKSPACE", "")
-	t.Setenv("NOVA_WORKSPACE", "")
 
 	cfg := Load()
 	if cfg.Workspace != "" {
@@ -37,34 +37,34 @@ func TestLoadDoesNotDefaultWorkspaceToCurrentDir(t *testing.T) {
 	}
 }
 
-func TestLoadNovaDirFromEnv(t *testing.T) {
+func TestLoadDenovaDirFromEnv(t *testing.T) {
 	t.Chdir(t.TempDir())
 	dir := filepath.Join(t.TempDir(), "nova-data")
-	t.Setenv("DENOVA_DIR", "")
-	t.Setenv("NOVA_DIR", dir)
+	t.Setenv("CASEMAGICA_DIR", "")
+	t.Setenv("DENOVA_DIR", dir)
 
 	cfg := Load()
-	if cfg.NovaDir != dir {
-		t.Fatalf("环境变量 NovaDir 不符合预期: want=%s got=%s", dir, cfg.NovaDir)
-	}
 	if cfg.DenovaDir != dir {
 		t.Fatalf("环境变量 DenovaDir 不符合预期: want=%s got=%s", dir, cfg.DenovaDir)
 	}
+	if cfg.CaseMagicaDir != dir {
+		t.Fatalf("环境变量 CaseMagicaDir 不符合预期: want=%s got=%s", dir, cfg.CaseMagicaDir)
+	}
 }
 
-func TestLoadDenovaDirEnvOverridesLegacyNovaDir(t *testing.T) {
+func TestLoadCaseMagicaDirEnvOverridesLegacyDenovaDir(t *testing.T) {
 	t.Chdir(t.TempDir())
-	denovaDir := filepath.Join(t.TempDir(), "denova-data")
+	casemagicaDir := filepath.Join(t.TempDir(), "casemagica-data")
 	legacyDir := filepath.Join(t.TempDir(), "nova-data")
-	t.Setenv("DENOVA_DIR", denovaDir)
-	t.Setenv("NOVA_DIR", legacyDir)
+	t.Setenv("CASEMAGICA_DIR", casemagicaDir)
+	t.Setenv("DENOVA_DIR", legacyDir)
 
 	cfg := Load()
-	if cfg.DenovaDir != denovaDir {
-		t.Fatalf("DENOVA_DIR should override NOVA_DIR: want=%s got=%s", denovaDir, cfg.DenovaDir)
+	if cfg.CaseMagicaDir != casemagicaDir {
+		t.Fatalf("CASEMAGICA_DIR should override DENOVA_DIR: want=%s got=%s", casemagicaDir, cfg.CaseMagicaDir)
 	}
-	if cfg.NovaDir != denovaDir {
-		t.Fatalf("legacy NovaDir should mirror DENOVA_DIR: want=%s got=%s", denovaDir, cfg.NovaDir)
+	if cfg.DenovaDir != casemagicaDir {
+		t.Fatalf("legacy DenovaDir should mirror CASEMAGICA_DIR: want=%s got=%s", casemagicaDir, cfg.DenovaDir)
 	}
 }
 
@@ -82,24 +82,24 @@ func TestNormalizePathExpandsRelativeAndHome(t *testing.T) {
 	if err != nil || home == "" {
 		t.Skip("当前环境无 home 目录")
 	}
-	want := filepath.Join(home, ".nova")
-	if got := normalizePath("~/.nova"); got != want {
+	want := filepath.Join(home, ".denova")
+	if got := normalizePath("~/.denova"); got != want {
 		t.Fatalf("~ 路径未正确展开: want=%s got=%s", want, got)
 	}
 }
 
 func TestLoadWithWorkspaceMergesLayers(t *testing.T) {
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	ws := t.TempDir()
-	t.Setenv("NOVA_DIR", novaDir)
+	t.Setenv("DENOVA_DIR", denovaDir)
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_MODEL", "")
 
-	if err := WriteSettingsFile(filepath.Join(novaDir, "config.toml"),
+	if err := WriteSettingsFile(filepath.Join(denovaDir, "config.toml"),
 		Settings{OpenAIModel: "user-model", Language: "zh-CN", WritingSkillDefault: "novel-lite", IDEImagePresetID: "realistic"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteSettingsFile(filepath.Join(ws, ".nova", "config.toml"),
+	if err := WriteSettingsFile(filepath.Join(ws, ".denova", "config.toml"),
 		Settings{OpenAIModel: "ws-model", Language: "en-US", WritingSkillDefault: "novel-heavy", IDEImagePresetID: "2d-illustration"}); err != nil {
 		t.Fatal(err)
 	}
@@ -126,14 +126,14 @@ func TestLoadWithWorkspaceMergesLayers(t *testing.T) {
 }
 
 func TestLoadWithWorkspaceAllowsUnlimitedAgentIdleTimeout(t *testing.T) {
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	ws := t.TempDir()
-	t.Setenv("NOVA_DIR", novaDir)
+	t.Setenv("DENOVA_DIR", denovaDir)
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_MODEL", "")
-	t.Setenv("NOVA_AGENT_IDLE_TIMEOUT_SECONDS", "")
+	t.Setenv("DENOVA_AGENT_IDLE_TIMEOUT_SECONDS", "")
 
-	if err := WriteSettingsFile(filepath.Join(novaDir, "config.toml"),
+	if err := WriteSettingsFile(filepath.Join(denovaDir, "config.toml"),
 		Settings{AgentIdleTimeoutSeconds: intPtr(0)}); err != nil {
 		t.Fatal(err)
 	}
@@ -151,13 +151,13 @@ func TestLoadWithWorkspaceAllowsUnlimitedAgentIdleTimeout(t *testing.T) {
 }
 
 func TestLoadWithWorkspaceAllowsUnlimitedAgentToolResultLimit(t *testing.T) {
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	ws := t.TempDir()
-	t.Setenv("NOVA_DIR", novaDir)
+	t.Setenv("DENOVA_DIR", denovaDir)
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_MODEL", "")
 
-	if err := WriteSettingsFile(filepath.Join(novaDir, "config.toml"),
+	if err := WriteSettingsFile(filepath.Join(denovaDir, "config.toml"),
 		Settings{AgentToolResultLimitKB: intPtr(0)}); err != nil {
 		t.Fatal(err)
 	}
@@ -175,9 +175,9 @@ func TestLoadWithWorkspaceAllowsUnlimitedAgentToolResultLimit(t *testing.T) {
 }
 
 func TestLoadWithWorkspaceDefaultsLLMInputLogDisabled(t *testing.T) {
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	ws := t.TempDir()
-	t.Setenv("NOVA_DIR", novaDir)
+	t.Setenv("DENOVA_DIR", denovaDir)
 
 	cfg, layered, err := LoadWithWorkspace(ws)
 	if err != nil {
@@ -192,12 +192,12 @@ func TestLoadWithWorkspaceDefaultsLLMInputLogDisabled(t *testing.T) {
 }
 
 func TestLoadWithWorkspaceReadsUserLLMInputLogSetting(t *testing.T) {
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	ws := t.TempDir()
-	t.Setenv("NOVA_DIR", novaDir)
+	t.Setenv("DENOVA_DIR", denovaDir)
 	enabled := true
 
-	if err := WriteSettingsFile(filepath.Join(novaDir, "config.toml"),
+	if err := WriteSettingsFile(filepath.Join(denovaDir, "config.toml"),
 		Settings{LLMInputLogEnabled: &enabled}); err != nil {
 		t.Fatal(err)
 	}
@@ -214,19 +214,19 @@ func TestLoadWithWorkspaceReadsUserLLMInputLogSetting(t *testing.T) {
 	}
 }
 
-func TestLoadWithWorkspaceUsesGlobalConfigNovaDir(t *testing.T) {
+func TestLoadWithWorkspaceUsesGlobalConfigDenovaDir(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
-	novaDir := filepath.Join(root, "global-nova")
+	denovaDir := filepath.Join(root, "global-nova")
 	ws := t.TempDir()
-	t.Setenv("NOVA_DIR", "")
+	t.Setenv("DENOVA_DIR", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_MODEL", "")
 
-	if err := os.WriteFile(filepath.Join(root, "config.toml"), []byte("nova_dir = \"./global-nova\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "config.toml"), []byte("denova_dir = \"./global-nova\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteSettingsFile(filepath.Join(novaDir, "config.toml"), Settings{OpenAIModel: "user-model"}); err != nil {
+	if err := WriteSettingsFile(filepath.Join(denovaDir, "config.toml"), Settings{OpenAIModel: "user-model"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -234,12 +234,12 @@ func TestLoadWithWorkspaceUsesGlobalConfigNovaDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantNovaDir := normalizePath("./global-nova")
-	if cfg.NovaDir != wantNovaDir {
-		t.Fatalf("global nova_dir should locate user config: want=%s got=%s", wantNovaDir, cfg.NovaDir)
+	wantDenovaDir := normalizePath("./global-nova")
+	if cfg.DenovaDir != wantDenovaDir {
+		t.Fatalf("global denova_dir should locate user config: want=%s got=%s", wantDenovaDir, cfg.DenovaDir)
 	}
 	if layered.User.OpenAIModel != "user-model" {
-		t.Fatalf("user config should be loaded from global nova_dir")
+		t.Fatalf("user config should be loaded from global denova_dir")
 	}
 }
 
@@ -247,7 +247,7 @@ func TestLoadWithWorkspaceUsesGlobalConfigAsBaseLayer(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	ws := t.TempDir()
-	t.Setenv("NOVA_DIR", "")
+	t.Setenv("DENOVA_DIR", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_MODEL", "")
 
@@ -271,7 +271,7 @@ func TestLoadWithWorkspaceAllowsGlobalUnlimitedAgentIdleTimeout(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	ws := t.TempDir()
-	t.Setenv("NOVA_DIR", "")
+	t.Setenv("DENOVA_DIR", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_MODEL", "")
 
@@ -295,7 +295,7 @@ func TestLoadWithWorkspaceAllowsGlobalUnlimitedAgentToolResultLimit(t *testing.T
 	root := t.TempDir()
 	t.Chdir(root)
 	ws := t.TempDir()
-	t.Setenv("NOVA_DIR", "")
+	t.Setenv("DENOVA_DIR", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_MODEL", "")
 
@@ -319,8 +319,8 @@ func TestLoadWithWorkspaceUsesConfiguredStartupPorts(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	ws := t.TempDir()
-	t.Setenv("NOVA_DIR", "")
-	t.Setenv("NOVA_BACKEND_PORT", "")
+	t.Setenv("DENOVA_DIR", "")
+	t.Setenv("DENOVA_BACKEND_PORT", "")
 
 	if err := os.WriteFile(filepath.Join(root, "config.toml"), []byte("backend_port = 18080\nfrontend_port = 15173\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -347,9 +347,9 @@ func TestLoadWithWorkspaceUsesConfiguredStartupPorts(t *testing.T) {
 func TestLoadStartupPortEnvOverridesConfig(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
-	t.Setenv("NOVA_DIR", "")
-	t.Setenv("NOVA_BACKEND_PORT", "19090")
-	t.Setenv("NOVA_FRONTEND_PORT", "16173")
+	t.Setenv("DENOVA_DIR", "")
+	t.Setenv("DENOVA_BACKEND_PORT", "19090")
+	t.Setenv("DENOVA_FRONTEND_PORT", "16173")
 
 	if err := os.WriteFile(filepath.Join(root, "config.toml"), []byte("backend_port = 18080\nfrontend_port = 15173\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -357,40 +357,40 @@ func TestLoadStartupPortEnvOverridesConfig(t *testing.T) {
 
 	cfg := Load()
 	if cfg.BackendPort != 19090 {
-		t.Fatalf("NOVA_BACKEND_PORT should override config: %d", cfg.BackendPort)
+		t.Fatalf("DENOVA_BACKEND_PORT should override config: %d", cfg.BackendPort)
 	}
 	if cfg.FrontendPort != 16173 {
-		t.Fatalf("NOVA_FRONTEND_PORT should override config: %d", cfg.FrontendPort)
+		t.Fatalf("DENOVA_FRONTEND_PORT should override config: %d", cfg.FrontendPort)
 	}
 }
 
-func TestLoadStartupDenovaPortEnvOverridesLegacy(t *testing.T) {
+func TestLoadStartupCaseMagicaPortEnvOverridesLegacy(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
-	t.Setenv("NOVA_DIR", "")
-	t.Setenv("DENOVA_BACKEND_PORT", "19090")
-	t.Setenv("NOVA_BACKEND_PORT", "18080")
-	t.Setenv("DENOVA_FRONTEND_PORT", "16173")
-	t.Setenv("NOVA_FRONTEND_PORT", "15173")
+	t.Setenv("DENOVA_DIR", "")
+	t.Setenv("CASEMAGICA_BACKEND_PORT", "19090")
+	t.Setenv("DENOVA_BACKEND_PORT", "18080")
+	t.Setenv("CASEMAGICA_FRONTEND_PORT", "16173")
+	t.Setenv("DENOVA_FRONTEND_PORT", "15173")
 
 	cfg := Load()
 	if cfg.BackendPort != 19090 {
-		t.Fatalf("DENOVA_BACKEND_PORT should override NOVA_BACKEND_PORT: %d", cfg.BackendPort)
+		t.Fatalf("CASEMAGICA_BACKEND_PORT should override DENOVA_BACKEND_PORT: %d", cfg.BackendPort)
 	}
 	if cfg.FrontendPort != 16173 {
-		t.Fatalf("DENOVA_FRONTEND_PORT should override NOVA_FRONTEND_PORT: %d", cfg.FrontendPort)
+		t.Fatalf("CASEMAGICA_FRONTEND_PORT should override DENOVA_FRONTEND_PORT: %d", cfg.FrontendPort)
 	}
 }
 
 func TestLoadAgentIdleTimeoutEnvAllowsZero(t *testing.T) {
 	t.Chdir(t.TempDir())
-	t.Setenv("NOVA_DIR", "")
+	t.Setenv("DENOVA_DIR", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_MODEL", "")
-	t.Setenv("NOVA_AGENT_IDLE_TIMEOUT_SECONDS", "0")
+	t.Setenv("DENOVA_AGENT_IDLE_TIMEOUT_SECONDS", "0")
 
 	cfg := Load()
 	if cfg.AgentIdleTimeoutSeconds != 0 {
-		t.Fatalf("NOVA_AGENT_IDLE_TIMEOUT_SECONDS=0 should disable idle timeout, got %d", cfg.AgentIdleTimeoutSeconds)
+		t.Fatalf("DENOVA_AGENT_IDLE_TIMEOUT_SECONDS=0 should disable idle timeout, got %d", cfg.AgentIdleTimeoutSeconds)
 	}
 }

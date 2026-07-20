@@ -33,11 +33,11 @@ type StoryMemoryStructureModule struct {
 }
 
 type StoryMemoryStructureLibrary struct {
-	novaDir string
+	denovaDir string
 }
 
-func NewStoryMemoryStructureLibrary(novaDir string) *StoryMemoryStructureLibrary {
-	return &StoryMemoryStructureLibrary{novaDir: novaDir}
+func NewStoryMemoryStructureLibrary(denovaDir string) *StoryMemoryStructureLibrary {
+	return &StoryMemoryStructureLibrary{denovaDir: denovaDir}
 }
 
 func (l *StoryMemoryStructureLibrary) List() ([]StoryMemoryStructureModule, error) {
@@ -154,7 +154,7 @@ func (l *StoryMemoryStructureLibrary) Delete(id string) error {
 }
 
 func (l *StoryMemoryStructureLibrary) dir() string {
-	return filepath.Join(l.novaDir, "story-director-modules", "story-memory-structures")
+	return filepath.Join(l.denovaDir, "story-director-modules", "story-memory-structures")
 }
 
 func (l *StoryMemoryStructureLibrary) ensureBuiltins() error {

@@ -10,13 +10,13 @@ import (
 // structure definitions into reusable director modules. Runtime records stay
 // in the story memory book and are not rewritten.
 func (s *Store) MigrateStoryMemoryStructuresToDirectorModules() error {
-	if s == nil || s.novaDir == "" {
+	if s == nil || s.denovaDir == "" {
 		return nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := NewStoryMemoryStructureLibrary(s.novaDir).ensureBuiltins(); err != nil {
+	if err := NewStoryMemoryStructureLibrary(s.denovaDir).ensureBuiltins(); err != nil {
 		return err
 	}
 	index, err := s.readIndexLocked()
@@ -36,8 +36,8 @@ func (s *Store) MigrateStoryMemoryStructuresToDirectorModules() error {
 	}
 
 	defaultStructures := DefaultStoryMemoryStructureModule().Structures
-	memoryLibrary := NewStoryMemoryStructureLibrary(s.novaDir)
-	directorLibrary := NewStoryDirectorLibrary(s.novaDir)
+	memoryLibrary := NewStoryMemoryStructureLibrary(s.denovaDir)
+	directorLibrary := NewStoryDirectorLibrary(s.denovaDir)
 	indexChanged := false
 	for _, story := range index.Stories {
 		meta, lines, err := s.readStoryLocked(story.ID)

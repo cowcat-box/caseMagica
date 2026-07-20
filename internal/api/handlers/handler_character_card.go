@@ -10,7 +10,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 // MaxCharacterCardUploadBytes limits tavern character card uploads.
@@ -115,10 +115,10 @@ func (h *Handlers) importCharacterCardToNewBook(ctx context.Context, filename st
 	if err != nil {
 		return book.CharacterCardImportResult{}, err
 	}
-	if layered.Paths.NovaDir == "" {
-		return book.CharacterCardImportResult{}, errors.New("Denova 数据目录未配置")
+	if layered.Paths.DenovaDir == "" {
+		return book.CharacterCardImportResult{}, errors.New("CaseMagica 数据目录未配置")
 	}
-	workspace, meta, err := h.app.CreateBook(ctx, layered.Paths.NovaDir, title, "", "")
+	workspace, meta, err := h.app.CreateBook(ctx, layered.Paths.DenovaDir, title, "", "")
 	if err != nil {
 		return book.CharacterCardImportResult{}, err
 	}

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/prompts"
-	"denova/internal/workspacepath"
+	"casemagica/internal/prompts"
+	"casemagica/internal/workspacepath"
 )
 
 // State 管理作品状态文件和内部目录。
@@ -37,8 +37,8 @@ func (s *State) Workspace() string {
 	return s.workspace
 }
 
-// NovaDir 返回工作区内部数据目录路径（用户不需要关注）。
-func (s *State) NovaDir() string {
+// DenovaDir 返回工作区内部数据目录路径（用户不需要关注）。
+func (s *State) DenovaDir() string {
 	return workspacepath.Dir(s.workspace)
 }
 
@@ -81,7 +81,7 @@ const CharacterStatesFileName = "character-states.md"
 // InitWorkspace 初始化作品工作目录结构，并在缺失时写入 ideas.md 创作灵感模板。
 func (s *State) InitWorkspace() error {
 	dirs := []string{
-		s.NovaDir(),
+		s.DenovaDir(),
 		s.BackupDir(),
 		s.SessionDir(),
 		s.LoreDir(),

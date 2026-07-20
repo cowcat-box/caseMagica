@@ -12,10 +12,10 @@ func TestServiceSearchFindsTextAndSkipsHidden(t *testing.T) {
 	if err := service.Create("chapters/ch01.md", "file", "第一章\n林川点燃火把\n"); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(workspace, ".nova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(workspace, ".denova"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(workspace, ".nova", "secret.md"), []byte("林川隐藏记录"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(workspace, ".denova", "secret.md"), []byte("林川隐藏记录"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

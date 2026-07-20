@@ -29,7 +29,7 @@ const common = {
   'common.messages': '{{count}} messages',
   'common.items': '{{count}} items',
   'common.backendUnavailable.title': 'Backend is not running',
-  'common.backendUnavailable.description': 'Start or restart the Denova backend service, then try again.',
+  'common.backendUnavailable.description': 'Start or restart the CaseMagica backend service, then try again.',
   'common.imageViewer.zoomIn': 'Zoom in',
   'common.imageViewer.zoomOut': 'Zoom out',
   'common.imageViewer.resetZoom': 'Reset zoom',

@@ -5,7 +5,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 // AgentSessionID resolves the fixed journal session for a built-in background Agent.

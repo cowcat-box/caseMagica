@@ -9,7 +9,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	novaskills "denova/internal/skills"
+	novaskills "casemagica/internal/skills"
 )
 
 // MaxSkillInstallUploadBytes limits Skill ZIP uploads.

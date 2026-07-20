@@ -6,9 +6,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"denova/config"
-	"denova/internal/agent"
-	novaskills "denova/internal/skills"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	novaskills "casemagica/internal/skills"
 )
 
 const (
@@ -31,7 +31,7 @@ func loadConfigManagerResourceSkills(ctx context.Context, cfg *config.Config, re
 		return nil
 	}
 	backend := novaskills.NewAgentBackend(
-		novaskills.NewDirectories(cfg.SkillsDir, cfg.NovaDir, cfg.Workspace),
+		novaskills.NewDirectories(cfg.SkillsDir, cfg.DenovaDir, cfg.Workspace),
 		config.AgentKindConfigManager,
 		config.ResolveAgentSkillOverrides(cfg, config.AgentKindConfigManager),
 	)

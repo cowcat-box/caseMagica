@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/prompts"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/prompts"
 )
 
 func TestBuildInteractiveStoryInstructionIsIsolatedFromIDEPrompt(t *testing.T) {

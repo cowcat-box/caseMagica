@@ -55,7 +55,7 @@ interface ModeRouterProps {
   rightPanel: RightPanel
   settingsOpen: boolean
   interactiveRightVisible: boolean
-  novaDir: string
+  denovaDir: string
   books: BookRecord[]
   tree: FileNode[]
   loading: boolean
@@ -142,7 +142,7 @@ export function ModeRouter(props: ModeRouterProps) {
     rightPanel,
     settingsOpen,
     interactiveRightVisible,
-    novaDir,
+    denovaDir,
     books,
     tree,
     loading,
@@ -533,7 +533,7 @@ export function ModeRouter(props: ModeRouterProps) {
         <MainRouteLayer visible={visibleMainRoute === 'books'}>
           <HomeView
             workspace={workspace}
-            novaDir={novaDir}
+            denovaDir={denovaDir}
             books={books}
             onSwitch={onSwitchBook}
             onBooksChange={onBooksChange}

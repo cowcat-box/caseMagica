@@ -14,7 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 // RunLedger is a durable JSONL trace for one Agent loop run.

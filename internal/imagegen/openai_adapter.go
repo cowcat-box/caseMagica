@@ -15,7 +15,7 @@ import (
 	openai "github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 var ErrImageDataMissing = errors.New("图像模型未返回图像数据")

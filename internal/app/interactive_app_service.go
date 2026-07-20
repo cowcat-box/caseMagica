@@ -7,11 +7,11 @@ import (
 	"log"
 	"strings"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/imagepreset"
-	"denova/internal/interactive"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/imagepreset"
+	"casemagica/internal/interactive"
 )
 
 // InteractiveAppService 负责互动故事、剧情分支、导演和互动 Agent 任务。
@@ -88,20 +88,20 @@ func (a *App) RollInteractiveOpening(req interactive.OpeningRollRequest) (intera
 
 func (s *InteractiveAppService) RollInteractiveOpening(req interactive.OpeningRollRequest) (interactive.OpeningRollResult, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.OpeningRollResult{}, ErrNoWorkspace
 	}
 	directorID := interactive.NormalizeStoryDirectorID(req.StoryDirectorID)
 	if directorID == "" {
 		directorID = interactive.DefaultStoryDirectorID
 	}
-	director, err := interactive.NewStoryDirectorLibrary(cfg.NovaDir).Get(directorID)
+	director, err := interactive.NewStoryDirectorLibrary(cfg.DenovaDir).Get(directorID)
 	if err != nil {
 		tellerID := strings.TrimSpace(req.TellerID)
 		if tellerID == "" {
 			return interactive.OpeningRollResult{}, err
 		}
-		teller, tellerErr := interactive.NewTellerLibrary(cfg.NovaDir).Get(tellerID)
+		teller, tellerErr := interactive.NewTellerLibrary(cfg.DenovaDir).Get(tellerID)
 		if tellerErr != nil {
 			return interactive.OpeningRollResult{}, err
 		}
@@ -114,7 +114,7 @@ func (s *InteractiveAppService) RollInteractiveOpening(req interactive.OpeningRo
 
 func (s *InteractiveAppService) withStoryDirectorDefaults(req interactive.CreateStoryRequest) interactive.CreateStoryRequest {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return req
 	}
 	directorID := interactive.NormalizeStoryDirectorID(req.StoryDirectorID)
@@ -122,7 +122,7 @@ func (s *InteractiveAppService) withStoryDirectorDefaults(req interactive.Create
 		directorID = interactive.DefaultStoryDirectorID
 	}
 	req.StoryDirectorID = directorID
-	director, err := interactive.NewStoryDirectorLibrary(cfg.NovaDir).Get(directorID)
+	director, err := interactive.NewStoryDirectorLibrary(cfg.DenovaDir).Get(directorID)
 	if err != nil {
 		log.Printf("[interactive-director] load story director failed story_director_id=%s err=%v", directorID, err)
 		return req
@@ -272,9 +272,9 @@ func (s *InteractiveAppService) RebuildInteractiveDirectorPlan(storyID string, r
 		return interactive.DirectorPlan{}, ErrNoWorkspace
 	}
 	seed := interactive.DirectorPlanSeed{Templates: interactive.DefaultStoryDirectorPlanningTemplates(), BranchPlanningTurns: 5, Source: firstNonEmptyApp(req.Source, "manual_rebuild")}
-	if cfg := s.cfg(); cfg != nil && cfg.NovaDir != "" {
+	if cfg := s.cfg(); cfg != nil && cfg.DenovaDir != "" {
 		if storyCtx, err := store.StoryContext(storyID, req.BranchID); err == nil {
-			if director, err := interactive.NewStoryDirectorLibrary(cfg.NovaDir).Get(storyCtx.Meta.StoryDirectorID); err == nil {
+			if director, err := interactive.NewStoryDirectorLibrary(cfg.DenovaDir).Get(storyCtx.Meta.StoryDirectorID); err == nil {
 				seed.Templates = director.Strategy.PlanningTemplates
 				seed.BranchPlanningTurns = director.Strategy.BranchPlanningTurns
 			} else {
@@ -304,10 +304,10 @@ func (s *InteractiveAppService) RunInteractiveDirectorPlan(storyID string, req i
 	runtimeCfg := *a.cfg
 	workspace := a.workspace
 	runtimeCfg.Workspace = workspace
-	novaDir := runtimeCfg.NovaDir
+	denovaDir := runtimeCfg.DenovaDir
 	a.mu.RUnlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[interactive-director-agent] load settings for manual run failed workspace=%s err=%v", workspace, err)
@@ -320,7 +320,7 @@ func (s *InteractiveAppService) RunInteractiveDirectorPlan(storyID string, req i
 		return interactive.DirectorPlanStatus{}, fmt.Errorf("开局尚未完成，无法运行导演规划")
 	}
 	turn := *storyCtx.Snapshot.CurrentTurn
-	director := loadStoryDirector(novaDir, storyCtx.Meta.StoryDirectorID)
+	director := loadStoryDirector(denovaDir, storyCtx.Meta.StoryDirectorID)
 	decision := shouldRunInteractiveDirectorAgent(director.Strategy)
 	if !decision.ShouldRun {
 		if err := store.MarkDirectorPlanRunSkipped(storyID, storyCtx.Snapshot.BranchID, turn.ID, decision.Reason); err != nil {
@@ -336,7 +336,7 @@ func (s *InteractiveAppService) RunInteractiveDirectorPlan(storyID string, req i
 		return interactive.DirectorPlanStatus{}, fmt.Errorf("标记导演规划运行状态失败: %w", err)
 	}
 	log.Printf("[interactive-director-agent] manual run scheduled story_id=%s branch_id=%s turn_id=%s source=%s", storyID, storyCtx.Snapshot.BranchID, turn.ID, firstNonEmptyApp(req.Source, "manual_retry"))
-	conversation := newInteractiveConversation(store, novaDir, workspace, storyID, storyCtx.Snapshot.BranchID, turn.User, storyCtx.Meta.ReplyTargetChars, &runtimeCfg)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, storyID, storyCtx.Snapshot.BranchID, turn.User, storyCtx.Meta.ReplyTargetChars, &runtimeCfg)
 	startInteractiveDirectorTask(&runtimeCfg, state, conversation, turn, sessionStore, token)
 	return store.DirectorPlanStatus(storyID, storyCtx.Snapshot.BranchID)
 }
@@ -486,7 +486,7 @@ func (s *InteractiveAppService) runStoryMemoryGenerate(ctx context.Context, stor
 	}
 	runtimeCfg := *cfg
 	runtimeCfg.Workspace = workspace
-	conversation := newInteractiveConversation(store, runtimeCfg.NovaDir, workspace, storyID, snapshot.BranchID, snapshot.CurrentTurn.User, runtimeCfg.InteractiveReplyTargetChars, &runtimeCfg).withDirectorTask(interactiveDirectorTaskMemoryUpdate)
+	conversation := newInteractiveConversation(store, runtimeCfg.DenovaDir, workspace, storyID, snapshot.BranchID, snapshot.CurrentTurn.User, runtimeCfg.InteractiveReplyTargetChars, &runtimeCfg).withDirectorTask(interactiveDirectorTaskMemoryUpdate)
 	if emit != nil {
 		emit(agent.Event{Type: "tool_call", Data: map[string]string{
 			"id":   "story_memory_context",
@@ -663,10 +663,10 @@ func (s *InteractiveAppService) AnalyzeInteractiveContext(storyID, branchID, mes
 	runtimeCfg := *a.cfg
 	workspace := a.workspace
 	runtimeCfg.Workspace = workspace
-	novaDir := runtimeCfg.NovaDir
+	denovaDir := runtimeCfg.DenovaDir
 	a.mu.RUnlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[interactive-agent-analysis] load interactive settings failed workspace=%s err=%v", workspace, err)
@@ -677,16 +677,16 @@ func (s *InteractiveAppService) AnalyzeInteractiveContext(storyID, branchID, mes
 	if err != nil {
 		return agent.ContextAnalysis{}, err
 	}
-	teller := loadInteractiveTeller(novaDir, storyCtx.Meta.StoryTellerID)
+	teller := loadInteractiveTeller(denovaDir, storyCtx.Meta.StoryTellerID)
 	runtimeCfg.InteractiveReplyTargetChars = storyCtx.Meta.ReplyTargetChars
-	styleRules := convertTellerStyleRules(novaDir, teller.StyleRefs, teller.StyleRules, styleScenes)
+	styleRules := convertTellerStyleRules(denovaDir, teller.StyleRefs, teller.StyleRules, styleScenes)
 	req := agent.ChatRequest{
 		Message:     message,
 		StyleScenes: styleScenes,
 		StyleRules:  styleRules,
 		Locale:      locale,
 	}
-	conversation := newInteractiveConversation(store, novaDir, workspace, storyID, branchID, message, runtimeCfg.InteractiveReplyTargetChars, &runtimeCfg)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, storyID, branchID, message, runtimeCfg.InteractiveReplyTargetChars, &runtimeCfg)
 	return agent.BuildInteractiveStoryContextAnalysis(&runtimeCfg, state, interactiveStoryTellerSystemInput(teller, styleRules), bookService, req, storyCtx.Snapshot.ContextCompaction, conversation.PrepareMessages)
 }
 
@@ -705,10 +705,10 @@ func (s *InteractiveAppService) AnalyzeInteractiveDirectorContext(storyID, branc
 	runtimeCfg := *a.cfg
 	workspace := a.workspace
 	runtimeCfg.Workspace = workspace
-	novaDir := runtimeCfg.NovaDir
+	denovaDir := runtimeCfg.DenovaDir
 	a.mu.RUnlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[interactive-director-analysis] load interactive settings failed workspace=%s err=%v", workspace, err)
@@ -723,7 +723,7 @@ func (s *InteractiveAppService) AnalyzeInteractiveDirectorContext(storyID, branc
 	if err != nil {
 		return agent.ContextAnalysis{}, err
 	}
-	conversation := newInteractiveConversation(store, novaDir, workspace, storyID, storyCtx.Snapshot.BranchID, turn.User, storyCtx.Meta.ReplyTargetChars, &runtimeCfg)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, storyID, storyCtx.Snapshot.BranchID, turn.User, storyCtx.Meta.ReplyTargetChars, &runtimeCfg)
 	instruction, err := conversation.BuildDirectorInstruction(turn)
 	if err != nil {
 		return agent.ContextAnalysis{}, err
@@ -855,10 +855,10 @@ func (s *InteractiveAppService) startInteractiveTask(storyID, branchID, message 
 	runtimeCfg := *a.cfg
 	workspace := a.workspace
 	runtimeCfg.Workspace = workspace
-	novaDir := runtimeCfg.NovaDir
+	denovaDir := runtimeCfg.DenovaDir
 	a.mu.Unlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 		log.Printf("[interactive-agent-task] load interactive settings workspace=%s", workspace)
 	} else {
@@ -871,15 +871,15 @@ func (s *InteractiveAppService) startInteractiveTask(storyID, branchID, message 
 		log.Printf("[interactive-agent-task] 读取互动故事上下文失败 story_id=%s branch_id=%s err=%v", storyID, branchID, err)
 		return nil
 	}
-	teller := loadInteractiveTeller(novaDir, storyCtx.Meta.StoryTellerID)
+	teller := loadInteractiveTeller(denovaDir, storyCtx.Meta.StoryTellerID)
 	runtimeCfg.InteractiveReplyTargetChars = storyCtx.Meta.ReplyTargetChars
-	styleRules := convertTellerStyleRules(novaDir, teller.StyleRefs, teller.StyleRules, styleScenes)
+	styleRules := convertTellerStyleRules(denovaDir, teller.StyleRefs, teller.StyleRules, styleScenes)
 	if len(styleRules) > 0 {
 		log.Printf("[interactive-agent-task] inject teller style rules teller_id=%s scenes=%q count=%d rules=%q", teller.ID, styleScenes, len(styleRules), appStyleRuleNames(styleRules))
 	}
 	log.Printf("[interactive-agent-task] use story settings story_id=%s teller_id=%s target_chars=%d style_rules=%d", storyID, teller.ID, runtimeCfg.InteractiveReplyTargetChars, len(styleRules))
 	tellerSystemInput := interactiveStoryTellerSystemInput(teller, styleRules)
-	conversation := newInteractiveConversation(store, novaDir, workspace, storyID, branchID, message, runtimeCfg.InteractiveReplyTargetChars, &runtimeCfg)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, storyID, branchID, message, runtimeCfg.InteractiveReplyTargetChars, &runtimeCfg)
 	runner, err := buildInteractiveStoryRunner(context.Background(), &runtimeCfg, state, tellerSystemInput, agent.InteractiveStoryToolContext{
 		Store:       store,
 		StoryID:     storyID,
@@ -985,10 +985,10 @@ func (a *App) InteractiveTellers() ([]interactive.Teller, error) {
 
 func (s *InteractiveAppService) InteractiveTellers() ([]interactive.Teller, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return nil, ErrNoWorkspace
 	}
-	return interactive.NewTellerLibrary(cfg.NovaDir).List()
+	return interactive.NewTellerLibrary(cfg.DenovaDir).List()
 }
 
 func (a *App) InteractiveTeller(id string) (interactive.Teller, error) {
@@ -997,10 +997,10 @@ func (a *App) InteractiveTeller(id string) (interactive.Teller, error) {
 
 func (s *InteractiveAppService) InteractiveTeller(id string) (interactive.Teller, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.Teller{}, ErrNoWorkspace
 	}
-	return interactive.NewTellerLibrary(cfg.NovaDir).Get(id)
+	return interactive.NewTellerLibrary(cfg.DenovaDir).Get(id)
 }
 
 func (a *App) CreateInteractiveTeller(teller interactive.Teller) (interactive.Teller, error) {
@@ -1009,10 +1009,10 @@ func (a *App) CreateInteractiveTeller(teller interactive.Teller) (interactive.Te
 
 func (s *InteractiveAppService) CreateInteractiveTeller(teller interactive.Teller) (interactive.Teller, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.Teller{}, ErrNoWorkspace
 	}
-	return interactive.NewTellerLibrary(cfg.NovaDir).Create(teller)
+	return interactive.NewTellerLibrary(cfg.DenovaDir).Create(teller)
 }
 
 func (a *App) UpdateInteractiveTeller(id string, teller interactive.Teller, baseRevision ...string) (interactive.Teller, error) {
@@ -1021,10 +1021,10 @@ func (a *App) UpdateInteractiveTeller(id string, teller interactive.Teller, base
 
 func (s *InteractiveAppService) UpdateInteractiveTeller(id string, teller interactive.Teller, baseRevision string) (interactive.Teller, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.Teller{}, ErrNoWorkspace
 	}
-	return interactive.NewTellerLibrary(cfg.NovaDir).Update(id, teller, baseRevision)
+	return interactive.NewTellerLibrary(cfg.DenovaDir).Update(id, teller, baseRevision)
 }
 
 func (a *App) DeleteInteractiveTeller(id string) error {
@@ -1033,10 +1033,10 @@ func (a *App) DeleteInteractiveTeller(id string) error {
 
 func (s *InteractiveAppService) DeleteInteractiveTeller(id string) error {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return ErrNoWorkspace
 	}
-	return interactive.NewTellerLibrary(cfg.NovaDir).Delete(id)
+	return interactive.NewTellerLibrary(cfg.DenovaDir).Delete(id)
 }
 
 func (a *App) StoryDirectors() ([]interactive.StoryDirector, error) {
@@ -1045,10 +1045,10 @@ func (a *App) StoryDirectors() ([]interactive.StoryDirector, error) {
 
 func (s *InteractiveAppService) StoryDirectors() ([]interactive.StoryDirector, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return nil, ErrNoWorkspace
 	}
-	return interactive.NewStoryDirectorLibrary(cfg.NovaDir).List()
+	return interactive.NewStoryDirectorLibrary(cfg.DenovaDir).List()
 }
 
 func (a *App) StoryDirector(id string) (interactive.StoryDirector, error) {
@@ -1057,10 +1057,10 @@ func (a *App) StoryDirector(id string) (interactive.StoryDirector, error) {
 
 func (s *InteractiveAppService) StoryDirector(id string) (interactive.StoryDirector, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.StoryDirector{}, ErrNoWorkspace
 	}
-	return interactive.NewStoryDirectorLibrary(cfg.NovaDir).Get(id)
+	return interactive.NewStoryDirectorLibrary(cfg.DenovaDir).Get(id)
 }
 
 func (a *App) CreateStoryDirector(director interactive.StoryDirector) (interactive.StoryDirector, error) {
@@ -1069,10 +1069,10 @@ func (a *App) CreateStoryDirector(director interactive.StoryDirector) (interacti
 
 func (s *InteractiveAppService) CreateStoryDirector(director interactive.StoryDirector) (interactive.StoryDirector, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.StoryDirector{}, ErrNoWorkspace
 	}
-	return interactive.NewStoryDirectorLibrary(cfg.NovaDir).Create(director)
+	return interactive.NewStoryDirectorLibrary(cfg.DenovaDir).Create(director)
 }
 
 func (a *App) UpdateStoryDirector(id string, director interactive.StoryDirector, baseRevision ...string) (interactive.StoryDirector, error) {
@@ -1081,10 +1081,10 @@ func (a *App) UpdateStoryDirector(id string, director interactive.StoryDirector,
 
 func (s *InteractiveAppService) UpdateStoryDirector(id string, director interactive.StoryDirector, baseRevision string) (interactive.StoryDirector, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.StoryDirector{}, ErrNoWorkspace
 	}
-	return interactive.NewStoryDirectorLibrary(cfg.NovaDir).Update(id, director, baseRevision)
+	return interactive.NewStoryDirectorLibrary(cfg.DenovaDir).Update(id, director, baseRevision)
 }
 
 func (a *App) DeleteStoryDirector(id string) error {
@@ -1093,10 +1093,10 @@ func (a *App) DeleteStoryDirector(id string) error {
 
 func (s *InteractiveAppService) DeleteStoryDirector(id string) error {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return ErrNoWorkspace
 	}
-	return interactive.NewStoryDirectorLibrary(cfg.NovaDir).Delete(id)
+	return interactive.NewStoryDirectorLibrary(cfg.DenovaDir).Delete(id)
 }
 
 func (a *App) EventPackages() ([]interactive.EventPackageModule, error) {
@@ -1105,10 +1105,10 @@ func (a *App) EventPackages() ([]interactive.EventPackageModule, error) {
 
 func (s *InteractiveAppService) EventPackages() ([]interactive.EventPackageModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return nil, ErrNoWorkspace
 	}
-	return interactive.NewEventPackageLibrary(cfg.NovaDir).List()
+	return interactive.NewEventPackageLibrary(cfg.DenovaDir).List()
 }
 
 func (a *App) EventPackage(id string) (interactive.EventPackageModule, error) {
@@ -1117,10 +1117,10 @@ func (a *App) EventPackage(id string) (interactive.EventPackageModule, error) {
 
 func (s *InteractiveAppService) EventPackage(id string) (interactive.EventPackageModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.EventPackageModule{}, ErrNoWorkspace
 	}
-	return interactive.NewEventPackageLibrary(cfg.NovaDir).Get(id)
+	return interactive.NewEventPackageLibrary(cfg.DenovaDir).Get(id)
 }
 
 func (a *App) CreateEventPackage(item interactive.EventPackageModule) (interactive.EventPackageModule, error) {
@@ -1129,10 +1129,10 @@ func (a *App) CreateEventPackage(item interactive.EventPackageModule) (interacti
 
 func (s *InteractiveAppService) CreateEventPackage(item interactive.EventPackageModule) (interactive.EventPackageModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.EventPackageModule{}, ErrNoWorkspace
 	}
-	return interactive.NewEventPackageLibrary(cfg.NovaDir).Create(item)
+	return interactive.NewEventPackageLibrary(cfg.DenovaDir).Create(item)
 }
 
 func (a *App) UpdateEventPackage(id string, item interactive.EventPackageModule, baseRevision ...string) (interactive.EventPackageModule, error) {
@@ -1141,10 +1141,10 @@ func (a *App) UpdateEventPackage(id string, item interactive.EventPackageModule,
 
 func (s *InteractiveAppService) UpdateEventPackage(id string, item interactive.EventPackageModule, baseRevision string) (interactive.EventPackageModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.EventPackageModule{}, ErrNoWorkspace
 	}
-	return interactive.NewEventPackageLibrary(cfg.NovaDir).Update(id, item, baseRevision)
+	return interactive.NewEventPackageLibrary(cfg.DenovaDir).Update(id, item, baseRevision)
 }
 
 func (a *App) DeleteEventPackage(id string) error {
@@ -1153,10 +1153,10 @@ func (a *App) DeleteEventPackage(id string) error {
 
 func (s *InteractiveAppService) DeleteEventPackage(id string) error {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return ErrNoWorkspace
 	}
-	return interactive.NewEventPackageLibrary(cfg.NovaDir).Delete(id)
+	return interactive.NewEventPackageLibrary(cfg.DenovaDir).Delete(id)
 }
 
 func (a *App) RuleSystems() ([]interactive.RuleSystemModule, error) {
@@ -1165,10 +1165,10 @@ func (a *App) RuleSystems() ([]interactive.RuleSystemModule, error) {
 
 func (s *InteractiveAppService) RuleSystems() ([]interactive.RuleSystemModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return nil, ErrNoWorkspace
 	}
-	return interactive.NewRuleSystemLibrary(cfg.NovaDir).List()
+	return interactive.NewRuleSystemLibrary(cfg.DenovaDir).List()
 }
 
 func (a *App) RuleSystem(id string) (interactive.RuleSystemModule, error) {
@@ -1177,10 +1177,10 @@ func (a *App) RuleSystem(id string) (interactive.RuleSystemModule, error) {
 
 func (s *InteractiveAppService) RuleSystem(id string) (interactive.RuleSystemModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.RuleSystemModule{}, ErrNoWorkspace
 	}
-	return interactive.NewRuleSystemLibrary(cfg.NovaDir).Get(id)
+	return interactive.NewRuleSystemLibrary(cfg.DenovaDir).Get(id)
 }
 
 func (a *App) CreateRuleSystem(item interactive.RuleSystemModule) (interactive.RuleSystemModule, error) {
@@ -1189,10 +1189,10 @@ func (a *App) CreateRuleSystem(item interactive.RuleSystemModule) (interactive.R
 
 func (s *InteractiveAppService) CreateRuleSystem(item interactive.RuleSystemModule) (interactive.RuleSystemModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.RuleSystemModule{}, ErrNoWorkspace
 	}
-	return interactive.NewRuleSystemLibrary(cfg.NovaDir).Create(item)
+	return interactive.NewRuleSystemLibrary(cfg.DenovaDir).Create(item)
 }
 
 func (a *App) UpdateRuleSystem(id string, item interactive.RuleSystemModule, baseRevision ...string) (interactive.RuleSystemModule, error) {
@@ -1201,10 +1201,10 @@ func (a *App) UpdateRuleSystem(id string, item interactive.RuleSystemModule, bas
 
 func (s *InteractiveAppService) UpdateRuleSystem(id string, item interactive.RuleSystemModule, baseRevision string) (interactive.RuleSystemModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.RuleSystemModule{}, ErrNoWorkspace
 	}
-	return interactive.NewRuleSystemLibrary(cfg.NovaDir).Update(id, item, baseRevision)
+	return interactive.NewRuleSystemLibrary(cfg.DenovaDir).Update(id, item, baseRevision)
 }
 
 func (a *App) DeleteRuleSystem(id string) error {
@@ -1213,10 +1213,10 @@ func (a *App) DeleteRuleSystem(id string) error {
 
 func (s *InteractiveAppService) DeleteRuleSystem(id string) error {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return ErrNoWorkspace
 	}
-	return interactive.NewRuleSystemLibrary(cfg.NovaDir).Delete(id)
+	return interactive.NewRuleSystemLibrary(cfg.DenovaDir).Delete(id)
 }
 
 func (a *App) ActorStates() ([]interactive.ActorStateModule, error) {
@@ -1225,10 +1225,10 @@ func (a *App) ActorStates() ([]interactive.ActorStateModule, error) {
 
 func (s *InteractiveAppService) ActorStates() ([]interactive.ActorStateModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return nil, ErrNoWorkspace
 	}
-	return interactive.NewActorStateLibrary(cfg.NovaDir).List()
+	return interactive.NewActorStateLibrary(cfg.DenovaDir).List()
 }
 
 func (a *App) ActorState(id string) (interactive.ActorStateModule, error) {
@@ -1237,10 +1237,10 @@ func (a *App) ActorState(id string) (interactive.ActorStateModule, error) {
 
 func (s *InteractiveAppService) ActorState(id string) (interactive.ActorStateModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.ActorStateModule{}, ErrNoWorkspace
 	}
-	return interactive.NewActorStateLibrary(cfg.NovaDir).Get(id)
+	return interactive.NewActorStateLibrary(cfg.DenovaDir).Get(id)
 }
 
 func (a *App) CreateActorState(item interactive.ActorStateModule) (interactive.ActorStateModule, error) {
@@ -1249,10 +1249,10 @@ func (a *App) CreateActorState(item interactive.ActorStateModule) (interactive.A
 
 func (s *InteractiveAppService) CreateActorState(item interactive.ActorStateModule) (interactive.ActorStateModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.ActorStateModule{}, ErrNoWorkspace
 	}
-	return interactive.NewActorStateLibrary(cfg.NovaDir).Create(item)
+	return interactive.NewActorStateLibrary(cfg.DenovaDir).Create(item)
 }
 
 func (a *App) UpdateActorState(id string, item interactive.ActorStateModule, baseRevision ...string) (interactive.ActorStateModule, error) {
@@ -1261,10 +1261,10 @@ func (a *App) UpdateActorState(id string, item interactive.ActorStateModule, bas
 
 func (s *InteractiveAppService) UpdateActorState(id string, item interactive.ActorStateModule, baseRevision string) (interactive.ActorStateModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.ActorStateModule{}, ErrNoWorkspace
 	}
-	return interactive.NewActorStateLibrary(cfg.NovaDir).Update(id, item, baseRevision)
+	return interactive.NewActorStateLibrary(cfg.DenovaDir).Update(id, item, baseRevision)
 }
 
 func (a *App) DeleteActorState(id string) error {
@@ -1273,10 +1273,10 @@ func (a *App) DeleteActorState(id string) error {
 
 func (s *InteractiveAppService) DeleteActorState(id string) error {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return ErrNoWorkspace
 	}
-	return interactive.NewActorStateLibrary(cfg.NovaDir).Delete(id)
+	return interactive.NewActorStateLibrary(cfg.DenovaDir).Delete(id)
 }
 
 func (a *App) StoryMemoryStructures() ([]interactive.StoryMemoryStructureModule, error) {
@@ -1285,10 +1285,10 @@ func (a *App) StoryMemoryStructures() ([]interactive.StoryMemoryStructureModule,
 
 func (s *InteractiveAppService) StoryMemoryStructures() ([]interactive.StoryMemoryStructureModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return nil, ErrNoWorkspace
 	}
-	return interactive.NewStoryMemoryStructureLibrary(cfg.NovaDir).List()
+	return interactive.NewStoryMemoryStructureLibrary(cfg.DenovaDir).List()
 }
 
 func (a *App) StoryMemoryStructure(id string) (interactive.StoryMemoryStructureModule, error) {
@@ -1297,10 +1297,10 @@ func (a *App) StoryMemoryStructure(id string) (interactive.StoryMemoryStructureM
 
 func (s *InteractiveAppService) StoryMemoryStructure(id string) (interactive.StoryMemoryStructureModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.StoryMemoryStructureModule{}, ErrNoWorkspace
 	}
-	return interactive.NewStoryMemoryStructureLibrary(cfg.NovaDir).Get(id)
+	return interactive.NewStoryMemoryStructureLibrary(cfg.DenovaDir).Get(id)
 }
 
 func (a *App) CreateStoryMemoryStructure(item interactive.StoryMemoryStructureModule) (interactive.StoryMemoryStructureModule, error) {
@@ -1309,10 +1309,10 @@ func (a *App) CreateStoryMemoryStructure(item interactive.StoryMemoryStructureMo
 
 func (s *InteractiveAppService) CreateStoryMemoryStructure(item interactive.StoryMemoryStructureModule) (interactive.StoryMemoryStructureModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.StoryMemoryStructureModule{}, ErrNoWorkspace
 	}
-	return interactive.NewStoryMemoryStructureLibrary(cfg.NovaDir).Create(item)
+	return interactive.NewStoryMemoryStructureLibrary(cfg.DenovaDir).Create(item)
 }
 
 func (a *App) UpdateStoryMemoryStructure(id string, item interactive.StoryMemoryStructureModule, baseRevision ...string) (interactive.StoryMemoryStructureModule, error) {
@@ -1321,10 +1321,10 @@ func (a *App) UpdateStoryMemoryStructure(id string, item interactive.StoryMemory
 
 func (s *InteractiveAppService) UpdateStoryMemoryStructure(id string, item interactive.StoryMemoryStructureModule, baseRevision string) (interactive.StoryMemoryStructureModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.StoryMemoryStructureModule{}, ErrNoWorkspace
 	}
-	return interactive.NewStoryMemoryStructureLibrary(cfg.NovaDir).Update(id, item, baseRevision)
+	return interactive.NewStoryMemoryStructureLibrary(cfg.DenovaDir).Update(id, item, baseRevision)
 }
 
 func (a *App) DeleteStoryMemoryStructurePreset(id string) error {
@@ -1333,10 +1333,10 @@ func (a *App) DeleteStoryMemoryStructurePreset(id string) error {
 
 func (s *InteractiveAppService) DeleteStoryMemoryStructurePreset(id string) error {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return ErrNoWorkspace
 	}
-	return interactive.NewStoryMemoryStructureLibrary(cfg.NovaDir).Delete(id)
+	return interactive.NewStoryMemoryStructureLibrary(cfg.DenovaDir).Delete(id)
 }
 
 func (a *App) OpeningSelectors() ([]interactive.OpeningSelectorModule, error) {
@@ -1345,10 +1345,10 @@ func (a *App) OpeningSelectors() ([]interactive.OpeningSelectorModule, error) {
 
 func (s *InteractiveAppService) OpeningSelectors() ([]interactive.OpeningSelectorModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return nil, ErrNoWorkspace
 	}
-	return interactive.NewOpeningSelectorLibrary(cfg.NovaDir).List()
+	return interactive.NewOpeningSelectorLibrary(cfg.DenovaDir).List()
 }
 
 func (a *App) OpeningSelector(id string) (interactive.OpeningSelectorModule, error) {
@@ -1357,10 +1357,10 @@ func (a *App) OpeningSelector(id string) (interactive.OpeningSelectorModule, err
 
 func (s *InteractiveAppService) OpeningSelector(id string) (interactive.OpeningSelectorModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.OpeningSelectorModule{}, ErrNoWorkspace
 	}
-	return interactive.NewOpeningSelectorLibrary(cfg.NovaDir).Get(id)
+	return interactive.NewOpeningSelectorLibrary(cfg.DenovaDir).Get(id)
 }
 
 func (a *App) CreateOpeningSelector(item interactive.OpeningSelectorModule) (interactive.OpeningSelectorModule, error) {
@@ -1369,10 +1369,10 @@ func (a *App) CreateOpeningSelector(item interactive.OpeningSelectorModule) (int
 
 func (s *InteractiveAppService) CreateOpeningSelector(item interactive.OpeningSelectorModule) (interactive.OpeningSelectorModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.OpeningSelectorModule{}, ErrNoWorkspace
 	}
-	return interactive.NewOpeningSelectorLibrary(cfg.NovaDir).Create(item)
+	return interactive.NewOpeningSelectorLibrary(cfg.DenovaDir).Create(item)
 }
 
 func (a *App) UpdateOpeningSelector(id string, item interactive.OpeningSelectorModule, baseRevision ...string) (interactive.OpeningSelectorModule, error) {
@@ -1381,10 +1381,10 @@ func (a *App) UpdateOpeningSelector(id string, item interactive.OpeningSelectorM
 
 func (s *InteractiveAppService) UpdateOpeningSelector(id string, item interactive.OpeningSelectorModule, baseRevision string) (interactive.OpeningSelectorModule, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return interactive.OpeningSelectorModule{}, ErrNoWorkspace
 	}
-	return interactive.NewOpeningSelectorLibrary(cfg.NovaDir).Update(id, item, baseRevision)
+	return interactive.NewOpeningSelectorLibrary(cfg.DenovaDir).Update(id, item, baseRevision)
 }
 
 func (a *App) DeleteOpeningSelector(id string) error {
@@ -1393,10 +1393,10 @@ func (a *App) DeleteOpeningSelector(id string) error {
 
 func (s *InteractiveAppService) DeleteOpeningSelector(id string) error {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return ErrNoWorkspace
 	}
-	return interactive.NewOpeningSelectorLibrary(cfg.NovaDir).Delete(id)
+	return interactive.NewOpeningSelectorLibrary(cfg.DenovaDir).Delete(id)
 }
 
 func (a *App) ImagePresets() ([]imagepreset.Preset, error) {
@@ -1405,10 +1405,10 @@ func (a *App) ImagePresets() ([]imagepreset.Preset, error) {
 
 func (s *InteractiveAppService) ImagePresets() ([]imagepreset.Preset, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return nil, ErrNoWorkspace
 	}
-	return imagepreset.NewLibrary(cfg.NovaDir).List()
+	return imagepreset.NewLibrary(cfg.DenovaDir).List()
 }
 
 func (a *App) ImagePreset(id string) (imagepreset.Preset, error) {
@@ -1417,10 +1417,10 @@ func (a *App) ImagePreset(id string) (imagepreset.Preset, error) {
 
 func (s *InteractiveAppService) ImagePreset(id string) (imagepreset.Preset, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return imagepreset.Preset{}, ErrNoWorkspace
 	}
-	return imagepreset.NewLibrary(cfg.NovaDir).Get(id)
+	return imagepreset.NewLibrary(cfg.DenovaDir).Get(id)
 }
 
 func (a *App) CreateImagePreset(preset imagepreset.Preset) (imagepreset.Preset, error) {
@@ -1429,10 +1429,10 @@ func (a *App) CreateImagePreset(preset imagepreset.Preset) (imagepreset.Preset, 
 
 func (s *InteractiveAppService) CreateImagePreset(preset imagepreset.Preset) (imagepreset.Preset, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return imagepreset.Preset{}, ErrNoWorkspace
 	}
-	return imagepreset.NewLibrary(cfg.NovaDir).Create(preset)
+	return imagepreset.NewLibrary(cfg.DenovaDir).Create(preset)
 }
 
 func (a *App) UpdateImagePreset(id string, preset imagepreset.Preset, baseRevision ...string) (imagepreset.Preset, error) {
@@ -1441,10 +1441,10 @@ func (a *App) UpdateImagePreset(id string, preset imagepreset.Preset, baseRevisi
 
 func (s *InteractiveAppService) UpdateImagePreset(id string, preset imagepreset.Preset, baseRevision string) (imagepreset.Preset, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return imagepreset.Preset{}, ErrNoWorkspace
 	}
-	return imagepreset.NewLibrary(cfg.NovaDir).Update(id, preset, baseRevision)
+	return imagepreset.NewLibrary(cfg.DenovaDir).Update(id, preset, baseRevision)
 }
 
 func (a *App) DeleteImagePreset(id string) error {
@@ -1453,10 +1453,10 @@ func (a *App) DeleteImagePreset(id string) error {
 
 func (s *InteractiveAppService) DeleteImagePreset(id string) error {
 	cfg := s.cfg()
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return ErrNoWorkspace
 	}
-	return imagepreset.NewLibrary(cfg.NovaDir).Delete(id)
+	return imagepreset.NewLibrary(cfg.DenovaDir).Delete(id)
 }
 
 // ActiveInteractiveTask 返回当前游戏模式活跃任务（可能为 nil）。
@@ -1504,10 +1504,10 @@ func (s *InteractiveAppService) interactiveRuntimeConfig() (*interactive.Store, 
 	runtimeCfg := *a.cfg
 	workspace := a.workspace
 	runtimeCfg.Workspace = workspace
-	novaDir := runtimeCfg.NovaDir
+	denovaDir := runtimeCfg.DenovaDir
 	a.mu.RUnlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[interactive-agent] load layered settings failed workspace=%s err=%v", workspace, err)

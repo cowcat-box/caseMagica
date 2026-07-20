@@ -6,14 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- 项目品牌由 Denova 重命名为 CaseMagica，仓库地址切换为 `cowcat-box/caseMagica`，以下标识同步更新：
+  - Go module path：`denova` → `casemagica`；所有 import 路径前缀同步迁移。
+  - 二进制/可执行文件：`denova` → `casemagica`，`denova-updater` → `casemagica-updater`。
+  - 工作区数据目录：`.denova` → `.casemagica`（保留 `.denova` 作为 legacy 回退读取，自动迁移老工作区）。
+  - 更新暂存目录：`.denova-updates` → `.casemagica-updates`（保留 `.denova-updates` 作为 legacy 回退）。
+  - 环境变量：`DENOVA_*` → `CASEMAGICA_*`（保留 `DENOVA_*` 作为 legacy 回退）。
+  - TOML/JSON 配置键：`denova_dir` → `casemagica_dir`（保留 `denova_dir` 作为 legacy 回退）。
+  - HTTP header：`X-Denova-Locale` → `X-CaseMagica-Locale`（保留 `X-Denova-Locale` 作为 legacy 回退）。
+  - URL 参数：`denova_reload` / `denova_reload_probe` → `casemagica_reload` / `casemagica_reload_probe`。
+  - Magic string：`[Denova tool result metadata]`、`[Denova Context Compaction]`、`Denova runtime`、`Denova built-in` 等全部迁移到 CaseMagica 命名；Agent 内部名 `DenovaAgent` / `DenovaInteractiveStoryAgent` / `DenovaInteractiveDirectorAgent` / `DenovaConfigManagerAgent` / `DenovaAutomationAgent` / `DenovaImageAgent` 同步重命名。
+  - Git commit author / trailer：`Denova <denova@local>` → `CaseMagica <casemagica@local>`，`Denova-Source:` → `CaseMagica-Source:`。
+  - 用户可见显示名：`Denova` → `CaseMagica`（HTML title、PWA manifest、状态栏、启动横幅、错误提示、系统提示文本等）。
+  - npm 包：`@alfredxw/denova` → `@cowcat-box/casemagica`，bin 字段 `denova` → `casemagica`。
+  - 更新检查仓库：`buildinfo.Repository` 由 `alfredxw/denova` 改为 `cowcat-box/caseMagica`（应用内更新检查与 Release 下载指向新仓库）。
+- Legacy 兼容位迁移：原 `.nova` / `NOVA_*` / `nova_dir` / `NovaDir` / `X-Nova-Locale` / `defaultNovaDir` / `startupNovaDir` 等 legacy 兼容代码全部迁移到 `.denova` / `DENOVA_*` / `denova_dir` / `DenovaDir` / `X-Denova-Locale` / `defaultDenovaDir` / `startupDenovaDir`，对应从 Denova 迁移过来的用户工作区数据自动以 legacy 路径继续读取。
+- Renamed project brand from Denova to CaseMagica. Repository moved to `cowcat-box/caseMagica`. Go module path, binaries (`casemagica`, `casemagica-updater`), workspace data dir (`.casemagica`), env vars (`CASEMAGICA_*`), TOML key (`casemagica_dir`), HTTP header (`X-CaseMagica-Locale`), magic strings, Agent names, Git author/trailer, npm package (`@cowcat-box/casemagica`), update repository, and all visible display text are migrated to the new brand. Existing `.denova` workspaces and `DENOVA_*` env vars are still read as legacy fallbacks; the older `.nova` / `NOVA_*` legacy layer was rotated forward to `.denova` / `DENOVA_*`.
+
 ### Added
 
 - GitHub：新增 Bug Report、Feature Request 和 Question 的 Issue Forms，并关闭普通空白 issue 入口以提升反馈信息完整度。
 - GitHub: Added Issue Forms for Bug Report, Feature Request, and Question, and disabled the regular blank issue entry to improve report completeness.
 - GitHub：新增轻量 PR Title 检查，要求 PR 标题使用英文/ASCII 字符并至少包含一个英文字母。
 - GitHub: Added a lightweight PR title check requiring English/ASCII characters and at least one English letter.
-- Agent：`.nova/runs` 运行记录升级为本地优先的结构化 trace，新增 `agent_run`、`llm_call`、`tool_call`、`context_build`、`context_compaction` 等 span 记录，并在记录中增量写入 `span_id`、`parent_span_id`、`duration_ms`、`status`、`attrs`、token usage、provider request id 和工具执行摘要；旧记录仍可通过 `/api/agent-runs` 读取。
-- Agent: Upgraded `.nova/runs` from event logs to local-first structured traces with `agent_run`, `llm_call`, `tool_call`, `context_build`, `context_compaction`, and related span records. Records now incrementally include `span_id`, `parent_span_id`, `duration_ms`, `status`, `attrs`, token usage, provider request IDs, and tool execution summaries while keeping old `/api/agent-runs` records readable.
+- Agent：`.denova/runs` 运行记录升级为本地优先的结构化 trace，新增 `agent_run`、`llm_call`、`tool_call`、`context_build`、`context_compaction` 等 span 记录，并在记录中增量写入 `span_id`、`parent_span_id`、`duration_ms`、`status`、`attrs`、token usage、provider request id 和工具执行摘要；旧记录仍可通过 `/api/agent-runs` 读取。
+- Agent: Upgraded `.denova/runs` from event logs to local-first structured traces with `agent_run`, `llm_call`, `tool_call`, `context_build`, `context_compaction`, and related span records. Records now incrementally include `span_id`, `parent_span_id`, `duration_ms`, `status`, `attrs`, token usage, provider request IDs, and tool execution summaries while keeping old `/api/agent-runs` records readable.
 - WebUI：Agent Trace Tab 升级为 timeline 面板，支持 All / LLM / Tools / Context / Errors 筛选；IDE token usage、工具/失败消息和游戏模式 token usage 可按 run_id 跳转到对应 trace。
 - WebUI: Upgraded the Agent Trace tab into a timeline with All / LLM / Tools / Context / Errors filters. IDE token usage, tool/error cards, and Game Mode token usage can now jump to the matching trace by run ID.
 - 设置：新增用户级 trace 调试配置 `trace_capture_level`、`trace_exporter` 和 `trace_retention_runs`，默认本地 summary trace 并保留最近 100 个 run。
@@ -36,8 +55,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - WebUI: Writing Agent and Game Mode composers now render `/Skill`, `@file`, `@lore`, and `#scene` references as inline text tokens. Selected tokens use the theme-aligned blue-gray bold treatment, delete as a unit, and still send compatible plain text plus existing reference fields.
 - 游戏模式：导演规划新增安全状态接口与失败重试入口；开局后后台规划期间，舞台只显示状态、文档进度和错误摘要，不暴露具体规划正文。
 - Game Mode: Added safe Director planning status and retry endpoints. While background planning runs after the opening turn, the stage shows only status, document progress, and error summaries without exposing plan text.
-- 游戏模式：叙事风格的场景文风规则改为引用所有 Teller 共享的 `.denova/styles/*.md` 文风参考索引，System Prompt 只注入 name、description、path，互动正文 Agent 可按需通过只读文件工具读取参考正文。
-- Game Mode: Narrative-style scene rules now reference shared `.denova/styles/*.md` style-reference indexes across all Tellers. The System Prompt injects only name, description, and path, and the interactive prose agent can read the referenced files through read-only file tools when needed.
+- 游戏模式：叙事风格的场景文风规则改为引用所有 Teller 共享的 `.casemagica/styles/*.md` 文风参考索引，System Prompt 只注入 name、description、path，互动正文 Agent 可按需通过只读文件工具读取参考正文。
+- Game Mode: Narrative-style scene rules now reference shared `.casemagica/styles/*.md` style-reference indexes across all Tellers. The System Prompt injects only name, description, and path, and the interactive prose agent can read the referenced files through read-only file tools when needed.
 - WebUI：Teller 编辑器新增共享文风参考上传流程，默认通过配置管理 Agent 提炼为 Markdown，也支持用户选择直接保存源文件为共享参考。
 - WebUI: The Teller editor now supports uploading shared style references, defaulting to Config Manager Agent extraction into Markdown while still allowing users to save the source file directly as a shared reference.
 - WebUI：Teller 编辑器中已选择或已上传的共享文风参考现在可以直接点开编辑，保存时会检测文件 revision，避免旧弹窗覆盖外部更新。
@@ -129,16 +148,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Game Mode: Creating a story no longer runs the background Director Agent synchronously. The Director now plans asynchronously from the user's persisted opening turn without blocking forward actions while the first plan is still running. Snapshots and turn-persisted events now return only `director_plan_status` by default; full plan text still requires spoiler confirmation in the Director Orchestration tab.
 - WebUI：游戏模式空故事线的开场控件改为“AI 生成开场 / 使用自定义开局 / 使用书籍预设”三种并列动作；书籍预设下拉改用 shadcn Select 并收进“使用书籍预设”组合内，按钮会直接使用当前选中的预设开场，不再把预设文本填入自定义输入框。
 - WebUI: The empty Game Mode story opening controls now present Generate with AI, Use custom opening, and Use book preset as peer actions; the book preset picker now uses shadcn Select inside the book-preset action group, and the button starts from the selected preset directly instead of copying preset text into the custom field.
-- WebUI：文风参考提炼弹窗右侧进展改用 Chat 消息组件渲染配置 Agent 流式输出；提炼完成后前端会读取生成的 `.denova/styles/*.md` 文件回填左侧编辑器，并支持基于 revision 保存用户二次编辑。
-- WebUI: The style-reference extraction dialog now renders Config Manager Agent streaming progress through the Chat message component. After extraction, the frontend reads the generated `.denova/styles/*.md` file back into the left editor and saves user follow-up edits with revision checks.
+- WebUI：文风参考提炼弹窗右侧进展改用 Chat 消息组件渲染配置 Agent 流式输出；提炼完成后前端会读取生成的 `.casemagica/styles/*.md` 文件回填左侧编辑器，并支持基于 revision 保存用户二次编辑。
+- WebUI: The style-reference extraction dialog now renders Config Manager Agent streaming progress through the Chat message component. After extraction, the frontend reads the generated `.casemagica/styles/*.md` file back into the left editor and saves user follow-up edits with revision checks.
 - 游戏模式：右侧栏默认停留在故事记忆，并将导演编排移入独立 Tab；用户切到导演编排后需先确认剧透提示才会加载并显示导演规划、分支安排和规则审计内容。
 - Game Mode: The right sidebar now defaults to Story Memory and moves Director orchestration into its own tab; opening the Director tab requires confirming a spoiler warning before director plans, branch arrangements, and rule audits are loaded and shown.
 - 方案预设：编辑内置叙事风格时不再复制为新的自定义 ID，而是在用户空间以同一个内置 ID 覆盖当前叙事风格；覆盖后标题栏提供“恢复内置”按钮，可一键删除覆盖并回到代码内置版本。此变更不兼容旧的自动复制语义。
 - Presets: Editing a built-in narrative style no longer creates a copied custom ID. It now overrides the same built-in ID in user space, and the editor header shows a "Restore Built-in" action to remove the override and return to the code-defined default. This is incompatible with the previous auto-copy behavior.
-- Agent：本地工具 schema 改为尽量稳定注册；禁用文件、资料库、图像、Web 搜索、配置管理等能力时，相关工具会由 Denova orchestrator 在执行前按 capability 阻断，而不是总是从模型可见工具列表中移除。完全关闭配置管理相关能力的 SubAgent 仍不会注册配置管理工具。
-- Agent: Local tool schemas are now registered more stably. When file, lore, image, web search, or config-management capabilities are disabled, Denova's orchestrator blocks execution by capability before the tool runs instead of always removing the tool from the model-visible list. SubAgents with all config-management capabilities disabled still receive no config-manager tools.
-- 书籍管理：新建书籍、小说导入和角色卡导入到新书时默认写入用户级 `.denova/projects/<书名>`；旧版直接位于 `.denova/<书名>` 的书籍仍会被书架扫描和打开。
-- Books: New books, novel imports, and character-card imports into a new book now default to user-level `.denova/projects/<book>`; legacy books directly under `.denova/<book>` remain discoverable and openable.
+- Agent：本地工具 schema 改为尽量稳定注册；禁用文件、资料库、图像、Web 搜索、配置管理等能力时，相关工具会由 CaseMagica orchestrator 在执行前按 capability 阻断，而不是总是从模型可见工具列表中移除。完全关闭配置管理相关能力的 SubAgent 仍不会注册配置管理工具。
+- Agent: Local tool schemas are now registered more stably. When file, lore, image, web search, or config-management capabilities are disabled, CaseMagica's orchestrator blocks execution by capability before the tool runs instead of always removing the tool from the model-visible list. SubAgents with all config-management capabilities disabled still receive no config-manager tools.
+- 书籍管理：新建书籍、小说导入和角色卡导入到新书时默认写入用户级 `.casemagica/projects/<书名>`；旧版直接位于 `.casemagica/<书名>` 的书籍仍会被书架扫描和打开。
+- Books: New books, novel imports, and character-card imports into a new book now default to user-level `.casemagica/projects/<book>`; legacy books directly under `.casemagica/<book>` remain discoverable and openable.
 - 方案预设：预设页跟随顶部全局写作/游戏模式过滤模块类型；叙事风格和图像方案作为共享模块显示，故事导演、事件包、规则系统和开局选择器仅在游戏模式下显示，且故事导演在游戏模式模块列表中置顶。配置管理 Agent 文案同步固定模块归属，不新增资源字段或数据迁移。
 - Presets: The presets page now follows the top-level Writing/Game mode when filtering module types. Narrative styles and image presets are shared modules, while story directors, event packages, rule systems, and opening selectors appear only in Game Mode, with Story Directors listed first in the Game Mode module list. Config Manager Agent guidance now reflects fixed module ownership, with no new resource fields or data migration.
 - 方案预设：故事导演、事件包、规则系统和开局选择器的大型 JSON 配置改用 Monaco JSON 编辑器，支持直接编辑、滚动查看、代码折叠、默认自动换行，以及单按钮全折叠/全展开切换。
@@ -172,8 +191,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Agent: Interactive-story `prepare_interactive_turn` now exposes valid difficulty, rule.template, rule.roll_mode, and related enums in the model-visible schema and prompts, and normalizes common aliases such as `medium`, `moderate`, `very easy`, and `d20_check` to canonical values to reduce turn failures from argument drift.
 - WebUI：导演编排右栏的 Chat 状态流不再把 `director.md` 当作工具名展示；文件更新状态会显示为 `edit_file` 并把 `director.md` 放在 `file_path` 参数中，等待开局时不再伪造文件工具卡。
 - WebUI: The Director sidebar Chat status stream no longer displays `director.md` as a tool name. File-update status now uses `edit_file` with `director.md` as the `file_path`, and waiting-for-opening state no longer fabricates a file-tool card.
-- Agent：上下文分析的最终消息改为按对话回合分组展示，组内区分正文、工具调用和工具结果；保留到下一轮的 tool result 会移除 `[Denova tool result metadata]`，避免 Denova 内部元信息污染后续上下文。
-- Agent: Context Analysis now groups final messages by conversation turn and separates body, tool calls, and tool results inside each group. Retained tool results now strip `[Denova tool result metadata]` before entering the next-turn context.
+- Agent：上下文分析的最终消息改为按对话回合分组展示，组内区分正文、工具调用和工具结果；保留到下一轮的 tool result 会移除 `[CaseMagica tool result metadata]`，避免 CaseMagica 内部元信息污染后续上下文。
+- Agent: Context Analysis now groups final messages by conversation turn and separates body, tool calls, and tool results inside each group. Retained tool results now strip `[CaseMagica tool result metadata]` before entering the next-turn context.
 - 方案预设：左侧目录展开状态不再把故事导演作为特殊常开分组；切到或展开图像方案、叙事风格等其他分组时，不会自动带开故事导演。
 - Presets: The left directory no longer treats Story Directors as an always-open special group; switching to or expanding image presets, narrative styles, or other groups no longer auto-expands Story Directors.
 - WebUI：文风参考导入弹窗的 AI 提炼按钮改名为“AI提炼文风”，提炼时在右侧展示配置 Agent 流式进展；提炼完成后会把生成的 Markdown 回填到弹窗内容区，并由前端稳定保存和选中文风参考，不再因配置 Agent 未自行写入目标文件而失败。
@@ -192,8 +211,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Game Mode: The interactive prose agent output path now keeps only bare story text; prose persistence no longer parses inline state or quick-choice blocks, and state plus quick choices continue to be generated by backend/independent flows.
 - 启动配置：`bootstrap.sh` 现在会按配置层级读取 `backend_port` / `frontend_port`，不再用脚本硬编码默认值覆盖 `config.toml`；开发模式启动 Vite 时也会注入实际后端端口，且前端自动选端口会避开已选后端端口，避免端口冲突后代理或监听仍落到旧端口。
 - Startup config: `bootstrap.sh` now reads `backend_port` / `frontend_port` from the normal config layers instead of overriding `config.toml` with script defaults; dev-mode Vite startup also receives the actual backend port, and frontend port selection avoids the selected backend port so conflict fallback does not keep proxying or listening on the old port.
-- 工作区：修复同一本书同时存在 `.denova` 和旧 `.nova` 目录时，新建的空 `.denova` 状态会遮住 `.nova` 中已有资料库等工作区私有数据的问题。
-- Workspace: Fixed mixed `.denova` / legacy `.nova` book directories where newly generated empty `.denova` state could hide existing private workspace data such as lore.
+- 工作区：修复同一本书同时存在 `.casemagica` 和旧 `.denova` 目录时，新建的空 `.casemagica` 状态会遮住 `.denova` 中已有资料库等工作区私有数据的问题。
+- Workspace: Fixed mixed `.casemagica` / legacy `.denova` book directories where newly generated empty `.casemagica` state could hide existing private workspace data such as lore.
 - WebUI：修复写作 Chat 和 SubAgent 详情在多条消息共用同一 `created_at` 时生成重复虚拟列表 key 的问题，避免 React 行复用异常导致底部锁定和“回到底部”行为不稳定。
 - WebUI: Fixed duplicate virtual-list keys in Writing Chat and SubAgent details when multiple messages share the same `created_at`, preventing React row reuse issues that could destabilize bottom locking and "Back to bottom" behavior.
 - WebUI：修复写作 Chat 与游戏模式 live 工具卡在流式工具事件先按 `index` 创建、后续才带 `id` 时无法回填 `execute` 结果的问题；后端展示历史会在正常完成时收敛 pending 工具，避免工具实际完成后卡片仍显示执行中。
@@ -217,14 +236,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 #### 中文
 
-- 完成 Denova 品牌与分发命名切换；兼容性提示：Release 包不再提供 `nova` / `nova.exe` / `nova-updater` 别名，新安装请直接运行 `denova` / `denova.exe`。
+- 完成 CaseMagica 品牌与分发命名切换；兼容性提示：Release 包不再提供 `nova` / `nova.exe` / `nova-updater` 别名，新安装请直接运行 `casemagica` / `casemagica.exe`。
 - 新增新用户引导、消息中心、PWA/移动端主屏体验，以及可内嵌前端的单文件自托管能力。
 - 大幅补齐移动端写作与游戏模式的输入、弹窗、文件操作、故事记忆和分支导航体验。
 - 图像方案、书籍封面生成、互动图像回写、Plan Mode 展示、章节正文隐藏输出和资源保存冲突保护更稳定。
 
 #### English
 
-- Completed the Denova branding and distribution rename; compatibility note: release packages no longer include `nova`, `nova.exe`, or `nova-updater` aliases, and new installs should run `denova` / `denova.exe` directly.
+- Completed the CaseMagica branding and distribution rename; compatibility note: release packages no longer include `nova`, `nova.exe`, or `nova-updater` aliases, and new installs should run `casemagica` / `casemagica.exe` directly.
 - Added onboarding, a message center, PWA/mobile home-screen support, and a self-hosting path where the backend can embed the web app.
 - Filled in more mobile Writing and Game Mode input, dialog, file action, story memory, and branch navigation workflows.
 - Made image presets, cover generation, interactive image writes, Plan Mode rendering, hidden chapter-body streaming, and resource conflict protection more reliable.
@@ -233,16 +252,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - 游戏模式：剧情页新增宽屏轮次导航，左侧横杠可快速定位每个对话轮次，悬停/聚焦时展示用户输入与 Agent 剧情正文预览；窄屏或舞台空间不足时自动隐藏。
 - WebUI：新增新用户引导，按“配置语言模型 API Key → 新建书籍 → 创作 Agent 预填第一章开头 → 一级模块导览”串联主流程；支持一键跳过、设置页重新打开，状态仅保存在浏览器本地，不写入用户或工作区配置。
-- WebUI：新增全局消息中心，顶部栏铃铛入口可查看 Denova 更新日志；打开某条消息会自动标记为已读，也可一键全部已读。已读状态保存到用户级 Denova 数据目录，不写入作品 workspace。
+- WebUI：新增全局消息中心，顶部栏铃铛入口可查看 CaseMagica 更新日志；打开某条消息会自动标记为已读，也可一键全部已读。已读状态保存到用户级 CaseMagica 数据目录，不写入作品 workspace。
 - 游戏模式：行动选项默认会在故事输出结束后后台自动生成，用户点击输入框右侧“选择”后再展开；输入框左侧菜单保留“自动生成 / 手动生成”切换。
 - WebUI：新增 PWA manifest、应用图标（apple-touch-icon / 192 / 512 / maskable）与移动端 viewport meta（`viewport-fit=cover`、`theme-color`、`apple-mobile-web-app-capable` 等）。自托管后可在手机主屏“添加到桌面”以独立应用形态打开，并正确延伸到刘海安全区；图标由 `pnpm generate-icons`（sharp）从 `favicon.svg` 复现式生成。
 - 后端：静态资源服务对未知前端路径做 SPA 回退（返回 `index.html`）。手机刷新任意页面或深链打开不再返回 Hertz 默认 404；`/api/*` 路由不受影响。
-- 后端：Denova 二进制现在可内嵌前端（构建标签 `embedweb`），裸二进制无需磁盘 `web/` 目录即可提供前端服务，适合 `go install` / 单文件分发 / 最小化自托管。默认构建行为不变；release 仍附带 `web/` 作为磁盘快速路径与 updater 兼容，内嵌为独立运行的兜底。
+- 后端：CaseMagica 二进制现在可内嵌前端（构建标签 `embedweb`），裸二进制无需磁盘 `web/` 目录即可提供前端服务，适合 `go install` / 单文件分发 / 最小化自托管。默认构建行为不变；release 仍附带 `web/` 作为磁盘快速路径与 updater 兼容，内嵌为独立运行的兜底。
 - 文档：README（中/英）新增「自托管与远程访问（手机访问）」章节，覆盖构建前端、开启远程访问、手机使用与 HTTPS 反向代理。
 
 ### Fixed
 
-- 文档/更新：修正 README 徽章、Release 下载、源码克隆、Star History 与应用内更新检查使用的 GitHub 仓库标识，改为 `alfredxw/denova`，避免用户跳转或检查到旧 Release 页。
+- 文档/更新：修正 README 徽章、Release 下载、源码克隆、Star History 与应用内更新检查使用的 GitHub 仓库标识，改为 `cowcat-box/caseMagica`，避免用户跳转或检查到旧 Release 页。
 - 游戏模式：互动图像生成完成后允许把展示事件写回当前分支父链上的继承回合，避免从旧分支接出的剧情线在生成祖先回合图像时误报“展示事件回合不属于当前分支”；图像生成上下文也改用当前快照分支读取故事记忆。
 - Agent：内置 `novel-lite` / `novel-standard` / `novel-heavy` 写作 Skill 明确要求按场景使用 `read_file`、`write_file`、`edit_file`、`task` 等工具，并在写入后检查工具结果与读回关键片段，避免工具失败时误向用户宣称文件已修改。
 - 对话渲染：游戏模式改为用后端落盘增量事件原地合并新回合，并把完整快照刷新降级为静默校准；同时移除通用对话和游戏剧情页在 `done` 事件上的临时“完成 / Done”活动行，并把流式正文改为 `streaming_target_content` 隐藏占位、下一帧再提升为可见 `content` 的两阶段提交，避免输出完成或换行瞬间因消息列表高度变化、live 消息切换到持久化快照而抖动或重新入场。本次为内部渲染行为优化，无用户数据迁移。
@@ -264,7 +283,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- 项目改名：应用名、Go module、命令目录、前端标题、PWA manifest、README、配置模板、内置 Agent 提示、npm 包名和 GitHub Release 产物统一从 Nova/nova 切换为 Denova/denova。新工作区与新配置默认使用 `.denova` / `DENOVA_*`；已有 `.nova` 工作区与 `NOVA_*` 环境变量继续兼容读取。GitHub Release 包不再附带 `nova`、`nova.exe` 或 `nova-updater` 别名，用户新下载后直接运行 `denova` / `denova.exe`。
+- 项目改名：应用名、Go module、命令目录、前端标题、PWA manifest、README、配置模板、内置 Agent 提示、npm 包名和 GitHub Release 产物统一从 Nova/nova 切换为 CaseMagica/casemagica。新工作区与新配置默认使用 `.casemagica` / `CASEMAGICA_*`；已有 `.denova` 工作区与 `NOVA_*` 环境变量继续兼容读取。GitHub Release 包不再附带 `nova`、`nova.exe` 或 `nova-updater` 别名，用户新下载后直接运行 `casemagica` / `casemagica.exe`。
 - WebUI：Chat 输入框默认以双行展开显示，Plan Mode 不再占用独立按钮，改为放入输入动作菜单；开启 Plan Mode 时在输入区底部工具行显示轻量 `Plan` 状态提示，并保留 `Shift+Tab` 快捷切换。游戏模式输入框保持单行。
 - 移动端：Agent 面板从右侧抽屉改为**底部常驻面板**（与编辑器竖向分割），恢复桌面端「编辑器 + Agent 同屏可见」的核心操作逻辑。使用 `react-resizable-panels` 做竖向分割，可拖拽分隔条调节编辑器/Agent 比例。Agent 不再需要点导航打开；快捷创作按钮始终可达。桌面端不受影响。
 - 设置：新增 `hide_novel_chapter_body_in_live_output` 配置，开启后隐藏章节正文在 Agent 流中的输出，并保留目标路径和已生成字符数；默认关闭以保持原有实时输出行为。
@@ -352,7 +371,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Agent：`config.toml` 模板预置 `writer`、`reviewer`、`fixer` 等写作 SubAgent，它们不再由 Go 默认值或内置 Writing Skill 运行时策略控制；用户可在 Agents 页像管理自定义 SubAgent 一样覆盖或关闭。
 - Agent：系统提示词明确限制 SubAgent 委派时机，除非用户主动要求或已加载 Skill 流程要求，否则父 Agent 不应主动拉起 SubAgent。
 - Agent：创作 Agent 的本轮动态上下文会注入前端 IDE 当前聚焦文件和打开文件路径；该状态只包含有界路径信息，不注入文件正文，需要正文时仍必须显式通过工具读取。
-- Agent：默认不限制空闲等待时间；设置页和 `NOVA_AGENT_IDLE_TIMEOUT_SECONDS` 仍可配置正数秒数启用空闲超时，配置为 `0` 表示不限制。
+- Agent：默认不限制空闲等待时间；设置页和 `DENOVA_AGENT_IDLE_TIMEOUT_SECONDS` 仍可配置正数秒数启用空闲超时，配置为 `0` 表示不限制。
 - Agent：移除独立章节初稿目录和对应设置开关；章节初稿统一写入 `chapters/`，通过章节状态从初稿确认成章。
 
 ### Fixed
@@ -385,7 +404,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Agent：默认不再为所有 Agent 设置 `max_iteration` 轮数上限；只有用户显式配置正数时才限制迭代次数。
 - Agent：Review 自动化不再强制把 `max_iteration` 提升到 100，避免 task 委派继续被隐藏上限截断。
 - Agent：自定义 SubAgent 现在继承父 Agent 稳定 system prompt、workspace/mode/tool 边界，并要求父 Agent 委派 task 时传递目标、约束和路径/资源 ID；若旧 SubAgent prompt 试图覆盖父 Agent 工具权限或模式边界，会以父级契约为准。
-- Skills：内置预制 Skill 支持在界面中创建同名覆盖，默认写入用户级 `<nova_dir>/skills/<skill-name>/SKILL.md`，只有用户级目录不可写时才退回工作区覆盖；Skill 配置页现在支持修改 Skill 名称，并可在用户级与工作区级保存位置之间迁移。
+- Skills：内置预制 Skill 支持在界面中创建同名覆盖，默认写入用户级 `<denova_dir>/skills/<skill-name>/SKILL.md`，只有用户级目录不可写时才退回工作区覆盖；Skill 配置页现在支持修改 Skill 名称，并可在用户级与工作区级保存位置之间迁移。
 - WebUI：Agents 页面默认编辑用户配置，Skills 页面默认在用户级目录新建 Skill；需要工作区级覆盖时仍可手动切换到工作区配置。
 - WebUI：创作 Agent 面板移除独立 Review tab，Review 任务配置与运行过程统一回到自动化页；SubAgent 正文输出改为主会话高亮进度卡，点击后可在右侧打开独立子会话详情栏，避免混入父 Agent 正文。
 - WebUI：写作模式作品目录上方的灵感、大纲和状态文件入口合并为可折叠的“书籍设定”，并新增创作规则、写作进度和角色当前状态快捷入口。
@@ -403,10 +422,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - WebUI：修复 `execute` 等工具执行完成后，对话页工具调用卡片可能仍停留在 Loading 状态的问题；工具结果现在会按调用 ID 或工具名回填到原卡片，正常结束时也会收敛未完成卡片。
 - Agent 工具：Windows 运行时现在通过 PowerShell 支持 `execute` 命令执行工具，不再强制关闭 `shell_execute`，Agents 设置页也允许正常配置该开关。
 - Agent 运行：修复写作 Agent 连续调用多个工具后，如果模型或工具流长时间不再返回事件，后端任务会永久保持 running、前端一直显示回复中的问题；现在主循环、助手流和工具结果流都有可配置空闲超时，默认 180 秒，超时会结束任务并返回错误。
-- Agent 会话：修复 `write_file` 等工具流式参数每帧都重写 `.nova/sessions` 导致 Windows 文件写入容易出现 open 超时和重复错误日志的问题；工具参数展示改为内存实时累积、磁盘节流持久化，并对超长参数只保存有界预览。
+- Agent 会话：修复 `write_file` 等工具流式参数每帧都重写 `.denova/sessions` 导致 Windows 文件写入容易出现 open 超时和重复错误日志的问题；工具参数展示改为内存实时累积、磁盘节流持久化，并对超长参数只保存有界预览。
 - WebUI 编辑区 Tab：修复点击标题文字之外的 Tab 区域不会切换文件、容易感觉需要点两次的问题；现在整个 Tab 条目都可点击，关闭按钮仍独立关闭。
 - Windows Release：修复设置页和文档将局域网访问地址误指向开发前端端口的问题；release 现在展示实际 Nova 入口端口，避免手机访问到未监听的 `5173`。
-- 修复应用内安装更新缺少下载进度且下载包只保存在临时目录的问题；安装现在使用 `grab` 下载 Release 安装包到本地 `.nova-updates/downloads/`，通过前端进度条展示下载阶段，完成后再解压并替换本地文件，同时修复 Windows 安装路径含空格时更新脚本可能无法启动的问题。
+- 修复应用内安装更新缺少下载进度且下载包只保存在临时目录的问题；安装现在使用 `grab` 下载 Release 安装包到本地 `.denova-updates/downloads/`，通过前端进度条展示下载阶段，完成后再解压并替换本地文件，同时修复 Windows 安装路径含空格时更新脚本可能无法启动的问题。
 - 后端：修复写作 Agent 启动日志仍引用已移除的 `style_references` 请求字段导致后端编译失败的问题，日志现在记录当前场景风格选择数量。
 
 ## [v0.1.13] - 2026-06-24
@@ -534,9 +553,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - WebUI 新增移动端工作台布局：窄屏下使用底部一级菜单、项目目录抽屉、创作 Agent 抽屉和互动场景记忆抽屉，避免桌面可拖拽面板在手机宽度下挤出主编辑/剧情区域。
 - WebUI 左侧一级菜单支持拖拽排序，写作模式与互动模式分别保存顺序，避免两种工作台入口互相影响。
 - 书籍管理页新增从书架移除和拖拽自定义排序；移除书籍只会从书架隐藏并保留磁盘目录，删除当前书籍后会自动切换到下一个可用书籍。
-- Agent loop 新增 `LoopPolicy`、`ContextLedger` 和 `.nova/runs` 运行账本，按轮记录上下文来源、大小上限、事件摘要和完成状态，为后续工具筛选、恢复和验证阶段提供稳定工程边界。
+- Agent loop 新增 `LoopPolicy`、`ContextLedger` 和 `.denova/runs` 运行账本，按轮记录上下文来源、大小上限、事件摘要和完成状态，为后续工具筛选、恢复和验证阶段提供稳定工程边界。
 - Agent loop 新增中心化 tool manifest 与模型可见工具结果筛选，统一标注工具来源、是否变更 workspace、输出上限、幂等键和 post-check 要求，并对 invokable/streamable 工具返回做有界回填。
-- 创作 Agent 新增写入后轻量验证阶段，会根据工具 mutation metadata 检查写入路径、章节目录约束、资料库 `brief_description` 和删除结果，并写入 `.nova/runs` trace。
+- 创作 Agent 新增写入后轻量验证阶段，会根据工具 mutation metadata 检查写入路径、章节目录约束、资料库 `brief_description` 和删除结果，并写入 `.denova/runs` trace。
 - WebUI 创作 Agent 面板新增 Agent Trace 视图，可查看最近运行的上下文账本、工具事件序列、验证结果和截断状态。
 - WebUI 接入 Motion for React，新增全局动效强度配置（跟随系统、完整、减少、关闭），并为工作台切换、一级菜单、Tab、面板和聊天消息提供更克制流畅的过渡。
 - 设置页新增浅色、深色和跟随系统主题切换；主题配置支持用户级和工作区级继承，并即时应用到主工作台。
@@ -560,7 +579,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 互动记忆 Agent 输出协议从 `state_ops + memory_entry` 调整为 `story_memory_patches`，旧 `memory_entry` 输出会兼容映射为 `plot_summary` 故事记忆；旧 `/api/interactive/stories/:id/memory` 接口继续保留，并映射到故事记忆记录。
 - 互动记忆 Agent 生成故事记忆时会注入有硬上限的资料库上下文，优先提供完整重要资料并为未展开条目保留索引，减少记忆记录与作品设定偏差。
 - 互动模式不再把“当前状态”作为独立用户管理入口，当前时间、地点和事件改由故事记忆的默认结构维护；右侧记忆面板改为故事记忆预览，不再展示原始状态 JSON。
-- 资料库不再维护独立版本和 `.nova/lore/versions` 自动备份，资料条目跟随工作区整体版本管理统一保存与恢复；对应 `/api/lore/versions` 专用接口和资料库 Agent 面板中的版本入口已移除。
+- 资料库不再维护独立版本和 `.denova/lore/versions` 自动备份，资料条目跟随工作区整体版本管理统一保存与恢复；对应 `/api/lore/versions` 专用接口和资料库 Agent 面板中的版本入口已移除。
 - WebUI 移除独立的“创作者”一级菜单，`CREATOR.md` 改为在资料库页面内作为固定条目统一管理，仍保留 workspace 根目录文件和 Agent 注入契约。
 - WebUI 将“版本管理”调整为写作模式和互动模式共享的一级入口，打开时覆盖当前工作区但不自动切换写作/互动模式。
 - WebUI 将用户可见的 “IDE 模式 / Novel IDE” 统一改名为“写作模式 / Writing Mode”，内部 `ide` 配置键和存储 key 保持兼容。
@@ -588,7 +607,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 修复设置页每次打开都会自动请求 GitHub 更新检查的问题；自动检查现在会在浏览器本地记录时间，1 小时内不重复检查，手动检查不受影响。
 - 修复资料库 Agent 固定会话可能出现在创作 Agent 会话列表并被切换使用，导致创作对话和资料库 Agent 对话串在一起的问题；普通创作会话现在会过滤并拒绝操作固定 Agent 会话。
 - 修复设置页“重启服务”只让后端进程退出而没有重新启动的问题；后端现在会用当前可执行文件、启动参数和环境变量替换当前进程，并在无法安排重启时返回明确错误。
-- Agent 追踪不再把正文流、thinking 增量、工具参数增量和完成状态等 SSE 传输事件逐条写入 `.nova/runs`，只保留工具调用、工具结果和异常等语义事件，降低运行追踪噪音和空间占用。
+- Agent 追踪不再把正文流、thinking 增量、工具参数增量和完成状态等 SSE 传输事件逐条写入 `.denova/runs`，只保留工具调用、工具结果和异常等语义事件，降低运行追踪噪音和空间占用。
 - 修复自动化章节批次触发器会因章节字数、更新时间变化或 `trigger_state` 丢失而重复触发同一批章节的问题；同一批次现在按章节路径和历史 Inbox evidence 去重。
 - 修复自动化 auto-run 触发启动失败时会把 Inbox 标记为已自动执行且无可重试入口的问题；失败通知现在会转为待确认并保留错误摘要。
 - 修复语义触发器使用滚动最近上下文导致适用范围不明确的问题；语义触发现在按每 N 个非空章节批次检查，并只把本批章节作为 LLM 判断范围。
@@ -635,7 +654,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 修复自动化任务流式输出把每个 thinking 片段拆成独立思考过程的问题；自动化运行复用创作 Agent 的共享 SSE 消费逻辑，统一 thinking、正文、工具调用和参数增量展示。
 - 修复作品目录和项目文件定时刷新时短暂进入 loading 状态导致侧栏内容抖动的问题；后台刷新失败时也会保留当前目录和作品进度。
 - 修复 Skills 管理中单独打开被工作区覆盖的用户级 `SKILL.md` 时仍显示为可用的问题；创建/保存后也会按完整搜索路径返回真实 Active 状态。
-- 修复首次启动 `.nova` 下没有书籍或未选工作区时，前端仍请求目录、统计、styles、chat session 和 active chat 等工作区 API 导致后端报错的问题；空书架会先引导用户创建或导入书籍。
+- 修复首次启动 `.denova` 下没有书籍或未选工作区时，前端仍请求目录、统计、styles、chat session 和 active chat 等工作区 API 导致后端报错的问题；空书架会先引导用户创建或导入书籍。
 - 修复新建 Skill 默认 `SKILL.md` 在描述包含换行、冒号或列表符号时可能生成非法 YAML frontmatter 的问题。
 - 修复创作 Agent 输入框在 IDE Agent 关闭 Skills 工具后仍展示 `/<skill-name>` 命令的问题。
 - 修复 Agents 页 Automation Agent 工具权限前端兜底值与后端默认配置不一致的问题。
@@ -646,7 +665,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Agent 工具权限新增 `web_search`，使用 Eino Ext 预制 DuckDuckGo V2 搜索工具注册为模型可调用的网页搜索能力；Agents 页同步提供中英双语开关，IDE、资料库和自动化 Agent 默认开启，互动叙事 Agent 默认关闭但可手动启用。
-- 新增一级菜单 `Skills`，支持查看内置、用户级 `<nova_dir>/skills` 和工作区级 `<workspace>/.nova/skills` 的 `SKILL.md`，可在界面中新建/编辑用户自定义 Skill；内置 `skills-creator` Skill 可通过创作 Agent 辅助创建，支持在创作 Agent 及其他启用 Skills 的 Agent 中用 `/<skill-name>` 命令触发。
+- 新增一级菜单 `Skills`，支持查看内置、用户级 `<denova_dir>/skills` 和工作区级 `<workspace>/.denova/skills` 的 `SKILL.md`，可在界面中新建/编辑用户自定义 Skill；内置 `skills-creator` Skill 可通过创作 Agent 辅助创建，支持在创作 Agent 及其他启用 Skills 的 Agent 中用 `/<skill-name>` 命令触发。
 
 ## [v0.1.7] - 2026-06-10
 
@@ -659,7 +678,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 内置叙事编排新增 `直白情色` 和 `编剧风格` 两个预设，分别面向成人自愿情欲张力和编剧式场景节拍。
 - WebUI 新增 i18n 多语言基础设施，接入 `i18next` / `react-i18next`，首版提供简体中文与 English 资源，并为后续语言扩展预留统一 locale 目录。
 - 设置页新增“界面语言”配置，支持跟随浏览器、简体中文和 English；语言配置进入现有分层设置体系，保存后可热切换。
-- 后端 API 支持 `X-Nova-Locale` 请求头，workspace、books、settings、versions、session、chat、interactive、lore、style 和角色卡导入等短错误/成功提示会按中英文返回。
+- 后端 API 支持 `X-Denova-Locale` 请求头，workspace、books、settings、versions、session、chat、interactive、lore、style 和角色卡导入等短错误/成功提示会按中英文返回。
 - 设置页新增全局外观字号配置，支持分别设置界面字号与阅读字号；阅读字号统一作用于 IDE 主编辑器和互动模式故事阅读区。
 - 书籍管理新增 txt/md 现有小说导入：上传后自动解析章节、创建新书并写入 `chapters/`；导入后回到 IDE 主页，由已有空资料库引导跳转资料库 Agent 生成设定资料。
 - 小说导入升级为确认式智能分割流程：上传后工具 Agent 基于前 `20000` 字样本推断章节标题 Go regexp，用户可调整 `2000-100000` 字样本范围、编辑正则并重新预览，确认后再创建书籍和写入章节；工具 Agent 默认无工具且关闭 thinking，可在 Agents 页配置模型和 system prompt。
@@ -673,7 +692,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - 书籍管理不再以“最近书籍”记录作为列表来源，改为展示当前 Nova 数据目录下实际存在的书籍目录，并将前端列表优化为书架式网格布局；旧最近打开记录仅保留用于启动恢复当前书籍。
 - 章节和分卷默认命名改为隐藏排序前缀模板：章节使用 `ch{order:05}-{chapter}-{title}.md`，分卷目录使用 `v{order:05}-{volume}`，作品目录隐藏前缀展示自然章节名；该变更只影响新章节和新导入内容，旧章节不会自动重命名。
-- 版本管理底层从原生文件快照切换为 go-git 驱动的 workspace 根目录 `.git` 本地仓库；Nova 会自动初始化并提交版本，像 Git 一样保存正文、设置和 `.nova/lore`、`.nova/sessions` 等本地创作状态，历史直接来自 Git commit，恢复通过移动 HEAD 生效，不再创建 `.nova/versions` 索引、内部版本目录或裁剪 Git 历史；旧原生快照不再读取或迁移。
+- 版本管理底层从原生文件快照切换为 go-git 驱动的 workspace 根目录 `.git` 本地仓库；Nova 会自动初始化并提交版本，像 Git 一样保存正文、设置和 `.denova/lore`、`.denova/sessions` 等本地创作状态，历史直接来自 Git commit，恢复通过移动 HEAD 生效，不再创建 `.denova/versions` 索引、内部版本目录或裁剪 Git 历史；旧原生快照不再读取或迁移。
 - 顶层定调文件改为 `ideas.md`（作品目录展示为「灵感」/ Ideas）；新建作品会创建该文件，旧工作区仅存在 `brainstorm.md` 时会在初始化时迁移为 `ideas.md`，并同步更新 Agent 提示词、技能、前端初始化文案和 README。
 - 整体优化中英文 README：重写项目首屏定位、核心价值、能力矩阵、推荐创作流程、快速开始、配置和开发说明，提升公开项目页的专业度与可读性。
 - 资料库 Agent 从单次结构化 JSON 编辑方案升级为工具型 Agent，支持 Skills、资料库读写和文件读写工具；初始化流程要求多轮确认，最终只写资料库和 `CREATOR.md`，不写 `ideas.md`、大纲、章节、progress、character-states，也不自动创建互动 story。
@@ -714,7 +733,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - 后端 HTTP 层按职责拆分：将具体 handler 迁移到 `internal/api/handlers`，将任务 SSE 输出迁移到 `internal/api/sse`，`internal/api` 保留服务启动、路由注册和静态资源托管职责。
 - 后端应用运行时构建逻辑从 `internal/app/runtime_manager.go` 拆到 `internal/app/runtime_builder.go`，降低 workspace manager 文件职责密度。
-- 版本管理从本地 Git 仓库替换为 Nova 原生快照系统，版本库存放在每本书的 `.nova/versions/`，无需初始化 Git 即可创建版本、查看历史、对比和恢复。
+- 版本管理从本地 Git 仓库替换为 Nova 原生快照系统，版本库存放在每本书的 `.denova/versions/`，无需初始化 Git 即可创建版本、查看历史、对比和恢复。
 - 内部重构版本管理实现：后端快照逻辑拆分到 `internal/book/versions`，前端版本面板拆分为状态头、自动策略、变更列表、历史容器和工具函数，降低版本管理模块耦合。
 - WebUI 版本管理面板改为全中文快照工作流，第一屏展示保护状态、手动保存、定时保存和 Agent 自动保存状态，并在历史中标注手动、定时、Agent 与回滚前备份版本。
 - 版本管理手动保存支持由 LLM 根据当前文件变更自动推理中文版本说明，前端不再要求用户手动填写说明；模型失败时会降级为本地变更摘要。
@@ -731,7 +750,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - 互动模式：修复状态变化解析白名单遗漏 `action_space`，导致包含可行动选项的状态更新整组被丢弃的问题。
 - 创作 Agent：修复“按细纲写下一章”未按大纲分卷的问题，系统提示会结合大纲卷章安排、章节组细纲、进度和最近章节路径选择 `chapters/<分卷名>/` 目标目录，并在快捷创作提示中同步强调分卷写入。
-- Windows Release：修复默认 8080 端口被占用时双击启动后服务监听失败并退出的问题；未显式指定端口时会自动顺延选择可用端口，并保留 `NOVA_BACKEND_PORT` / `--port` 的显式配置语义。
+- Windows Release：修复默认 8080 端口被占用时双击启动后服务监听失败并退出的问题；未显式指定端口时会自动顺延选择可用端口，并保留 `DENOVA_BACKEND_PORT` / `--port` 的显式配置语义。
 
 ## [v0.1.5] - 2026-06-02
 
@@ -742,21 +761,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 新增 GitHub Actions Release 流水线和 `scripts/build-github-release.sh`，推送 `v*` tag 后自动构建 macOS/Linux/Windows 下载包、生成 checksums 并上传 GitHub Release。
 - 后端/设置页支持多个 OpenAI 协议兼容模型配置，可为 IDE 创作、互动叙事、资料库编辑、讲述者编辑、互动状态和快捷选项等 Agent 分配不同模型与 Temperature；未配置 Temperature 时不再写死默认值，交由平台/模型默认策略处理。
 - 互动模式新增按需快捷行动建议生成接口，故事舞台可继续生成更多选择，并在设置页支持关闭“输入框快捷选择”。
-- 互动模式故事舞台支持像 IDE 模式一样通过 `#` 引用用户级 `<nova_dir>/styles/` 下的风格参考，本轮会随互动 Agent 请求注入。
+- 互动模式故事舞台支持像 IDE 模式一样通过 `#` 引用用户级 `<denova_dir>/styles/` 下的风格参考，本轮会随互动 Agent 请求注入。
 - 互动模式支持复用场景化风格规则；每个具体讲述者编辑页可分别维护场景风格规则和互动单轮目标字数。
 - 讲述者编辑支持自动保存，修改名称、规则、场景风格规则等内容后会防抖写入当前讲述者。
 - IDE 模式新增左侧全局搜索：可在当前书籍 workspace 内搜索 Markdown/TXT 等文本文件内容和路径，结果按文件分组展示，点击后打开文件并联动编辑器高亮关键词。
 - 互动模式故事舞台支持编辑历史输入并从该回合重新生成，也可直接对指定回合重新生成内容，当前分支会回退到被编辑回合前继续推进。
 - 互动模式分支路线支持直接切换故事线，每条故事线展示各自独立的分支路线。
 - 互动模式故事舞台支持展示并持久化 Agent 工具调用卡片，刷新后保留卡片状态但不保存工具输入输出参数。
-- 风格参考文件移动到用户级 `<nova_dir>/styles/`，不同书籍可复用同一批 `.md` / `.txt` 文风样本。
+- 风格参考文件移动到用户级 `<denova_dir>/styles/`，不同书籍可复用同一批 `.md` / `.txt` 文风样本。
 - IDE 模式新增章节组细纲工作流：新建书籍会准备 `setting/chapter-groups/`，Agent 可生成下一组细纲，快捷创作增加“下一组细纲 / 按细纲写下一章 / 定稿并同步状态”入口。
 - IDE 模式作品目录支持以轻量导航列表展示大纲、细纲，并按章节目录自动分卷折叠；项目文件支持多选批量移动、复制、删除和拖拽整理。
 - 设置页新增章节创作配置，支持章节组建议规模范围，默认建议 3-8 章。
 
 ### Changed
 
-- 生产态 Web 静态资源托管支持 `NOVA_WEB_DIR` 和可执行文件相对路径探测，npm 包安装后不再依赖启动时的当前工作目录；npm CLI 未显式配置 `NOVA_DIR` 时默认使用执行命令目录下的 `./.nova`，`NOVA_BACKEND_PORT` 也会作为后端默认端口生效。
+- 生产态 Web 静态资源托管支持 `NOVA_WEB_DIR` 和可执行文件相对路径探测，npm 包安装后不再依赖启动时的当前工作目录；npm CLI 未显式配置 `DENOVA_DIR` 时默认使用执行命令目录下的 `./.denova`，`DENOVA_BACKEND_PORT` 也会作为后端默认端口生效。
 - Agent 资料库读取工具从单条 `read_lore_item` 升级为批量 `read_lore_items`，可一次按多个资料 ID 读取完整正文，减少连续工具调用。
 - 资料库支持渐进式加载：条目新增常驻、简介自动匹配和手动引用三种加载策略；IDE/互动 Agent 会常驻注入核心资料、展示含简介的非常驻资料索引，并可通过只读工具按需读取资料正文。
 - IDE 创作提示词改为以结构化资料库承载角色、世界观、地点、势力、规则和物品等长期设定，不再引导读写 `setting/characters.md` 或 `setting/world-building.md`；作品状态注入也停止回退读取这两个旧文件。
@@ -772,7 +791,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 讲述者规则配置页优化交互：规则启用开关移到左侧规则列表，注入位置改为紧凑下拉选择，减少详情区占用并提升操作效率。
 - 创作 Agent 工具卡片统一为暗色面板风格，优化执行中、结果、详情和待办列表的边距、状态图标与展开区域质感。
 - Agent 写作工作流调整为“创作灵感 -> 大纲 -> 下一组细纲 -> 章节初稿/成章”，细纲只规划接下来一组章节，章节定稿后才同步 progress 与角色状态。
-- Agent 注入场景化风格规则前会把相对风格名解析为用户级 `<nova_dir>/styles/` 下的绝对路径，IDE 和互动模式都按当前讲述者选择规则。
+- Agent 注入场景化风格规则前会把相对风格名解析为用户级 `<denova_dir>/styles/` 下的绝对路径，IDE 和互动模式都按当前讲述者选择规则。
 - IDE 模式适配结构化资料库和讲述者：写作工作台新增资料库/讲述者入口，创作 Agent 支持引用资料条目，并会按工作区默认讲述者注入写作规则。
 - IDE 模式下资料库和讲述者入口改为覆盖项目目录、编辑区和右侧面板的全工作区管理页。
 - WebUI 导航调整：IDE/互动模式切换移到顶部 Nova 标识旁的分段切换，左侧一级菜单按当前模式切换；设置页改为覆盖工作区页面，不再使用弹窗。
@@ -851,7 +870,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 后端 `app`：当启动时既未指定 `--workspace` 又无最近书籍记录时，App 进入「无 workspace」状态，仅初始化 `chatService` / `bookRegistry` / `bookMetaStore`，等待用户在前端书籍管理页选择或新建书籍后再构建 runtime；新增 `App.HasWorkspace()` 与 `ErrNoWorkspace` 用于守卫
 - 后端 API：新增 `Server.requireWorkspace` 守卫；写操作（`/api/workspace/*` 写、`/api/chat`、`/api/git/*`、`/api/command` 中的 clear/status、`/api/sessions` 的 create/switch/rename/delete）在无 workspace 时返回 409 并提示「尚未选择书籍工作区」；只读拉取（`tree`、`styles`、`sessions`、`session messages`）在无 workspace 时返回空数组，避免前端启动报错
 - WebUI：`workspace` 为空时 `App.tsx` 默认打开「书籍管理」Tab 并激活，引导用户选书
-- 后端 `config`：引入 `Settings` + `LoadLayered`，合并语义为 默认 < 全局 (`config.toml`) < 用户 (`<nova_dir>/config.toml`) < 工作区 (`<workspace>/.nova/config.toml`) < 环境变量；指针类型字段（`*bool`/`*int`）用于区分「未设置」与「显式置零」
+- 后端 `config`：引入 `Settings` + `LoadLayered`，合并语义为 默认 < 全局 (`config.toml`) < 用户 (`<denova_dir>/config.toml`) < 工作区 (`<workspace>/.denova/config.toml`) < 环境变量；指针类型字段（`*bool`/`*int`）用于区分「未设置」与「显式置零」
 - 后端 API：新增 `GET /api/settings`（返回三层快照 + effective）、`PUT /api/settings/user`、`PUT /api/settings/workspace`
 - WebUI：编辑区支持多 Tab，文件树打开文件时复用已存在的 Tab 或新建 Tab；Hover Tab 显示关闭按钮，关闭当前 Tab 自动切到相邻 Tab；Tab 列表与激活项按 workspace 分桶持久化到 localStorage，刷新后恢复
 - WebUI：Tab 不仅承载文件，也承载「书籍管理」（Home）页面；Activity Bar 主页按钮改为打开/聚焦 Home Tab，可与文件 Tab 自由切换
@@ -859,7 +878,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- 设置配置：`nova_dir` 改为全局启动级参数，仅由全局 `config.toml` 或 `NOVA_DIR` 决定；用户级/工作区级配置会忽略并过滤该字段，设置页改为只读展示 Nova 数据目录、用户配置文件和工作区配置文件路径
+- 设置配置：`denova_dir` 改为全局启动级参数，仅由全局 `config.toml` 或 `DENOVA_DIR` 决定；用户级/工作区级配置会忽略并过滤该字段，设置页改为只读展示 Nova 数据目录、用户配置文件和工作区配置文件路径
 - WebUI：删除/重命名/移动文件时同步更新打开的 Tab 列表
 - WebUI：主区域统一由 Tab 栏驱动渲染，根据激活 Tab 切换显示编辑器或 Home 视图，移除原 `view` 单一视图状态
 
@@ -945,7 +964,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - 入口程序从 bubbletea TUI 改为启动 Hertz Web 服务
 - build.sh 增加前端构建流程，并复制 Web 产物到 output/web
-- 会话存储迁移到 workspace 内部 `.nova/sessions/`
+- 会话存储迁移到 workspace 内部 `.denova/sessions/`
 - 作品设定文件迁移到用户可编辑的 `setting/` 目录
 - 编辑器默认视觉调整为贴合 IDE 的深色阅读主题
 - 后端能力拆分为 `internal/agent`、`internal/book`、`internal/api`、`internal/app`，明确 AI Agent、书籍管理、HTTP API 和运行时装配边界

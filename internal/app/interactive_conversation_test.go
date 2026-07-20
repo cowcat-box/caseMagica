@@ -5,9 +5,9 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/interactive"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/interactive"
+	"casemagica/internal/session"
 )
 
 func TestInteractiveConversationToolResultFallsBackToNameWhenIDMissing(t *testing.T) {

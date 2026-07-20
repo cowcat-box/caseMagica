@@ -7,11 +7,11 @@ import (
 	"log"
 	"strings"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/session"
 )
 
 const (

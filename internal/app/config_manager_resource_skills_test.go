@@ -9,7 +9,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 func TestConfigManagerResourceSkillNames(t *testing.T) {
@@ -99,13 +99,13 @@ func TestBuildConfigManagerMessageBoundsRequestContext(t *testing.T) {
 func TestLoadConfigManagerResourceSkillsUsesActiveSkillPrecedence(t *testing.T) {
 	root := t.TempDir()
 	builtin := filepath.Join(root, "builtin")
-	novaDir := filepath.Join(root, "nova")
+	denovaDir := filepath.Join(root, "nova")
 	workspace := filepath.Join(root, "workspace")
 	writeConfigManagerSkill(t, builtin, configManagerAutomationSkill, "builtin body", "config_manager")
-	writeConfigManagerSkill(t, filepath.Join(novaDir, "skills"), configManagerAutomationSkill, "user body", "config_manager")
-	writeConfigManagerSkill(t, filepath.Join(workspace, ".nova", "skills"), configManagerAutomationSkill, "workspace body", "config_manager")
+	writeConfigManagerSkill(t, filepath.Join(denovaDir, "skills"), configManagerAutomationSkill, "user body", "config_manager")
+	writeConfigManagerSkill(t, filepath.Join(workspace, ".denova", "skills"), configManagerAutomationSkill, "workspace body", "config_manager")
 
-	cfg := &config.Config{SkillsDir: builtin, NovaDir: novaDir, Workspace: workspace}
+	cfg := &config.Config{SkillsDir: builtin, DenovaDir: denovaDir, Workspace: workspace}
 	got := loadConfigManagerResourceSkills(context.Background(), cfg, ConfigManagerRequest{Origin: "automation"})
 	if len(got) != 1 {
 		t.Fatalf("loaded skills = %#v, want one", got)

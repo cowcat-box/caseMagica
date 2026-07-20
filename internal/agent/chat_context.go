@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"denova/internal/book"
-	"denova/internal/prompts"
-	"denova/internal/workspacepath"
+	"casemagica/internal/book"
+	"casemagica/internal/prompts"
+	"casemagica/internal/workspacepath"
 )
 
 const maxStyleRuleContextChars = 32000

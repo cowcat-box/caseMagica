@@ -9,22 +9,22 @@ import (
 
 func TestViteDevEnvOverridesPortValues(t *testing.T) {
 	env := viteDevEnv([]string{
-		"DENOVA_BACKEND_PORT=8080",
-		"DENOVA_FRONTEND_PORT=5173",
+		"CASEMAGICA_BACKEND_PORT=8080",
+		"CASEMAGICA_FRONTEND_PORT=5173",
 		"KEEP=value",
 	}, "15173", "18080")
 
-	if got := envValue(env, "DENOVA_BACKEND_PORT"); got != "18080" {
-		t.Fatalf("DENOVA_BACKEND_PORT should use actual backend port: %q", got)
+	if got := envValue(env, "CASEMAGICA_BACKEND_PORT"); got != "18080" {
+		t.Fatalf("CASEMAGICA_BACKEND_PORT should use actual backend port: %q", got)
 	}
-	if got := envValue(env, "DENOVA_FRONTEND_PORT"); got != "15173" {
-		t.Fatalf("DENOVA_FRONTEND_PORT should use actual frontend port: %q", got)
+	if got := envValue(env, "CASEMAGICA_FRONTEND_PORT"); got != "15173" {
+		t.Fatalf("CASEMAGICA_FRONTEND_PORT should use actual frontend port: %q", got)
 	}
 	if got := envValue(env, "KEEP"); got != "value" {
 		t.Fatalf("unrelated env should be preserved: %q", got)
 	}
-	if countEnvKey(env, "DENOVA_BACKEND_PORT") != 1 {
-		t.Fatalf("DENOVA_BACKEND_PORT should not be duplicated: %#v", env)
+	if countEnvKey(env, "CASEMAGICA_BACKEND_PORT") != 1 {
+		t.Fatalf("CASEMAGICA_BACKEND_PORT should not be duplicated: %#v", env)
 	}
 }
 

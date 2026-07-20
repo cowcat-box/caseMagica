@@ -39,7 +39,7 @@ describe('NovelImportDialog', () => {
     const { container } = render(
       <NovelImportDialog
         open
-        novaDir="/nova"
+        denovaDir="/nova"
         onOpenChange={vi.fn()}
         onImported={vi.fn()}
       />,

@@ -10,9 +10,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/config"
-	novaApp "denova/internal/app"
-	"denova/internal/i18n"
+	"casemagica/config"
+	novaApp "casemagica/internal/app"
+	"casemagica/internal/i18n"
 )
 
 // corsMiddleware 处理 CORS 跨域请求。
@@ -36,7 +36,7 @@ func corsMiddleware(ctx context.Context, c *app.RequestContext) {
 		c.Response.Header.Set("Access-Control-Allow-Origin", origin)
 	}
 	c.Response.Header.Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, PUT, OPTIONS")
-	c.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-Denova-Locale, X-Nova-Locale, Authorization")
+	c.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-CaseMagica-Locale, X-Denova-Locale, Authorization")
 
 	if string(c.Request.Method()) == "OPTIONS" {
 		c.AbortWithStatus(consts.StatusNoContent)
@@ -64,7 +64,7 @@ func remoteAccessMiddleware(application *novaApp.App) app.HandlerFunc {
 			return
 		}
 
-		c.Response.Header.Set("WWW-Authenticate", `Basic realm="Denova"`)
+		c.Response.Header.Set("WWW-Authenticate", `Basic realm="CaseMagica"`)
 		abortWithLocalizedError(c, consts.StatusUnauthorized, "api.access.authRequired")
 	}
 }
@@ -75,10 +75,10 @@ func abortWithLocalizedError(c *app.RequestContext, status int, key string) {
 }
 
 func localeHeader(c *app.RequestContext) string {
-	if header := strings.TrimSpace(string(c.Request.Header.Peek("X-Denova-Locale"))); header != "" {
+	if header := strings.TrimSpace(string(c.Request.Header.Peek("X-CaseMagica-Locale"))); header != "" {
 		return header
 	}
-	return strings.TrimSpace(string(c.Request.Header.Peek("X-Nova-Locale")))
+	return strings.TrimSpace(string(c.Request.Header.Peek("X-Denova-Locale")))
 }
 
 func remoteAccessAuthorized(access config.RemoteAccessConfig, header string) bool {

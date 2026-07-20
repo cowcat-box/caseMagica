@@ -7,7 +7,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 type ToolResultContextPolicy struct {
@@ -104,7 +104,7 @@ func assistantToolContextMessage(msg *schema.Message, policy ToolResultContextPo
 		}
 		next := call
 		next.Function.Arguments = limitContextText(next.Function.Arguments, policy.PreviewChars, fmt.Sprintf(
-			"\n[Denova tool call args truncated for context]\ntool_name: %s\ntool_call_id: %s\noriginal_chars: %d\npreview_chars: %d",
+			"\n[CaseMagica tool call args truncated for context]\ntool_name: %s\ntool_call_id: %s\noriginal_chars: %d\npreview_chars: %d",
 			next.Function.Name,
 			next.ID,
 			countRunes(next.Function.Arguments),
@@ -125,7 +125,7 @@ func toolResultContextContent(toolName, toolCallID, content string, policy ToolR
 		content = "(无返回内容)"
 	}
 	return limitContextText(content, policy.PreviewChars, fmt.Sprintf(
-		"\n[Denova tool result preview truncated for context]\ntool_name: %s\ntool_call_id: %s\noriginal_chars: %d\npreview_chars: %d",
+		"\n[CaseMagica tool result preview truncated for context]\ntool_name: %s\ntool_call_id: %s\noriginal_chars: %d\npreview_chars: %d",
 		toolName,
 		toolCallID,
 		countRunes(content),
@@ -248,7 +248,7 @@ func toolResultPlaceholderMessage(msg *schema.Message, reason string) *schema.Me
 	if msg == nil {
 		return nil
 	}
-	content := fmt.Sprintf(`[Denova retained tool result placeholder]
+	content := fmt.Sprintf(`[CaseMagica retained tool result placeholder]
 schema: tool_result.placeholder.v1
 reason: %s
 tool_name: %s

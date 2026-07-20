@@ -16,12 +16,12 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
 
-	"denova/config"
-	agenttools "denova/internal/agent/tools"
-	"denova/internal/book"
-	"denova/internal/prompts"
-	"denova/internal/providercompat"
-	novaskills "denova/internal/skills"
+	"casemagica/config"
+	agenttools "casemagica/internal/agent/tools"
+	"casemagica/internal/book"
+	"casemagica/internal/prompts"
+	"casemagica/internal/providercompat"
+	novaskills "casemagica/internal/skills"
 )
 
 var newDeepAgent = deep.New
@@ -46,7 +46,7 @@ var novaReadFileToolDesc = fmt.Sprintf(`Reads a file from the filesystem.
 func Build(ctx context.Context, cfg *config.Config, state *book.State, teller IDEStoryTeller) (adk.Agent, error) {
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindIDE,
-		Name:              "DenovaAgent",
+		Name:              "CaseMagicaAgent",
 		Description:       "AI 小说创作助手",
 		Instruction:       BuildInstruction(cfg, state, teller),
 		EnableSkills:      true,
@@ -57,7 +57,7 @@ func Build(ctx context.Context, cfg *config.Config, state *book.State, teller ID
 func BuildInteractiveStory(ctx context.Context, cfg *config.Config, state *book.State, teller prompts.InteractiveStorySystemInstructionInput, toolContexts ...InteractiveStoryToolContext) (adk.Agent, error) {
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindInteractiveStory,
-		Name:              "DenovaInteractiveStoryAgent",
+		Name:              "CaseMagicaInteractiveStoryAgent",
 		Description:       "AI 互动故事叙事助手",
 		Instruction:       BuildInteractiveStoryInstruction(cfg, state, teller),
 		EnableSkills:      true,
@@ -74,7 +74,7 @@ func BuildInteractiveDirector(ctx context.Context, cfg *config.Config, state *bo
 	}
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindInteractiveDirector,
-		Name:              "DenovaInteractiveDirectorAgent",
+		Name:              "CaseMagicaInteractiveDirectorAgent",
 		Description:       "AI 互动故事后台导演",
 		Instruction:       protectedSystemInstruction(cfg, config.AgentKindInteractiveDirector, prompts.BuildInteractiveDirectorSystemInstruction()),
 		EnableSkills:      false,
@@ -88,7 +88,7 @@ func BuildInteractiveDirector(ctx context.Context, cfg *config.Config, state *bo
 func BuildConfigManagerAgent(ctx context.Context, cfg *config.Config, state *book.State, resourceSkills ...ConfigManagerResourceSkill) (adk.Agent, error) {
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindConfigManager,
-		Name:              "DenovaConfigManagerAgent",
+		Name:              "CaseMagicaConfigManagerAgent",
 		Description:       "AI 配置与资源管理助手",
 		Instruction:       BuildConfigManagerInstruction(cfg, state, resourceSkills...),
 		EnableSkills:      true,
@@ -100,7 +100,7 @@ func BuildConfigManagerAgent(ctx context.Context, cfg *config.Config, state *boo
 func BuildAutomationAgent(ctx context.Context, cfg *config.Config, state *book.State, task AutomationTaskInstruction) (adk.Agent, error) {
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindAutomation,
-		Name:              "DenovaAutomationAgent",
+		Name:              "CaseMagicaAutomationAgent",
 		Description:       "AI 自动化任务助手",
 		Instruction:       BuildAutomationInstruction(cfg, state, task),
 		EnableSkills:      true,
@@ -112,7 +112,7 @@ func BuildAutomationAgent(ctx context.Context, cfg *config.Config, state *book.S
 func BuildImageAgent(ctx context.Context, cfg *config.Config, state *book.State, systemPrompt string) (adk.Agent, error) {
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindImage,
-		Name:              "DenovaImageAgent",
+		Name:              "CaseMagicaImageAgent",
 		Description:       "AI 图像生成助手",
 		Instruction:       BuildImageInstruction(cfg, state, systemPrompt),
 		EnableSkills:      true,
@@ -316,7 +316,7 @@ func newSkillMiddleware(ctx context.Context, cfg *config.Config, agentKind strin
 		return nil, nil
 	}
 	skillBackend := novaskills.NewAgentBackend(
-		novaskills.NewDirectories(cfg.SkillsDir, cfg.NovaDir, cfg.Workspace),
+		novaskills.NewDirectories(cfg.SkillsDir, cfg.DenovaDir, cfg.Workspace),
 		agentKind,
 		config.ResolveAgentSkillOverrides(cfg, agentKind),
 	)

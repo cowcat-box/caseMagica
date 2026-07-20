@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"denova/internal/agent"
+	"casemagica/internal/agent"
 )
 
 func TestSSEEventMiddlewareChainRunsMiddlewaresInOrder(t *testing.T) {

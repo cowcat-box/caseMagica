@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/session"
 )
 
 // WorkspaceRuntimeManager 负责工作区运行时、书籍元信息、本地版本服务与设置等跨领域基础能力。
@@ -223,11 +223,11 @@ func (a *App) CreateBook(ctx context.Context, parentDir, title, author, descript
 
 func (s *WorkspaceRuntimeManager) CreateBook(ctx context.Context, parentDir, title, author, description string) (string, book.BookMeta, error) {
 	a := s.app
-	novaDir := ""
+	denovaDir := ""
 	if a.cfg != nil {
-		novaDir = strings.TrimSpace(a.cfg.NovaDir)
+		denovaDir = strings.TrimSpace(a.cfg.DenovaDir)
 	}
-	absParent, err := bookCreationParentDir(parentDir, novaDir)
+	absParent, err := bookCreationParentDir(parentDir, denovaDir)
 	if err != nil {
 		return "", book.BookMeta{}, fmt.Errorf("路径无效: %w", err)
 	}
@@ -236,9 +236,9 @@ func (s *WorkspaceRuntimeManager) CreateBook(ctx context.Context, parentDir, tit
 	if _, err := os.Stat(dir); err == nil {
 		return "", book.BookMeta{}, fmt.Errorf("目录已存在: %s", dir)
 	}
-	if novaDir != "" {
-		if absNovaDir, err := filepath.Abs(novaDir); err == nil && absParent == filepath.Join(absNovaDir, bookProjectsDirName) {
-			legacyDir := filepath.Join(absNovaDir, title)
+	if denovaDir != "" {
+		if absDenovaDir, err := filepath.Abs(denovaDir); err == nil && absParent == filepath.Join(absDenovaDir, bookProjectsDirName) {
+			legacyDir := filepath.Join(absDenovaDir, title)
 			if legacyDir != dir && isBookWorkspace(legacyDir) {
 				return "", book.BookMeta{}, fmt.Errorf("目录已存在: %s", legacyDir)
 			}
@@ -426,15 +426,15 @@ func (s *WorkspaceRuntimeManager) Settings() (config.LayeredSettings, error) {
 	a := s.app
 	a.mu.RLock()
 	workspace := a.workspace
-	novaDir := ""
+	denovaDir := ""
 	cfg := config.Config{}
 	if a.cfg != nil {
-		novaDir = a.cfg.NovaDir
+		denovaDir = a.cfg.DenovaDir
 		cfg = *a.cfg
 	}
 	state := a.bookState
 	a.mu.RUnlock()
-	layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace)
+	layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace)
 	if err != nil {
 		return config.LayeredSettings{}, err
 	}
@@ -462,12 +462,12 @@ func (a *App) UpdateUserSettings(settings config.Settings, baseRevision ...strin
 func (s *WorkspaceRuntimeManager) UpdateUserSettings(settings config.Settings, baseRevision string) (config.LayeredSettings, error) {
 	a := s.app
 	a.mu.RLock()
-	novaDir := ""
+	denovaDir := ""
 	if a.cfg != nil {
-		novaDir = a.cfg.NovaDir
+		denovaDir = a.cfg.DenovaDir
 	}
 	a.mu.RUnlock()
-	path := config.UserConfigPath(novaDir)
+	path := config.UserConfigPath(denovaDir)
 	existing, err := config.ReadSettingsFile(path)
 	if err != nil {
 		return config.LayeredSettings{}, err
@@ -571,8 +571,8 @@ func applyLayeredSettingsToConfig(cfg *config.Config, layered config.LayeredSett
 	if cfg.SkillsDir == "" && effective.SkillsDir != "" {
 		cfg.SkillsDir = effective.SkillsDir
 	}
-	if cfg.NovaDir == "" && layered.Paths.NovaDir != "" {
-		cfg.NovaDir = layered.Paths.NovaDir
+	if cfg.DenovaDir == "" && layered.Paths.DenovaDir != "" {
+		cfg.DenovaDir = layered.Paths.DenovaDir
 	}
 	if effective.BackendPort != nil {
 		cfg.BackendPort = appSettingsInt(effective.BackendPort, 8080)
@@ -684,7 +684,7 @@ func applySettingsLayerToConfig(cfg *config.Config, settings config.Settings) {
 	cfg.AgentContexts = config.MergeAgentContextSettings(cfg.AgentContexts, settings.AgentContexts)
 	cfg.GeneralSubAgents = config.MergeAgentGeneralSubAgentSettings(cfg.GeneralSubAgents, settings.GeneralSubAgents)
 	cfg.SubAgents = config.MergeSubAgents(cfg.SubAgents, settings.SubAgents)
-	if settings.SkillsDir != "" && os.Getenv("DENOVA_SKILLS_DIR") == "" && os.Getenv("NOVA_SKILLS_DIR") == "" {
+	if settings.SkillsDir != "" && os.Getenv("CASEMAGICA_SKILLS_DIR") == "" && os.Getenv("DENOVA_SKILLS_DIR") == "" {
 		cfg.SkillsDir = settings.SkillsDir
 	}
 	if settings.AllowLANAccess != nil {

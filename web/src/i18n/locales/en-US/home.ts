@@ -22,7 +22,7 @@ const home = {
   'home.dragToSort': 'Drag to sort',
   'home.descriptionPlaceholder': 'Description (optional)',
   'home.editInfo': 'Edit Info',
-  'home.empty': 'No books found in the current Denova data directory',
+  'home.empty': 'No books found in the current CaseMagica data directory',
   'home.emptyDescription': 'Create a book first, or import an existing novel or character card. Writing, Interactive, Agent, and Automation workflows become available after a book is open.',
   'home.exportError': 'Export failed',
   'home.exporting': 'Exporting',
@@ -31,7 +31,7 @@ const home = {
   'home.importCard': 'Import Tavern Card',
   'home.importNovel': 'Import Existing Novel',
   'home.generateCover': 'Generate Cover',
-  'home.novaDirLoading': 'Denova data directory loading...',
+  'home.denovaDirLoading': 'CaseMagica data directory loading...',
   'home.saveError': 'Save failed',
   'home.softDeleteBook': 'Remove from Bookshelf',
   'home.bookshelf': 'Bookshelf',
@@ -42,7 +42,7 @@ const home = {
   'home.unnamedBook': 'Untitled Book',
   'home.uploadCover': 'Upload Cover',
   'home.coverUploadPending': 'Cover selected. It will be saved when the book is created.',
-  'home.waitNovaDir': 'Denova data directory is not ready. Try again later.',
+  'home.waitDenovaDir': 'CaseMagica data directory is not ready. Try again later.',
 } as const
 
 export default home

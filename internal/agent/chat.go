@@ -10,10 +10,10 @@ import (
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 
-	"denova/internal/book"
-	"denova/internal/observability"
-	"denova/internal/prompts"
-	"denova/internal/session"
+	"casemagica/internal/book"
+	"casemagica/internal/observability"
+	"casemagica/internal/prompts"
+	"casemagica/internal/session"
 )
 
 const (

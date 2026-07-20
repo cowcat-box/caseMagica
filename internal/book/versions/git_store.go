@@ -11,7 +11,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-// GitStore owns the go-git repository operations used by Denova versions.
+// GitStore owns the go-git repository operations used by CaseMagica versions.
 type GitStore struct {
 	workspace string
 }
@@ -76,8 +76,8 @@ func (s *Service) commitWorkspaceSnapshot(repo *git.Repository, files []versionF
 	return worktree.Commit(formatCommitMessage(message, source), &git.CommitOptions{
 		AllowEmptyCommits: true,
 		Author: &object.Signature{
-			Name:  "Denova",
-			Email: "denova@local",
+			Name:  "CaseMagica",
+			Email: "casemagica@local",
 			When:  now,
 		},
 	})

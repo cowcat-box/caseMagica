@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"denova/internal/styleref"
+	"casemagica/internal/styleref"
 )
 
 func TestStyleReferenceFileReadAndUpdateAPI(t *testing.T) {

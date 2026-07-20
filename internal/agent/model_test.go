@@ -5,7 +5,7 @@ import (
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 func TestChatModelConfigFromResolvedSkipsEnableThinkingForGemini(t *testing.T) {

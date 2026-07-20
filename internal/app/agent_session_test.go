@@ -6,8 +6,8 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/session"
 )
 
 func TestAgentSessionIDCoversBuiltInModelAgents(t *testing.T) {

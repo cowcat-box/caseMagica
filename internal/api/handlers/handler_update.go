@@ -7,7 +7,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/internal/api/sse"
+	"casemagica/internal/api/sse"
 )
 
 func (h *Handlers) HandleUpdateCheck(ctx context.Context, c *app.RequestContext) {

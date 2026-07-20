@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 const chapterStatusFileName = "chapter_statuses.json"

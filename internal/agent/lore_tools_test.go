@@ -7,7 +7,7 @@ import (
 
 	"github.com/cloudwego/eino/components/tool"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 func TestNewLoreToolsUsesListLoreItemsInsteadOfSearch(t *testing.T) {

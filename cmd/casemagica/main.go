@@ -13,12 +13,12 @@ import (
 	"strconv"
 	"strings"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/api"
-	"denova/internal/app"
-	"denova/internal/buildinfo"
-	"denova/internal/observability"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/api"
+	"casemagica/internal/app"
+	"casemagica/internal/buildinfo"
+	"casemagica/internal/observability"
 )
 
 func main() {
@@ -65,7 +65,7 @@ func main() {
 	if workspace != "" {
 		cfg.Workspace = workspace
 		cfg.ResumeLastWorkspace = false
-	} else if workspaceEnv := envCompat("DENOVA_WORKSPACE", "NOVA_WORKSPACE"); workspaceEnv != "" {
+	} else if workspaceEnv := envCompat("CASEMAGICA_WORKSPACE", "DENOVA_WORKSPACE"); workspaceEnv != "" {
 		cfg.Workspace = workspaceEnv
 		cfg.ResumeLastWorkspace = false
 	}
@@ -88,7 +88,7 @@ func main() {
 	// 打印启动信息
 	url := fmt.Sprintf("http://localhost:%s", port)
 	frontendURL := fmt.Sprintf("http://localhost:%s", frontendPort)
-	fmt.Printf("\n  Denova AI 小说创作工具\n")
+	fmt.Printf("\n  CaseMagica AI 小说创作工具\n")
 	fmt.Printf("  ─────────────────────\n")
 	fmt.Printf("  后端服务: %s\n", url)
 	if dev {
@@ -168,8 +168,8 @@ func startViteDev(port, host, backendPort string) {
 }
 
 func viteDevEnv(base []string, frontendPort, backendPort string) []string {
-	env := setEnvValue(base, "DENOVA_BACKEND_PORT", backendPort)
-	env = setEnvValue(env, "DENOVA_FRONTEND_PORT", frontendPort)
+	env := setEnvValue(base, "CASEMAGICA_BACKEND_PORT", backendPort)
+	env = setEnvValue(env, "CASEMAGICA_FRONTEND_PORT", frontendPort)
 	return env
 }
 
@@ -203,7 +203,7 @@ func shouldAutoPickPort(devStartup bool) bool {
 	if devStartup {
 		return false
 	}
-	if envCompat("DENOVA_BACKEND_PORT", "NOVA_BACKEND_PORT") != "" {
+	if envCompat("CASEMAGICA_BACKEND_PORT", "DENOVA_BACKEND_PORT") != "" {
 		return false
 	}
 	explicit := false
@@ -309,7 +309,7 @@ func resolveSkillsDir(configured string) string {
 	if dir := existingDir(configured); dir != "" {
 		return dir
 	}
-	if configured != "" && envCompat("DENOVA_SKILLS_DIR", "NOVA_SKILLS_DIR") != "" {
+	if configured != "" && envCompat("CASEMAGICA_SKILLS_DIR", "DENOVA_SKILLS_DIR") != "" {
 		return configured
 	}
 	candidates := []string{

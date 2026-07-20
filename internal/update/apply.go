@@ -18,8 +18,8 @@ type ApplyInvocation struct {
 	Env        []string
 }
 
-// ApplyScheduler starts denova-updater after the HTTP response has had time to
-// flush, then exits the current Denova process.
+// ApplyScheduler starts casemagica-updater after the HTTP response has had time to
+// flush, then exits the current CaseMagica process.
 type ApplyScheduler struct {
 	Delay        time.Duration
 	ManifestPath string

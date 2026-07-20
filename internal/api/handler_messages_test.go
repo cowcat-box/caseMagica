@@ -123,7 +123,7 @@ func TestMessagesAPIUsesRequestLocale(t *testing.T) {
 		"/api/messages",
 		nil,
 		ut.Header{Key: "Content-Type", Value: "application/json"},
-		ut.Header{Key: "X-Denova-Locale", Value: "en-US"},
+		ut.Header{Key: "X-CaseMagica-Locale", Value: "en-US"},
 	)
 	if resp.Code != http.StatusOK {
 		t.Fatalf("list status = %d body=%s", resp.Code, resp.Body.String())

@@ -60,7 +60,7 @@ type InstallPreview struct {
 	Candidates []InstallCandidate `json:"candidates"`
 }
 
-// InstallResult reports the Skills installed into a Denova scope.
+// InstallResult reports the Skills installed into a CaseMagica scope.
 type InstallResult struct {
 	Installed []SkillSummary `json:"installed"`
 }
@@ -230,7 +230,7 @@ func extractZipData(data []byte) (string, func(), error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("open Skill ZIP failed: %w", err)
 	}
-	root, err := os.MkdirTemp("", "denova-skill-install-*")
+	root, err := os.MkdirTemp("", "casemagica-skill-install-*")
 	if err != nil {
 		return "", nil, err
 	}

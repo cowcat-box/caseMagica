@@ -9,9 +9,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
 )
 
 const (
@@ -54,11 +54,11 @@ func (s *WorkspaceRuntimeManager) versionSummaryConfig() (config.Config, string)
 		runtimeCfg = *a.cfg
 	}
 	workspace := a.workspace
-	novaDir := runtimeCfg.NovaDir
+	denovaDir := runtimeCfg.DenovaDir
 	a.mu.RUnlock()
 
 	runtimeCfg.Workspace = workspace
-	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtimeCfg, layered)
 	} else {
 		log.Printf("[versions] 加载分层配置用于版本说明失败 workspace=%s err=%v", workspace, err)
@@ -74,7 +74,7 @@ func (s *WorkspaceRuntimeManager) buildVersionSummaryInstruction(status book.Ver
 	sort.SliceStable(changes, func(i, j int) bool { return changes[i].Path < changes[j].Path })
 
 	var sb strings.Builder
-	sb.WriteString("请根据以下 Denova 小说工程变更，推理这次版本保存说明。\n")
+	sb.WriteString("请根据以下 CaseMagica 小说工程变更，推理这次版本保存说明。\n")
 	sb.WriteString("要求：只概括对创作内容或工程文件最关键的变化；不要逐文件罗列；不要提到 Git、diff、快照。\n")
 	sb.WriteString(fmt.Sprintf("保存来源：%s\n", versionSourceLabel(source)))
 	sb.WriteString(fmt.Sprintf("变更数量：%d\n", len(changes)))

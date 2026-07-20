@@ -8,7 +8,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 type versionRestoreRequest struct {

@@ -1,5 +1,5 @@
 const remoteAccess = {
-  'remoteAccess.title': '登录 Denova',
+  'remoteAccess.title': '登录 CaseMagica',
   'remoteAccess.description': '请输入设置里配置的远程访问用户名和密码。',
   'remoteAccess.username': '用户名',
   'remoteAccess.password': '密码',

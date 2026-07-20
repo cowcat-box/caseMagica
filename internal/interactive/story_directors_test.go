@@ -207,9 +207,9 @@ func TestStoryDirectorStrategyPromptMarkdownNormalizeAndSummaries(t *testing.T) 
 }
 
 func TestStoryDirectorLibraryMigratesLegacyCustomTellerOrchestration(t *testing.T) {
-	novaDir := t.TempDir()
-	tellers := NewTellerLibrary(novaDir)
-	directors := NewStoryDirectorLibrary(novaDir)
+	denovaDir := t.TempDir()
+	tellers := NewTellerLibrary(denovaDir)
+	directors := NewStoryDirectorLibrary(denovaDir)
 	if _, err := directors.Create(StoryDirector{
 		ID:       "preexisting",
 		Name:     "手动导演",
@@ -248,7 +248,7 @@ func TestStoryDirectorLibraryMigratesLegacyCustomTellerOrchestration(t *testing.
 	if len(migrated.ModuleRefs.EventPackageIDs) == 0 || migrated.ModuleRefs.RuleSystemID == "" || migrated.ModuleRefs.OpeningSelectorID == "" {
 		t.Fatalf("legacy embedded orchestration should be split into module refs: %#v", migrated.ModuleRefs)
 	}
-	eventModule, err := NewEventPackageLibrary(novaDir).Get(migrated.ModuleRefs.EventPackageIDs[0])
+	eventModule, err := NewEventPackageLibrary(denovaDir).Get(migrated.ModuleRefs.EventPackageIDs[0])
 	if err != nil {
 		t.Fatalf("migrated event module should be readable: %v", err)
 	}

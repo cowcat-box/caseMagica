@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 const defaultCheckpointDirectory = workspacepath.DataDirName + "/checkpoints"

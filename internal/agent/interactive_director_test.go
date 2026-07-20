@@ -6,8 +6,8 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/session"
 )
 
 func TestInteractiveDirectorDisplayHidesDirectorPlanWriteInput(t *testing.T) {
@@ -22,7 +22,7 @@ func TestInteractiveDirectorDisplayHidesDirectorPlanWriteInput(t *testing.T) {
 		ID:     "call-1",
 		Role:   "tool_call",
 		Name:   "write_file",
-		Args:   `{"file_path":"/tmp/work/.denova/interactive/stories/story-1/director/main/director.md","content":"一二三"}`,
+		Args:   `{"file_path":"/tmp/work/.casemagica/interactive/stories/story-1/director/main/director.md","content":"一二三"}`,
 		Status: "running",
 	}); err != nil {
 		t.Fatal(err)

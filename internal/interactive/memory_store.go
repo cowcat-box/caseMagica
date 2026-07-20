@@ -45,14 +45,14 @@ func (s *Store) memoryPath(storyID string) string {
 
 func (s *Store) storyMemoryStructuresForStoryLocked(meta StoryMeta, book interactiveMemoryBook) ([]StoryMemoryStructure, storyMemoryStructureSource) {
 	source := storyMemoryStructureSource{ID: "legacy", Name: "Story Memory"}
-	if strings.TrimSpace(s.novaDir) == "" {
+	if strings.TrimSpace(s.denovaDir) == "" {
 		return book.Structures, source
 	}
 	directorID := NormalizeStoryDirectorID(meta.StoryDirectorID)
 	if directorID == "" {
 		directorID = DefaultStoryDirectorID
 	}
-	director, err := NewStoryDirectorLibrary(s.novaDir).Get(directorID)
+	director, err := NewStoryDirectorLibrary(s.denovaDir).Get(directorID)
 	if err != nil {
 		log.Printf("[interactive-memory] fallback to story-local memory structures story_id=%s director_id=%s error=%v", meta.StoryID, directorID, err)
 		return book.Structures, source
@@ -62,14 +62,14 @@ func (s *Store) storyMemoryStructuresForStoryLocked(meta StoryMeta, book interac
 		ID:       firstNonEmptyString(refs.MemoryStructureID, DefaultStoryMemoryStructureModuleID),
 		Disabled: refs.MemoryStructureDisabled,
 	}
-	if module, err := NewStoryMemoryStructureLibrary(s.novaDir).Get(source.ID); err == nil {
+	if module, err := NewStoryMemoryStructureLibrary(s.denovaDir).Get(source.ID); err == nil {
 		source.Name = module.Name
 	} else {
 		source.Name = source.ID
 	}
 	structures := normalizeStoryMemoryStructuresForModule(director.ResolvedSnapshot.StoryMemoryStructures)
 	if len(structures) == 0 {
-		if module, err := NewStoryMemoryStructureLibrary(s.novaDir).Get(source.ID); err == nil {
+		if module, err := NewStoryMemoryStructureLibrary(s.denovaDir).Get(source.ID); err == nil {
 			structures = module.Structures
 			source.Name = module.Name
 		}

@@ -10,10 +10,10 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/session"
 )
 
 func TestInteractiveConversationBuildsHistoryAndPersistsAssistantToStory(t *testing.T) {
@@ -28,7 +28,7 @@ func TestInteractiveConversationBuildsHistoryAndPersistsAssistantToStory(t *test
 	if _, err := loreStore.Create(book.LoreItemInput{ID: "base", Type: "location", Name: "黄泉酒馆", Importance: "important", LoadMode: book.LoreLoadModeAuto, BriefDescription: "黄泉酒馆据点索引", Content: "黄泉酒馆完整设定：柜台后的影子不能离开酒馆。"}); err != nil {
 		t.Fatal(err)
 	}
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	store := interactive.NewStore(workspace)
 	story, err := store.CreateStory(interactive.CreateStoryRequest{
 		Title:            "末日开端",
@@ -46,7 +46,7 @@ func TestInteractiveConversationBuildsHistoryAndPersistsAssistantToStory(t *test
 		t.Fatal(err)
 	}
 
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我点燃火把", story.ReplyTargetChars, nil)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我点燃火把", story.ReplyTargetChars, nil)
 	history, err := conversation.PrepareMessages("我点燃火把", "我点燃火把")
 	if err != nil {
 		t.Fatal(err)
@@ -233,9 +233,9 @@ func TestInteractiveConversationBuildsHistoryAndPersistsAssistantToStory(t *test
 
 func TestInteractiveConversationInjectsStoryDirectorStrategyPrompt(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	prompt := "- 避免连续两回合使用同类型突发事件。\n- 伏笔回收前至少给一次可感知征兆。"
-	director, err := interactive.NewStoryDirectorLibrary(novaDir).Create(interactive.StoryDirector{
+	director, err := interactive.NewStoryDirectorLibrary(denovaDir).Create(interactive.StoryDirector{
 		ID:          "custom-strategy",
 		Name:        "自定义策略导演",
 		Description: "测试 Markdown 策略提示注入",
@@ -266,7 +266,7 @@ func TestInteractiveConversationInjectsStoryDirectorStrategyPrompt(t *testing.T)
 		t.Fatal(err)
 	}
 
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我跟上灯影", story.ReplyTargetChars, nil)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我跟上灯影", story.ReplyTargetChars, nil)
 	history, err := conversation.PrepareMessages("我跟上灯影", "我跟上灯影")
 	if err != nil {
 		t.Fatal(err)
@@ -296,8 +296,8 @@ func TestInteractiveConversationInjectsStoryDirectorStrategyPrompt(t *testing.T)
 
 func TestInteractiveConversationKeepsEventCardsForDirectorOnly(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
-	director, err := interactive.NewStoryDirectorLibrary(novaDir).Create(interactive.StoryDirector{
+	denovaDir := t.TempDir()
+	director, err := interactive.NewStoryDirectorLibrary(denovaDir).Create(interactive.StoryDirector{
 		ID:          "event-card-director",
 		Name:        "事件卡导演",
 		Description: "测试事件系统只进入后台导演",
@@ -348,7 +348,7 @@ func TestInteractiveConversationKeepsEventCardsForDirectorOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我看向质疑我的同门", story.ReplyTargetChars, nil)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我看向质疑我的同门", story.ReplyTargetChars, nil)
 	history, err := conversation.PrepareMessages("我看向质疑我的同门", "我看向质疑我的同门")
 	if err != nil {
 		t.Fatal(err)
@@ -524,8 +524,8 @@ func TestInteractiveConversationPersistsDisplayEventTimeline(t *testing.T) {
 
 func TestInteractiveConversationIgnoresLegacyTellerReplyTargetChars(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
-	tellerDir := filepath.Join(novaDir, "story-tellers")
+	denovaDir := t.TempDir()
+	tellerDir := filepath.Join(denovaDir, "story-tellers")
 	if err := os.MkdirAll(tellerDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -573,7 +573,7 @@ func TestInteractiveConversationIgnoresLegacyTellerReplyTargetChars(t *testing.T
 		t.Fatal(err)
 	}
 
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我观察四周", story.ReplyTargetChars, nil)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我观察四周", story.ReplyTargetChars, nil)
 	history, err := conversation.PrepareMessages("我观察四周", "我观察四周")
 	if err != nil {
 		t.Fatal(err)
@@ -591,7 +591,7 @@ func TestInteractiveConversationIgnoresLegacyTellerReplyTargetChars(t *testing.T
 
 func TestInteractiveConversationKeepsFullHistoryWithoutSlidingWindow(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	store := interactive.NewStore(workspace)
 	story, err := store.CreateStory(interactive.CreateStoryRequest{
 		Title:            "窗口测试",
@@ -611,7 +611,7 @@ func TestInteractiveConversationKeepsFullHistoryWithoutSlidingWindow(t *testing.
 		}
 	}
 	cfg := &config.Config{}
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, cfg)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, cfg)
 	history, err := conversation.PrepareMessages("我继续探索", "我继续探索")
 	if err != nil {
 		t.Fatal(err)
@@ -629,7 +629,7 @@ func TestInteractiveConversationKeepsFullHistoryWithoutSlidingWindow(t *testing.
 
 func TestInteractiveConversationUsesDefaultCompactionRetainedTurns(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	store := interactive.NewStore(workspace)
 	story, err := store.CreateStory(interactive.CreateStoryRequest{
 		Title:            "压缩窗口测试",
@@ -657,7 +657,7 @@ func TestInteractiveConversationUsesDefaultCompactionRetainedTurns(t *testing.T)
 	}
 
 	cfg := &config.Config{}
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, cfg)
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, cfg)
 	history, err := conversation.PrepareMessages("我继续探索", "我继续探索")
 	if err != nil {
 		t.Fatal(err)
@@ -672,7 +672,7 @@ func TestInteractiveConversationUsesDefaultCompactionRetainedTurns(t *testing.T)
 
 func TestInteractiveDirectorInstructionUsesModelVisibleCompactedHistory(t *testing.T) {
 	workspace := t.TempDir()
-	novaDir := t.TempDir()
+	denovaDir := t.TempDir()
 	store := interactive.NewStore(workspace)
 	story, err := store.CreateStory(interactive.CreateStoryRequest{
 		Title:            "记忆压缩测试",
@@ -699,12 +699,12 @@ func TestInteractiveDirectorInstructionUsesModelVisibleCompactedHistory(t *testi
 		t.Fatal(err)
 	}
 
-	conversation := newInteractiveConversation(store, novaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, &config.Config{})
+	conversation := newInteractiveConversation(store, denovaDir, workspace, story.ID, "", "我继续探索", story.ReplyTargetChars, &config.Config{})
 	instruction, err := conversation.BuildDirectorInstruction(interactive.TurnEvent{User: "我继续探索", Narrative: "我发现新的石门"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(instruction, "[Denova Context Compaction]") || !strings.Contains(instruction, "压缩摘要：主角已进入旧城。") {
+	if !strings.Contains(instruction, "[CaseMagica Context Compaction]") || !strings.Contains(instruction, "压缩摘要：主角已进入旧城。") {
 		t.Fatalf("director instruction should include active compaction summary: %s", instruction)
 	}
 	if strings.Contains(instruction, "第1次行动") || strings.Contains(instruction, "第9次行动") {
@@ -730,7 +730,7 @@ func TestHotChoicesTurnHistoryUsesModelVisibleCompactedHistory(t *testing.T) {
 	}
 	turnMemory := buildInteractiveModelVisibleTurnMemory(turns, compaction)
 	history := formatHotChoicesTurnHistory(turnMemory, compaction)
-	if !strings.Contains(history, "[Denova Context Compaction] epoch=2") || !strings.Contains(history, "压缩摘要：主角已进入旧城。") {
+	if !strings.Contains(history, "[CaseMagica Context Compaction] epoch=2") || !strings.Contains(history, "压缩摘要：主角已进入旧城。") {
 		t.Fatalf("hot choices history should include active compaction summary: %s", history)
 	}
 	if strings.Contains(history, "第1次行动") || strings.Contains(history, "第9次行动") {

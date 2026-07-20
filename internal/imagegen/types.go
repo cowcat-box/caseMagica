@@ -3,7 +3,7 @@ package imagegen
 import (
 	"context"
 
-	"denova/config"
+	"casemagica/config"
 )
 
 type GenerateRequest struct {

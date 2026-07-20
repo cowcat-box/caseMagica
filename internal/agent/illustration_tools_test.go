@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"denova/config"
-	"denova/internal/illustration"
+	"casemagica/config"
+	"casemagica/internal/illustration"
 )
 
 func TestParseChapterIllustrationToolResultAndTracksMutationTarget(t *testing.T) {
@@ -25,7 +25,7 @@ func TestParseChapterIllustrationToolResultAndTracksMutationTarget(t *testing.T)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	parsed, err := parseChapterIllustrationToolResult(generateImageToolName, string(raw)+"\n\n[Denova tool result metadata]\nschema: tool_result.v1")
+	parsed, err := parseChapterIllustrationToolResult(generateImageToolName, string(raw)+"\n\n[CaseMagica tool result metadata]\nschema: tool_result.v1")
 	if err != nil {
 		t.Fatalf("parseChapterIllustrationToolResult() error = %v", err)
 	}

@@ -3,8 +3,8 @@ package app
 import (
 	"strings"
 
-	"denova/config"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/session"
 )
 
 const defaultUserSessionID = "default"

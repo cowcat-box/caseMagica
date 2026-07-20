@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"denova/internal/prompts"
+	"casemagica/internal/prompts"
 )
 
 // CreatorFileName 创作者指令文件名，存于 workspace 根目录。

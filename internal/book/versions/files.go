@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 // WorkspaceFileSet defines which workspace files are visible to versioning.

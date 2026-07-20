@@ -72,8 +72,8 @@ func TestEventPackageLibraryMaterializesGenreBuiltins(t *testing.T) {
 }
 
 func TestDirectorModuleBuiltinOverridesRestore(t *testing.T) {
-	novaDir := t.TempDir()
-	ruleLibrary := NewRuleSystemLibrary(novaDir)
+	denovaDir := t.TempDir()
+	ruleLibrary := NewRuleSystemLibrary(denovaDir)
 	rule, err := ruleLibrary.Get(DefaultRuleSystemID)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +97,7 @@ func TestDirectorModuleBuiltinOverridesRestore(t *testing.T) {
 		t.Fatalf("unexpected restored rule system: %#v", restoredRule)
 	}
 
-	actorLibrary := NewActorStateLibrary(novaDir)
+	actorLibrary := NewActorStateLibrary(denovaDir)
 	actorState, err := actorLibrary.Get(DefaultActorStateModuleID)
 	if err != nil {
 		t.Fatal(err)
@@ -121,7 +121,7 @@ func TestDirectorModuleBuiltinOverridesRestore(t *testing.T) {
 		t.Fatalf("unexpected restored actor state: %#v", restoredActorState)
 	}
 
-	openingLibrary := NewOpeningSelectorLibrary(novaDir)
+	openingLibrary := NewOpeningSelectorLibrary(denovaDir)
 	opening, err := openingLibrary.Get(DefaultOpeningSelectorID)
 	if err != nil {
 		t.Fatal(err)
@@ -145,7 +145,7 @@ func TestDirectorModuleBuiltinOverridesRestore(t *testing.T) {
 		t.Fatalf("unexpected restored opening selector: %#v", restoredOpening)
 	}
 
-	memoryLibrary := NewStoryMemoryStructureLibrary(novaDir)
+	memoryLibrary := NewStoryMemoryStructureLibrary(denovaDir)
 	memory, err := memoryLibrary.Get(DefaultStoryMemoryStructureModuleID)
 	if err != nil {
 		t.Fatal(err)
@@ -202,13 +202,13 @@ func TestDirectorEventCatalogPrioritizesConfiguredEventCardsBeforeDefaults(t *te
 }
 
 func TestStoryDirectorResolvesLiveModulesAndFallsBackToSnapshot(t *testing.T) {
-	novaDir := t.TempDir()
-	eventLibrary := NewEventPackageLibrary(novaDir)
-	ruleLibrary := NewRuleSystemLibrary(novaDir)
-	actorStateLibrary := NewActorStateLibrary(novaDir)
-	memoryLibrary := NewStoryMemoryStructureLibrary(novaDir)
-	openingLibrary := NewOpeningSelectorLibrary(novaDir)
-	directorLibrary := NewStoryDirectorLibrary(novaDir)
+	denovaDir := t.TempDir()
+	eventLibrary := NewEventPackageLibrary(denovaDir)
+	ruleLibrary := NewRuleSystemLibrary(denovaDir)
+	actorStateLibrary := NewActorStateLibrary(denovaDir)
+	memoryLibrary := NewStoryMemoryStructureLibrary(denovaDir)
+	openingLibrary := NewOpeningSelectorLibrary(denovaDir)
+	directorLibrary := NewStoryDirectorLibrary(denovaDir)
 
 	eventModule, err := eventLibrary.Create(EventPackageModule{
 		ID:   "storm-events",
@@ -369,8 +369,8 @@ func TestStoryDirectorResolvesLiveModulesAndFallsBackToSnapshot(t *testing.T) {
 }
 
 func TestStoryDirectorDisabledModulesStayDetached(t *testing.T) {
-	novaDir := t.TempDir()
-	library := NewStoryDirectorLibrary(novaDir)
+	denovaDir := t.TempDir()
+	library := NewStoryDirectorLibrary(denovaDir)
 
 	director, err := library.Create(StoryDirector{
 		ID:   "detached",

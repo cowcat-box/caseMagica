@@ -35,7 +35,7 @@ describe('AgentPanel', () => {
       { name: 'novel-lite', description: 'Lite', scope: 'builtin', path: '/skills/novel-lite/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-standard', description: 'Standard', scope: 'builtin', path: '/skills/novel-standard/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-heavy', description: 'Heavy', scope: 'builtin', path: '/skills/novel-heavy/SKILL.md', active: true, agent: 'ide' },
-      { name: 'slow-burn', description: '慢热写作', scope: 'workspace', path: '/book/.nova/skills/slow-burn/SKILL.md', active: true, agent: 'ide' },
+      { name: 'slow-burn', description: '慢热写作', scope: 'workspace', path: '/book/.denova/skills/slow-burn/SKILL.md', active: true, agent: 'ide' },
     ])
   })
 

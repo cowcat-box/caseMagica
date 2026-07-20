@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 type Store struct {
@@ -26,8 +26,8 @@ type storeFile struct {
 	Tasks       []Task `json:"tasks"`
 }
 
-func NewStore(userNovaDir, workspace string) *Store {
-	return &Store{userDir: userNovaDir, workspace: workspace}
+func NewStore(userDenovaDir, workspace string) *Store {
+	return &Store{userDir: userDenovaDir, workspace: workspace}
 }
 
 func (s *Store) List() ([]Task, error) {

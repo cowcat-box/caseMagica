@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 type PostRunVerification struct {

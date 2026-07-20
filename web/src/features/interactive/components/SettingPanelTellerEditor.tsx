@@ -873,7 +873,7 @@ function normalizeStyleUploadDraft(draft: StyleUploadDraft): StyleUploadDraft {
 }
 
 function styleReferenceTargetPath(draft: StyleUploadDraft) {
-  return `.denova/styles/${draft.filename}`
+  return `.casemagica/styles/${draft.filename}`
 }
 
 function filenameFromStyleReferencePath(path: string) {

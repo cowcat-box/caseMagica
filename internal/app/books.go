@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 const (
@@ -37,15 +37,15 @@ type bookRegistryData struct {
 type BookRegistry struct {
 	path       string
 	legacyPath string
-	novaDir    string
+	denovaDir    string
 }
 
 // NewBookRegistry 创建书籍记录管理器。
-func NewBookRegistry(novaDir string) *BookRegistry {
+func NewBookRegistry(denovaDir string) *BookRegistry {
 	return &BookRegistry{
-		path:       filepath.Join(novaDir, "books.json"),
+		path:       filepath.Join(denovaDir, "books.json"),
 		legacyPath: legacyBookRegistryPath(),
-		novaDir:    novaDir,
+		denovaDir:    denovaDir,
 	}
 }
 
@@ -71,7 +71,7 @@ func (r *BookRegistry) Current() string {
 // List 返回当前 Nova 数据目录下实际存在的书籍列表。
 func (r *BookRegistry) List() []BookRecord {
 	data := r.load()
-	if strings.TrimSpace(r.novaDir) == "" {
+	if strings.TrimSpace(r.denovaDir) == "" {
 		return sortedRegistryBooks(data)
 	}
 
@@ -109,11 +109,11 @@ func sortedRegistryBooks(data bookRegistryData) []BookRecord {
 }
 
 func (r *BookRegistry) scanNovaBooks(data bookRegistryData) ([]BookRecord, error) {
-	absNovaDir, err := filepath.Abs(r.novaDir)
+	absDenovaDir, err := filepath.Abs(r.denovaDir)
 	if err != nil {
 		return nil, err
 	}
-	entries, err := os.ReadDir(absNovaDir)
+	entries, err := os.ReadDir(absDenovaDir)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (r *BookRegistry) scanNovaBooks(data bookRegistryData) ([]BookRecord, error
 
 	seen := make(map[string]bool, len(entries))
 	books := make([]BookRecord, 0, len(entries))
-	projectsDir := filepath.Join(absNovaDir, bookProjectsDirName)
+	projectsDir := filepath.Join(absDenovaDir, bookProjectsDirName)
 	if info, err := os.Stat(projectsDir); err == nil && info.IsDir() {
 		projectBooks, err := scanBooksInDir(projectsDir, openedAt, hidden, seen, false)
 		if err != nil {
@@ -144,7 +144,7 @@ func (r *BookRegistry) scanNovaBooks(data bookRegistryData) ([]BookRecord, error
 		return nil, err
 	}
 
-	rootBooks, err := scanBooksInDir(absNovaDir, openedAt, hidden, seen, true)
+	rootBooks, err := scanBooksInDir(absDenovaDir, openedAt, hidden, seen, true)
 	if err != nil {
 		return nil, err
 	}
@@ -232,17 +232,17 @@ func isNovaUserDataDir(name string) bool {
 	}
 }
 
-func bookCreationParentDir(parentDir, novaDir string) (string, error) {
+func bookCreationParentDir(parentDir, denovaDir string) (string, error) {
 	absParent, err := filepath.Abs(parentDir)
 	if err != nil {
 		return "", err
 	}
-	novaDir = strings.TrimSpace(novaDir)
-	if novaDir == "" {
+	denovaDir = strings.TrimSpace(denovaDir)
+	if denovaDir == "" {
 		return absParent, nil
 	}
-	absNovaDir, err := filepath.Abs(novaDir)
-	if err == nil && absParent == absNovaDir {
+	absDenovaDir, err := filepath.Abs(denovaDir)
+	if err == nil && absParent == absDenovaDir {
 		return filepath.Join(absParent, bookProjectsDirName), nil
 	}
 	return absParent, nil
@@ -433,5 +433,5 @@ func legacyBookRegistryPath() string {
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
 		return filepath.Join(home, workspacepath.LegacyDataDirName, "books.json")
 	}
-	return filepath.Join(".", ".nova-books.json")
+	return filepath.Join(".", ".denova-books.json")
 }

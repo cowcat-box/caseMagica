@@ -285,7 +285,7 @@ type protectedDirMove struct {
 }
 
 func (s *Service) withProtectedExcludedWorkspaceDirs(fn func() error) error {
-	temp, err := os.MkdirTemp(filepath.Dir(s.workspace), ".denova-version-restore-*")
+	temp, err := os.MkdirTemp(filepath.Dir(s.workspace), ".casemagica-version-restore-*")
 	if err != nil {
 		return err
 	}

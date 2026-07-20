@@ -1,14 +1,14 @@
 name: Feature Request / 功能请求
-description: Suggest a new Denova feature or improvement. / 建议新的 Denova 功能或改进。
+description: Suggest a new CaseMagica feature or improvement. / 建议新的 CaseMagica 功能或改进。
 title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Please focus on the creative workflow problem and the user-visible outcome. Denova prefers reusable abstractions over one-off features when possible.
+        Please focus on the creative workflow problem and the user-visible outcome. CaseMagica prefers reusable abstractions over one-off features when possible.
 
-        请重点说明创作流程中的问题和用户可感知结果。Denova 会优先考虑可复用抽象，而不是一次性的零散功能。
+        请重点说明创作流程中的问题和用户可感知结果。CaseMagica 会优先考虑可复用抽象，而不是一次性的零散功能。
 
   - type: dropdown
     id: component
@@ -44,7 +44,7 @@ body:
     id: proposal
     attributes:
       label: Proposed solution / 期望方案
-      description: Describe the behavior you would like Denova to support. / 描述你希望 Denova 支持的行为。
+      description: Describe the behavior you would like CaseMagica to support. / 描述你希望 CaseMagica 支持的行为。
     validations:
       required: true
 

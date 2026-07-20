@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/imagepreset"
+	"casemagica/internal/imagepreset"
 )
 
 const (
@@ -156,35 +156,35 @@ type OpeningSelectorModule struct {
 }
 
 type EventPackageLibrary struct {
-	novaDir string
+	denovaDir string
 }
 
 type RuleSystemLibrary struct {
-	novaDir string
+	denovaDir string
 }
 
 type ActorStateLibrary struct {
-	novaDir string
+	denovaDir string
 }
 
 type OpeningSelectorLibrary struct {
-	novaDir string
+	denovaDir string
 }
 
-func NewEventPackageLibrary(novaDir string) *EventPackageLibrary {
-	return &EventPackageLibrary{novaDir: novaDir}
+func NewEventPackageLibrary(denovaDir string) *EventPackageLibrary {
+	return &EventPackageLibrary{denovaDir: denovaDir}
 }
 
-func NewRuleSystemLibrary(novaDir string) *RuleSystemLibrary {
-	return &RuleSystemLibrary{novaDir: novaDir}
+func NewRuleSystemLibrary(denovaDir string) *RuleSystemLibrary {
+	return &RuleSystemLibrary{denovaDir: denovaDir}
 }
 
-func NewActorStateLibrary(novaDir string) *ActorStateLibrary {
-	return &ActorStateLibrary{novaDir: novaDir}
+func NewActorStateLibrary(denovaDir string) *ActorStateLibrary {
+	return &ActorStateLibrary{denovaDir: denovaDir}
 }
 
-func NewOpeningSelectorLibrary(novaDir string) *OpeningSelectorLibrary {
-	return &OpeningSelectorLibrary{novaDir: novaDir}
+func NewOpeningSelectorLibrary(denovaDir string) *OpeningSelectorLibrary {
+	return &OpeningSelectorLibrary{denovaDir: denovaDir}
 }
 
 func (l *EventPackageLibrary) List() ([]EventPackageModule, error) {
@@ -305,7 +305,7 @@ func (l *EventPackageLibrary) Delete(id string) error {
 }
 
 func (l *EventPackageLibrary) dir() string {
-	return filepath.Join(l.novaDir, "story-director-modules", "event-packages")
+	return filepath.Join(l.denovaDir, "story-director-modules", "event-packages")
 }
 
 func (l *EventPackageLibrary) ensureBuiltins() error {
@@ -327,7 +327,7 @@ func (l *EventPackageLibrary) ensureBuiltins() error {
 }
 
 func (l *EventPackageLibrary) migrateLegacyEventSystems() error {
-	files, err := filepath.Glob(filepath.Join(l.novaDir, "story-director-modules", "event-systems", "*.json"))
+	files, err := filepath.Glob(filepath.Join(l.denovaDir, "story-director-modules", "event-systems", "*.json"))
 	if err != nil {
 		return err
 	}
@@ -467,7 +467,7 @@ func (l *RuleSystemLibrary) Delete(id string) error {
 }
 
 func (l *RuleSystemLibrary) dir() string {
-	return filepath.Join(l.novaDir, "story-director-modules", "rule-systems")
+	return filepath.Join(l.denovaDir, "story-director-modules", "rule-systems")
 }
 
 func (l *RuleSystemLibrary) ensureBuiltins() error {
@@ -596,7 +596,7 @@ func (l *OpeningSelectorLibrary) Delete(id string) error {
 }
 
 func (l *OpeningSelectorLibrary) dir() string {
-	return filepath.Join(l.novaDir, "story-director-modules", "opening-selectors")
+	return filepath.Join(l.denovaDir, "story-director-modules", "opening-selectors")
 }
 
 func (l *OpeningSelectorLibrary) ensureBuiltins() error {
@@ -681,10 +681,10 @@ func StoryDirectorImagePresetEnabled(director StoryDirector) bool {
 	return !NormalizeStoryDirectorModuleRefs(director.ModuleRefs).ImagePresetDisabled
 }
 
-func ResolveStoryDirectorModules(novaDir string, director StoryDirector) StoryDirector {
+func ResolveStoryDirectorModules(denovaDir string, director StoryDirector) StoryDirector {
 	director = normalizeStoryDirector(director)
 	refs := NormalizeStoryDirectorModuleRefs(director.ModuleRefs)
-	refs.EventPackageIDs = expandLegacyEventPackageRefs(novaDir, refs.EventPackageIDs)
+	refs.EventPackageIDs = expandLegacyEventPackageRefs(denovaDir, refs.EventPackageIDs)
 	if StoryDirectorModuleRefsEmpty(refs) {
 		if storyDirectorHasEmbeddedModules(director) {
 			refs.MemoryStructureID = DefaultStoryMemoryStructureModuleID
@@ -707,7 +707,7 @@ func ResolveStoryDirectorModules(novaDir string, director StoryDirector) StoryDi
 	if refs.EventPackagesDisabled {
 		effective.EventPackages = []TellerEventPackage{}
 	} else if len(refs.EventPackageIDs) > 0 {
-		packages, packageWarnings := resolveEventPackages(novaDir, refs.EventPackageIDs)
+		packages, packageWarnings := resolveEventPackages(denovaDir, refs.EventPackageIDs)
 		if len(packageWarnings) > 0 {
 			warnings = append(warnings, packageWarnings...)
 		}
@@ -722,7 +722,7 @@ func ResolveStoryDirectorModules(novaDir string, director StoryDirector) StoryDi
 	if refs.RuleSystemDisabled {
 		effective.TRPGSystem = StoryDirectorTRPGSystem{RuleTemplates: []RuleCheck{}}
 	} else if refs.RuleSystemID != "" {
-		if module, err := NewRuleSystemLibrary(novaDir).Get(refs.RuleSystemID); err == nil {
+		if module, err := NewRuleSystemLibrary(denovaDir).Get(refs.RuleSystemID); err == nil {
 			effective.TRPGSystem = module.TRPGSystem
 		} else if !ruleSystemEmpty(snapshot.TRPGSystem) {
 			effective.TRPGSystem = snapshot.TRPGSystem
@@ -734,7 +734,7 @@ func ResolveStoryDirectorModules(novaDir string, director StoryDirector) StoryDi
 	if refs.ActorStateDisabled {
 		effective.ActorState = StoryDirectorActorStateSystem{Templates: []ActorStateTemplate{}, InitialActors: []ActorStateInitialActor{}}
 	} else if refs.ActorStateID != "" {
-		if module, err := NewActorStateLibrary(novaDir).Get(refs.ActorStateID); err == nil {
+		if module, err := NewActorStateLibrary(denovaDir).Get(refs.ActorStateID); err == nil {
 			effective.ActorState = module.ActorState
 		} else if !actorStateEmpty(snapshot.ActorState) {
 			effective.ActorState = snapshot.ActorState
@@ -746,7 +746,7 @@ func ResolveStoryDirectorModules(novaDir string, director StoryDirector) StoryDi
 	if refs.MemoryStructureDisabled {
 		storyMemoryStructures = []StoryMemoryStructure{}
 	} else if refs.MemoryStructureID != "" {
-		if module, err := NewStoryMemoryStructureLibrary(novaDir).Get(refs.MemoryStructureID); err == nil {
+		if module, err := NewStoryMemoryStructureLibrary(denovaDir).Get(refs.MemoryStructureID); err == nil {
 			storyMemoryStructures = module.Structures
 		} else if len(snapshot.StoryMemoryStructures) > 0 {
 			storyMemoryStructures = snapshot.StoryMemoryStructures
@@ -759,7 +759,7 @@ func ResolveStoryDirectorModules(novaDir string, director StoryDirector) StoryDi
 	if refs.OpeningSelectorDisabled {
 		effective.OpeningSelector = StoryDirectorOpeningSelector{Enabled: false, TraitPools: []OpeningTraitPool{}, InitialStateOps: []StateOp{}}
 	} else if refs.OpeningSelectorID != "" {
-		if module, err := NewOpeningSelectorLibrary(novaDir).Get(refs.OpeningSelectorID); err == nil {
+		if module, err := NewOpeningSelectorLibrary(denovaDir).Get(refs.OpeningSelectorID); err == nil {
 			effective.OpeningSelector = module.OpeningSelector
 		} else if !openingSelectorEmpty(snapshot.OpeningSelector) {
 			effective.OpeningSelector = snapshot.OpeningSelector
@@ -769,12 +769,12 @@ func ResolveStoryDirectorModules(novaDir string, director StoryDirector) StoryDi
 		}
 	}
 	if !refs.NarrativeStyleDisabled && refs.NarrativeStyleID != "" {
-		if _, err := NewTellerLibrary(novaDir).Get(refs.NarrativeStyleID); err != nil {
+		if _, err := NewTellerLibrary(denovaDir).Get(refs.NarrativeStyleID); err != nil {
 			warnings = append(warnings, moduleWarning("narrative_style", refs.NarrativeStyleID, err))
 		}
 	}
 	if !refs.ImagePresetDisabled && refs.ImagePresetID != "" {
-		if _, err := imagepreset.NewLibrary(novaDir).Get(refs.ImagePresetID); err != nil {
+		if _, err := imagepreset.NewLibrary(denovaDir).Get(refs.ImagePresetID); err != nil {
 			warnings = append(warnings, moduleWarning("image_preset", refs.ImagePresetID, err))
 		}
 	}
@@ -1371,10 +1371,10 @@ func normalizeEventPackageIDs(ids []string) []string {
 	return out
 }
 
-func expandLegacyEventPackageRefs(novaDir string, ids []string) []string {
+func expandLegacyEventPackageRefs(denovaDir string, ids []string) []string {
 	out := make([]string, 0, len(ids))
 	for _, id := range normalizeEventPackageIDs(ids) {
-		expanded := eventPackageIDsFromLegacyEventSystemID(novaDir, id)
+		expanded := eventPackageIDsFromLegacyEventSystemID(denovaDir, id)
 		if len(expanded) == 0 {
 			expanded = []string{id}
 		}
@@ -1383,7 +1383,7 @@ func expandLegacyEventPackageRefs(novaDir string, ids []string) []string {
 	return normalizeEventPackageIDs(out)
 }
 
-func eventPackageIDsFromLegacyEventSystemID(novaDir, id string) []string {
+func eventPackageIDsFromLegacyEventSystemID(denovaDir, id string) []string {
 	switch normalizeDirectorModuleID(id) {
 	case "":
 		return nil
@@ -1402,10 +1402,10 @@ func eventPackageIDsFromLegacyEventSystemID(novaDir, id string) []string {
 	case GenreTRPGEventSystemID:
 		return []string{GenreTRPGEventPackageID}
 	}
-	if strings.TrimSpace(novaDir) == "" {
+	if strings.TrimSpace(denovaDir) == "" {
 		return nil
 	}
-	item, err := parseEventSystemFile(filepath.Join(novaDir, "story-director-modules", "event-systems", normalizeDirectorModuleID(id)+".json"))
+	item, err := parseEventSystemFile(filepath.Join(denovaDir, "story-director-modules", "event-systems", normalizeDirectorModuleID(id)+".json"))
 	if err != nil {
 		return nil
 	}
@@ -1416,8 +1416,8 @@ func eventPackageIDsFromLegacyEventSystemID(novaDir, id string) []string {
 	return normalizeEventPackageIDs(ids)
 }
 
-func resolveEventPackages(novaDir string, ids []string) ([]TellerEventPackage, []StoryDirectorModuleWarning) {
-	library := NewEventPackageLibrary(novaDir)
+func resolveEventPackages(denovaDir string, ids []string) ([]TellerEventPackage, []StoryDirectorModuleWarning) {
+	library := NewEventPackageLibrary(denovaDir)
 	packages := make([]TellerEventPackage, 0, len(ids))
 	warnings := []StoryDirectorModuleWarning{}
 	for _, id := range normalizeEventPackageIDs(ids) {

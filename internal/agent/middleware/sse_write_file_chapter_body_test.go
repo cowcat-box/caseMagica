@@ -5,7 +5,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"denova/internal/agent"
+	"casemagica/internal/agent"
 )
 
 func TestSSEWriteFileChapterBodyMiddlewareShowsOnlyPathForToolCall(t *testing.T) {
@@ -32,7 +32,7 @@ func TestSSEWriteFileChapterBodyMiddlewareShowsOnlyPathForToolCall(t *testing.T)
 
 func TestSSEWriteFileChapterBodyMiddlewareShowsOnlyPathForAbsoluteNovaChapterToolCall(t *testing.T) {
 	collector, handler := newWriteFileChapterBodySSETestHandler()
-	path := `/Users/huangyongquan/.codex/worktrees/999d/nova/.nova/测试/chapters/v00001-第一卷-废材逆袭/ch00001-第1章-陨落.md`
+	path := `/Users/huangyongquan/.codex/worktrees/999d/nova/.denova/测试/chapters/v00001-第一卷-废材逆袭/ch00001-第1章-陨落.md`
 	args := `{"file_path":"` + path + `","content":"第一行\n第二行"}`
 
 	got := mustForwardSSEEvent(t, collector, handler, agent.Event{Type: "tool_call", Data: map[string]interface{}{
@@ -56,7 +56,7 @@ func TestSSEWriteFileChapterBodyMiddlewareShowsOnlyPathForAbsoluteNovaChapterToo
 
 func TestSSEWriteFileChapterBodyMiddlewareShowsOnlyPathForPastedDetailArgs(t *testing.T) {
 	collector, handler := newWriteFileChapterBodySSETestHandler()
-	path := `/Users/huangyongquan/.codex/worktrees/999d/nova/.nova/测试/chapters/v00001-第一卷-废材逆袭/ch00011-第11章-水乳交融.md`
+	path := `/Users/huangyongquan/.codex/worktrees/999d/nova/.denova/测试/chapters/v00001-第一卷-废材逆袭/ch00011-第11章-水乳交融.md`
 	args := `"file_path": "` + path + `", "content": "第一行\n第二行"`
 
 	got := mustForwardSSEEvent(t, collector, handler, agent.Event{Type: "tool_call", Data: map[string]interface{}{
@@ -80,7 +80,7 @@ func TestSSEWriteFileChapterBodyMiddlewareShowsOnlyPathForPastedDetailArgs(t *te
 
 func TestSSEWriteFileChapterBodyMiddlewareUsesTargetWhenArgsCannotRevealPath(t *testing.T) {
 	collector, handler := newWriteFileChapterBodySSETestHandler()
-	path := `/Users/huangyongquan/.codex/worktrees/999d/nova/.nova/测试/chapters/v00001/ch00001.md`
+	path := `/Users/huangyongquan/.codex/worktrees/999d/nova/.denova/测试/chapters/v00001/ch00001.md`
 	args := `{"content":"第一行\n第二行`
 
 	got := mustForwardSSEEvent(t, collector, handler, agent.Event{Type: "tool_call", Data: map[string]interface{}{
@@ -120,7 +120,7 @@ func TestSSEWriteFileChapterBodyMiddlewareHoldsUnknownToolCallArgs(t *testing.T)
 
 func TestSSEWriteFileChapterBodyMiddlewareProjectsToolTargetToArgsDelta(t *testing.T) {
 	collector, handler := newWriteFileChapterBodySSETestHandler()
-	path := `/Users/huangyongquan/.codex/worktrees/999d/nova/.nova/测试/chapters/v00001/ch00001.md`
+	path := `/Users/huangyongquan/.codex/worktrees/999d/nova/.denova/测试/chapters/v00001/ch00001.md`
 	_ = mustForwardSSEEvent(t, collector, handler, agent.Event{Type: "tool_call", Data: map[string]interface{}{
 		"agent_kind": agent.AgentKindIDE,
 		"id":         "call-1",
@@ -359,7 +359,7 @@ func TestSSEWriteFileChapterBodyMiddlewareDropsAbsoluteNovaChapterContentDeltas(
 		"agent_kind": agent.AgentKindIDE,
 		"id":         "call-1",
 		"name":       "write_file",
-		"delta":      `{"file_path":"/Users/huangyongquan/.codex/worktrees/999d/nova/.nova/测试/chapters/v00001-第一卷-废材逆袭/ch00001-第1章-陨落.md","content":"第一行`,
+		"delta":      `{"file_path":"/Users/huangyongquan/.codex/worktrees/999d/nova/.denova/测试/chapters/v00001-第一卷-废材逆袭/ch00001-第1章-陨落.md","content":"第一行`,
 	}})
 	mustSuppressSSEEvent(t, collector, handler, agent.Event{Type: "tool_args_delta", Data: map[string]interface{}{
 		"agent_kind": agent.AgentKindIDE,
@@ -369,7 +369,7 @@ func TestSSEWriteFileChapterBodyMiddlewareDropsAbsoluteNovaChapterContentDeltas(
 	}})
 
 	firstDelta := eventDataString(first.Data, "delta")
-	if !strings.Contains(firstDelta, `.nova/测试/chapters/`) {
+	if !strings.Contains(firstDelta, `.denova/测试/chapters/`) {
 		t.Fatalf("absolute Nova chapter delta should include path: %q", firstDelta)
 	}
 	if strings.Contains(firstDelta, "第一行") || strings.Contains(firstDelta, "content") || strings.Contains(firstDelta, "...") {
@@ -467,10 +467,10 @@ func TestIsNovelChapterBodyPath(t *testing.T) {
 	}{
 		{name: "relative chapter", path: "chapters/ch01.md", want: true},
 		{name: "relative draft", path: "./drafts/ch01.md", want: true},
-		{name: "absolute nova chapter", path: "/Users/me/nova/.nova/测试/chapters/ch01.md", want: true},
-		{name: "absolute nova draft", path: `/Users\me\nova\.nova\测试\drafts\ch01.md`, want: true},
+		{name: "absolute nova chapter", path: "/Users/me/nova/.denova/测试/chapters/ch01.md", want: true},
+		{name: "absolute nova draft", path: `/Users\me\nova\.denova\测试\drafts\ch01.md`, want: true},
 		{name: "absolute unrelated chapter directory", path: "/Users/me/tmp/chapters/ch01.md", want: false},
-		{name: "nova setting", path: "/Users/me/nova/.nova/测试/setting/outline.md", want: false},
+		{name: "nova setting", path: "/Users/me/nova/.denova/测试/setting/outline.md", want: false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

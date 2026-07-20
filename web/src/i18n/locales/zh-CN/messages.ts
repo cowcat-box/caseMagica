@@ -1,6 +1,6 @@
 const messages = {
   'messages.title': '消息中心',
-  'messages.description': '查看 Denova 更新摘要和周知通知。',
+  'messages.description': '查看 CaseMagica 更新摘要和周知通知。',
   'messages.open': '打开消息中心',
   'messages.loading': '加载消息中',
   'messages.empty': '暂无消息',
@@ -10,11 +10,11 @@ const messages = {
   'messages.markAllRead': '全部已读',
   'messages.noSummary': '暂无摘要',
   'messages.unreleased': '未发布更新',
-  'messages.changelogTitle': 'Denova {{version}}',
+  'messages.changelogTitle': 'CaseMagica {{version}}',
   'messages.type.changelog': '更新',
-  'messages.donation.title': '给 Denova 充点 token',
-  'messages.donation.description': '如果 Denova 项目有帮到你，可以给它也充点 token，帮助 Denova 持续开源、持续迭代。非常感谢！',
-  'messages.donation.alt': 'Denova 赞助二维码',
+  'messages.donation.title': '给 CaseMagica 充点 token',
+  'messages.donation.description': '如果 CaseMagica 项目有帮到你，可以给它也充点 token，帮助 CaseMagica 持续开源、持续迭代。非常感谢！',
+  'messages.donation.alt': 'CaseMagica 赞助二维码',
 } as const
 
 export default messages

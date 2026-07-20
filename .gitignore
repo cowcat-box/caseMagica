@@ -8,8 +8,8 @@ log/
 .gocache-pr/
 .gomodcache/
 .npm-cache/
-denova-windows-test/
-denova-test.exe
+casemagica-windows-test/
+casemagica-test.exe
 nova-windows-test/
 nova-test.exe
 data/
@@ -21,7 +21,7 @@ docs/
 .worktrees/
 .pnpm-store/
 .DS_Store
+.casemagica
 .denova
-.nova
 prd
 .playwright-cli/

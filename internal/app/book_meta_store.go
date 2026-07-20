@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
 // StoredBookMeta 表示保存在用户数据目录中的书籍元信息。
@@ -24,8 +24,8 @@ type BookMetaStore struct {
 }
 
 // NewBookMetaStore 创建书籍元信息存储。
-func NewBookMetaStore(novaDir string) *BookMetaStore {
-	return &BookMetaStore{dir: filepath.Join(novaDir, "book_meta")}
+func NewBookMetaStore(denovaDir string) *BookMetaStore {
+	return &BookMetaStore{dir: filepath.Join(denovaDir, "book_meta")}
 }
 
 // Read 读取书籍元信息，优先使用用户数据目录，兼容旧 workspace/book.json。

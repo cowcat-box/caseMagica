@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"denova/internal/book"
+	"casemagica/internal/book"
 )
 
-func TestBookMetaStoreWriteAndReadFromNovaDir(t *testing.T) {
+func TestBookMetaStoreWriteAndReadFromDenovaDir(t *testing.T) {
 	root := t.TempDir()
 	bookDir := filepath.Join(root, "book")
 	if err := os.MkdirAll(bookDir, 0o755); err != nil {
@@ -40,7 +40,7 @@ func TestBookMetaStoreWriteAndReadFromNovaDir(t *testing.T) {
 	}
 }
 
-func TestBookMetaStorePrefersNovaDirOverLegacyBookJSON(t *testing.T) {
+func TestBookMetaStorePrefersDenovaDirOverLegacyBookJSON(t *testing.T) {
 	root := t.TempDir()
 	bookDir := filepath.Join(root, "book")
 	if err := os.MkdirAll(bookDir, 0o755); err != nil {

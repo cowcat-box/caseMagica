@@ -6,7 +6,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"denova/internal/i18n"
+	"casemagica/internal/i18n"
 )
 
 // writeJSON 写入 JSON 响应。
@@ -32,10 +32,10 @@ func requestLocale(c *app.RequestContext) string {
 }
 
 func requestLocaleHeader(c *app.RequestContext) string {
-	if header := strings.TrimSpace(string(c.Request.Header.Peek("X-Denova-Locale"))); header != "" {
+	if header := strings.TrimSpace(string(c.Request.Header.Peek("X-CaseMagica-Locale"))); header != "" {
 		return header
 	}
-	return strings.TrimSpace(string(c.Request.Header.Peek("X-Nova-Locale")))
+	return strings.TrimSpace(string(c.Request.Header.Peek("X-Denova-Locale")))
 }
 
 func writeErrorKey(c *app.RequestContext, code int, key string, args ...any) {

@@ -4,4 +4,4 @@ package buildinfo
 // treating themselves as installable release binaries.
 var Version = "dev"
 
-const Repository = "alfredxw/denova"
+const Repository = "cowcat-box/caseMagica"

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 const (

@@ -7,12 +7,12 @@ import (
 
 	"github.com/cloudwego/eino/adk"
 
-	"denova/config"
-	"denova/internal/agent"
-	"denova/internal/book"
-	"denova/internal/interactive"
-	"denova/internal/prompts"
-	"denova/internal/session"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
+	"casemagica/internal/prompts"
+	"casemagica/internal/session"
 )
 
 type runtimeState struct {
@@ -56,7 +56,7 @@ func buildRuntime(ctx context.Context, cfg *config.Config, workspace string) (*r
 	if err != nil {
 		return nil, err
 	}
-	interactiveStore := interactive.NewStoreWithNovaDir(absWorkspace, runtimeCfg.NovaDir)
+	interactiveStore := interactive.NewStoreWithDenovaDir(absWorkspace, runtimeCfg.DenovaDir)
 	if err := interactiveStore.MigrateStoryMemoryStructuresToDirectorModules(); err != nil {
 		return nil, fmt.Errorf("迁移故事记忆结构预设失败: %w", err)
 	}
@@ -87,14 +87,14 @@ func buildAgentRunner(ctx context.Context, cfg *config.Config, state *book.State
 }
 
 func ideStoryTellerForConfig(cfg *config.Config) agent.IDEStoryTeller {
-	if cfg == nil || cfg.NovaDir == "" {
+	if cfg == nil || cfg.DenovaDir == "" {
 		return agent.IDEStoryTeller{}
 	}
 	tellerID := cfg.IDEStoryTellerID
 	if tellerID == "" {
 		tellerID = "classic"
 	}
-	teller := loadInteractiveTeller(cfg.NovaDir, tellerID)
+	teller := loadInteractiveTeller(cfg.DenovaDir, tellerID)
 	if teller.ID == "" {
 		return agent.IDEStoryTeller{}
 	}

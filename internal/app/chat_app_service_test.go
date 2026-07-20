@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	"denova/config"
-	"denova/internal/agent"
+	"casemagica/config"
+	"casemagica/internal/agent"
 )
 
 func TestApplyWritingSkillRuntimePolicyResolvesDefaultNameOnly(t *testing.T) {

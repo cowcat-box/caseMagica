@@ -16,7 +16,7 @@ func TestPathUsesLegacyTargetWhenCurrentOnlyHasEmptyGeneratedLore(t *testing.T) 
 	if got := Path(workspace, "lore", "items.json"); got != legacyLore {
 		t.Fatalf("Path should keep using legacy lore with data: want=%s got=%s", legacyLore, got)
 	}
-	if got := Rel(workspace, "lore", "items.json"); got != ".nova/lore/items.json" {
+	if got := Rel(workspace, "lore", "items.json"); got != ".denova/lore/items.json" {
 		t.Fatalf("Rel should match the selected legacy lore path: %s", got)
 	}
 }

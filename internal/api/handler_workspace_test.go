@@ -2,7 +2,7 @@ package api
 
 import (
 	"context"
-	"denova/internal/book"
+	"casemagica/internal/book"
 	"net/http"
 	"os"
 	"path/filepath"

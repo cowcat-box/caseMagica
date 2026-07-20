@@ -7,9 +7,9 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"denova/config"
-	agentcontext "denova/internal/agent/context"
-	"denova/internal/session"
+	"casemagica/config"
+	agentcontext "casemagica/internal/agent/context"
+	"casemagica/internal/session"
 )
 
 // Conversation 抽象 Agent 对话的上下文读取与结果写入。

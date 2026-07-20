@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"denova/config"
-	"denova/internal/agent"
-	runtimeapp "denova/internal/app"
-	"denova/internal/book"
-	"denova/internal/interactive"
+	"casemagica/config"
+	"casemagica/internal/agent"
+	runtimeapp "casemagica/internal/app"
+	"casemagica/internal/book"
+	"casemagica/internal/interactive"
 )
 
 func TestInteractiveStoriesAndTellersAPI(t *testing.T) {

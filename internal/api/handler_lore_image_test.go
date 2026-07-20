@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"denova/config"
-	runtimeapp "denova/internal/app"
-	"denova/internal/book"
+	"casemagica/config"
+	runtimeapp "casemagica/internal/app"
+	"casemagica/internal/book"
 )
 
 func TestLoreItemImageGenerateAPIUpdatesItem(t *testing.T) {
@@ -118,7 +118,7 @@ func newLoreImageTestApplication(t *testing.T) (*runtimeapp.App, *httptest.Serve
 	root := t.TempDir()
 	application, err := runtimeapp.New(context.Background(), &config.Config{
 		OpenAIModel:         "test-model",
-		NovaDir:             root,
+		DenovaDir:             root,
 		Workspace:           root,
 		ResumeLastWorkspace: false,
 		ImageAPIKey:         "test-key",

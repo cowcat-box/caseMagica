@@ -13,7 +13,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"denova/internal/workspacepath"
+	"casemagica/internal/workspacepath"
 )
 
 const loreItemsVersion = 1

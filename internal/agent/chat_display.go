@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"denova/internal/session"
+	"casemagica/internal/session"
 )
 
 // appendAssistantIfAny 将已生成的正文持久化，避免异常中断后刷新丢失输出。

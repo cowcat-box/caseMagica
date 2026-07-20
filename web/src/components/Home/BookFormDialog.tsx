@@ -30,7 +30,7 @@ interface BookFormDialogProps {
   open: boolean
   mode: BookFormMode
   book: BookRecord | null
-  novaDir: string
+  denovaDir: string
   imagePresetOptions: ImagePreset[]
   defaultImagePresetId: string
   coverVersion: (book: Pick<BookRecord, 'path' | 'cover_updated_at'>) => string
@@ -48,7 +48,7 @@ export function BookFormDialog({
   open,
   mode,
   book,
-  novaDir,
+  denovaDir,
   imagePresetOptions,
   defaultImagePresetId,
   coverVersion,
@@ -128,7 +128,7 @@ export function BookFormDialog({
   const dialogTitle = mode === 'create' && !createdPath ? t('home.createBook') : t('home.editInfo')
   const dialogDescription = activePath
     ? activePath
-    : `${t('home.createIn')} ${novaDir || t('home.novaDirLoading')}`
+    : `${t('home.createIn')} ${denovaDir || t('home.denovaDirLoading')}`
 
   const closeDialog = (nextOpen: boolean) => {
     if (!nextOpen && busy) return
@@ -138,7 +138,7 @@ export function BookFormDialog({
   const handleSubmit = async () => {
     const validTitle = title.trim()
     if (!validTitle) { setFormError(t('home.titleRequired')); return }
-    if (mode === 'create' && !createdPath && !novaDir.trim()) { setFormError(t('home.waitNovaDir')); return }
+    if (mode === 'create' && !createdPath && !denovaDir.trim()) { setFormError(t('home.waitDenovaDir')); return }
     setSaving(true)
     setFormError('')
     try {
@@ -211,7 +211,7 @@ export function BookFormDialog({
 
   const createWorkspace = async () => {
     if (!title.trim()) throw new Error(t('home.titleRequired'))
-    if (!novaDir.trim()) throw new Error(t('home.waitNovaDir'))
+    if (!denovaDir.trim()) throw new Error(t('home.waitDenovaDir'))
     const data = await createBook(title.trim(), author.trim() || undefined, description.trim() || undefined)
     setCreatedPath(data.workspace)
     onSwitch(data.workspace)
@@ -268,7 +268,7 @@ export function BookFormDialog({
                   <div className="flex min-w-0 items-center gap-2 rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2.5 py-1.5 text-xs text-[var(--nova-text-faint)]">
                     <Folder className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-muted)]" />
                     <span className="shrink-0">{t('home.createIn')}</span>
-                    <span className="truncate text-[var(--nova-text-muted)]">{novaDir || t('home.novaDirLoading')}</span>
+                    <span className="truncate text-[var(--nova-text-muted)]">{denovaDir || t('home.denovaDirLoading')}</span>
                   </div>
                 )}
                 <Textarea
@@ -344,7 +344,7 @@ export function BookFormDialog({
                   type="button"
                   size="xs"
                   className={primaryButtonCls + ' w-full max-w-full justify-center'}
-                  disabled={busy || loading || (mode === 'create' && !novaDir.trim())}
+                  disabled={busy || loading || (mode === 'create' && !denovaDir.trim())}
                   onClick={() => void handleGenerateCover()}
                 >
                   {coverBusy === 'generate' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -373,7 +373,7 @@ export function BookFormDialog({
             type="button"
             size="xs"
             className={primaryButtonCls}
-            disabled={busy || loading || (mode === 'create' && !createdPath && !novaDir.trim())}
+            disabled={busy || loading || (mode === 'create' && !createdPath && !denovaDir.trim())}
             onClick={() => void handleSubmit()}
           >
             {saving ? footerBusyLabel : footerPrimaryLabel}

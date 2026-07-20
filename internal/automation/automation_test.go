@@ -12,7 +12,7 @@ func TestStoreSeparatesUserAndWorkspaceTasks(t *testing.T) {
 	root := t.TempDir()
 	userDir := filepath.Join(root, "user")
 	workspace := filepath.Join(root, "book")
-	if err := os.MkdirAll(filepath.Join(workspace, ".nova"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(workspace, ".denova"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	store := NewStore(userDir, workspace)
@@ -28,7 +28,7 @@ func TestStoreSeparatesUserAndWorkspaceTasks(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(userDir, "automations", "tasks.json")); err != nil {
 		t.Fatalf("user tasks not written: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(workspace, ".nova", "automations", "tasks.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(workspace, ".denova", "automations", "tasks.json")); err != nil {
 		t.Fatalf("workspace tasks not written: %v", err)
 	}
 

@@ -220,7 +220,7 @@ function renderHome(overrides: Partial<Parameters<typeof HomeView>[0]> = {}) {
   return render(
     <HomeView
       workspace="/books/star"
-      novaDir="/nova"
+      denovaDir="/nova"
       books={[{
         name: '星河边境',
         path: '/books/star',
