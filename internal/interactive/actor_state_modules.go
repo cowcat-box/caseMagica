@@ -8,6 +8,31 @@ import (
 	"time"
 )
 
+func attachBuiltinActorStateLegacyPaths(id string, system StoryDirectorActorStateSystem) StoryDirectorActorStateSystem {
+	builtin, ok := builtinActorStateModuleByID(id)
+	if !ok {
+		return system
+	}
+	legacyByTemplateAndName := map[string]map[string]string{}
+	for _, template := range builtin.ActorState.Templates {
+		legacyByTemplateAndName[template.ID] = map[string]string{}
+		for _, field := range template.Fields {
+			legacyByTemplateAndName[template.ID][actorStateFieldNameKey(field.Name)] = field.LegacyPath
+		}
+	}
+	for templateIndex := range system.Templates {
+		template := &system.Templates[templateIndex]
+		for fieldIndex := range template.Fields {
+			field := &template.Fields[fieldIndex]
+			if legacyPath := legacyByTemplateAndName[template.ID][actorStateFieldNameKey(field.Name)]; legacyPath != "" {
+				field.LegacyPath = legacyPath
+				field.Path = legacyPath
+			}
+		}
+	}
+	return system
+}
+
 func (l *ActorStateLibrary) List() ([]ActorStateModule, error) {
 	if err := l.ensureBuiltins(); err != nil {
 		return nil, err
@@ -115,7 +140,11 @@ func (l *ActorStateLibrary) Delete(id string) error {
 		return err
 	}
 	if IsBuiltinActorStateID(id) {
-		return writeActorStateFile(filepath.Join(l.dir(), id+".json"), DefaultActorStateModule())
+		item, ok := builtinActorStateModuleByID(id)
+		if !ok {
+			return fmt.Errorf("内置状态系统不存在: %s", id)
+		}
+		return writeActorStateFile(filepath.Join(l.dir(), id+".json"), item)
 	}
 	return os.Remove(filepath.Join(l.dir(), id+".json"))
 }
@@ -128,11 +157,16 @@ func (l *ActorStateLibrary) ensureBuiltins() error {
 	if err := os.MkdirAll(l.dir(), 0o755); err != nil {
 		return err
 	}
-	path := filepath.Join(l.dir(), DefaultActorStateModuleID+".json")
-	if current, err := parseActorStateFile(path); err == nil && current.BuiltinOverridden {
-		return nil
-	} else if err == nil && current.Version == storyDirectorModuleVersion {
-		return nil
+	for _, builtin := range builtinActorStateModules() {
+		path := filepath.Join(l.dir(), builtin.ID+".json")
+		if current, err := parseActorStateFile(path); err == nil && current.BuiltinOverridden {
+			continue
+		} else if err == nil && current.ID == builtin.ID && current.Version == storyDirectorModuleVersion && !actorStateDiffersFromBuiltin(current) {
+			continue
+		}
+		if err := writeActorStateFile(path, builtin); err != nil {
+			return err
+		}
 	}
-	return writeActorStateFile(path, DefaultActorStateModule())
+	return nil
 }

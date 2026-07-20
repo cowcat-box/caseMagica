@@ -31,7 +31,7 @@ func (a *App) AutomationInbox() ([]automation.TriggerInboxItem, error) {
 }
 
 func (s *AutomationAppService) Inbox() ([]automation.TriggerInboxItem, error) {
-	return s.store().ListInbox()
+	return s.storeAllWorkspaces().ListInbox()
 }
 
 func (a *App) CheckAutomationTriggers(ctx context.Context, id string) ([]automation.TriggerInboxItem, error) {
@@ -39,7 +39,15 @@ func (a *App) CheckAutomationTriggers(ctx context.Context, id string) ([]automat
 }
 
 func (s *AutomationAppService) CheckTriggers(ctx context.Context, id string) ([]automation.TriggerInboxItem, error) {
-	items, _, err := s.processTriggers(ctx, strings.TrimSpace(id), time.Now().UTC(), "manual_check")
+	task, getErr := s.storeAllWorkspaces().Get(id)
+	if getErr != nil {
+		return nil, getErr
+	}
+	snap, targetErr := s.automationSnapshotForTask(ctx, task)
+	if targetErr != nil {
+		return nil, targetErr
+	}
+	items, _, err := s.processTriggers(ctx, snap, strings.TrimSpace(id), time.Now().UTC(), "manual_check")
 	return items, err
 }
 
@@ -48,38 +56,38 @@ func (a *App) CheckAutomationTriggersAfterWorkspaceMutation(ctx context.Context,
 }
 
 func (s *AutomationAppService) CheckTriggersAfterWorkspaceMutation(ctx context.Context, source string, paths []string) {
-	targets := s.chapterContentMutationPaths(paths)
+	_ = ctx // request cancellation must not own App background trigger work
+	snap := s.app.automationSnapshot()
+	if snap == nil {
+		return
+	}
+	s.checkTriggersAfterWorkspaceMutation(ctx, snap, source, paths)
+}
+
+// checkTriggersAfterWorkspaceMutation evaluates content triggers for a
+// workspace mutation bound to the given snapshot. It is invoked from the
+// mutation callback with an already-captured snapshot so the evaluation stays
+// tied to the correct runtime even if the app switches workspaces.
+func (s *AutomationAppService) checkTriggersAfterWorkspaceMutation(ctx context.Context, snap *automationWorkspaceSnapshot, source string, paths []string) {
+	targets := s.chapterContentMutationPaths(snap, paths)
 	if len(targets) == 0 {
 		return
 	}
-	workspace := s.workspace()
-	runCtx := context.WithoutCancel(ctx)
-	go func() {
-		defer func() {
-			if recovered := recover(); recovered != nil {
-				log.Printf("[automation-trigger] mutation check panic recovered source=%s targets=%q err=%v", source, targets, recovered)
-			}
-		}()
-		if current := s.workspace(); current != workspace {
-			log.Printf("[automation-trigger] mutation check skipped because workspace changed source=%s workspace=%q current=%q targets=%q", source, workspace, current, targets)
-			return
-		}
-		items, runs, err := s.processContentTriggers(runCtx, time.Now().UTC(), source)
-		if err != nil {
-			log.Printf("[automation-trigger] mutation check failed source=%s targets=%q err=%v", source, targets, err)
-			return
-		}
-		if len(items) > 0 || len(runs) > 0 {
-			log.Printf("[automation-trigger] mutation check completed source=%s targets=%q inbox=%d runs=%d", source, targets, len(items), len(runs))
-		}
-	}()
+	if s.app == nil || s.app.automationTriggers == nil || !s.app.automationTriggers.Enqueue(s, snap, source, targets) {
+		log.Printf("[automation-trigger] mutation check skipped because app lifecycle is closed source=%s workspace=%q targets=%q", source, snap.workspace, targets)
+	}
 }
 
 func (s *AutomationAppService) CheckContentTriggersForWorkspaceMutation(ctx context.Context, source string, paths []string) ([]automation.TriggerInboxItem, error) {
-	if len(s.chapterContentMutationPaths(paths)) == 0 {
+	snap := s.app.automationSnapshot()
+	if snap == nil {
 		return nil, nil
 	}
-	items, _, err := s.processContentTriggers(ctx, time.Now().UTC(), source)
+	targets := s.chapterContentMutationPaths(snap, paths)
+	if len(targets) == 0 {
+		return nil, nil
+	}
+	items, _, err := s.processContentTriggers(ctx, snap, time.Now().UTC(), source)
 	return items, err
 }
 
@@ -88,7 +96,7 @@ func (a *App) ConfirmAutomationInboxItem(ctx context.Context, id string) (automa
 }
 
 func (s *AutomationAppService) ConfirmInboxItem(ctx context.Context, id string) (automation.InboxActionResult, error) {
-	store := s.store()
+	store := s.storeAllWorkspaces()
 	item, err := store.GetInboxItem(id)
 	if err != nil {
 		return automation.InboxActionResult{}, err
@@ -106,7 +114,17 @@ func (s *AutomationAppService) ConfirmInboxItem(ctx context.Context, id string) 
 		trigger = automation.TriggerWriteConfirmation
 		sourceRunID = item.SourceRunID
 	}
-	_, run, err := s.startTaskWithSourceRun(ctx, task.ID, trigger, sourceRunID, item.Evidence)
+	snap, err := s.automationSnapshotForTarget(ctx, automation.ExecutionTarget{Kind: automation.TargetKindUser})
+	if err != nil {
+		return automation.InboxActionResult{}, err
+	}
+	if strings.TrimSpace(item.Workspace) != "" {
+		snap, err = s.automationSnapshotForTarget(ctx, automation.ExecutionTarget{Kind: automation.TargetKindWorkspace, Workspace: item.Workspace})
+		if err != nil {
+			return automation.InboxActionResult{}, err
+		}
+	}
+	_, run, err := s.startTaskWithSourceRun(ctx, snap, task.ID, trigger, sourceRunID, item.Evidence)
 	if err != nil {
 		return automation.InboxActionResult{}, err
 	}
@@ -122,7 +140,7 @@ func (a *App) DismissAutomationInboxItem(id string) (automation.TriggerInboxItem
 }
 
 func (s *AutomationAppService) DismissInboxItem(id string) (automation.TriggerInboxItem, error) {
-	return s.store().DismissInboxItem(id)
+	return s.storeAllWorkspaces().DismissInboxItem(id)
 }
 
 func (a *App) MarkAutomationInboxItemRead(id string) (automation.TriggerInboxItem, error) {
@@ -130,28 +148,35 @@ func (a *App) MarkAutomationInboxItemRead(id string) (automation.TriggerInboxIte
 }
 
 func (s *AutomationAppService) MarkInboxItemRead(id string) (automation.TriggerInboxItem, error) {
-	return s.store().MarkInboxItemRead(id)
+	return s.storeAllWorkspaces().MarkInboxItemRead(id)
 }
 
-func (s *AutomationAppService) processTriggers(ctx context.Context, onlyTaskID string, now time.Time, source string) ([]automation.TriggerInboxItem, []automation.RunResult, error) {
-	return s.processTriggersMatching(ctx, onlyTaskID, now, source, nil)
+func (s *AutomationAppService) processTriggers(ctx context.Context, snap *automationWorkspaceSnapshot, onlyTaskID string, now time.Time, source string) ([]automation.TriggerInboxItem, []automation.RunResult, error) {
+	return s.processTriggersMatching(ctx, snap, onlyTaskID, now, source, nil)
 }
 
-func (s *AutomationAppService) processContentTriggers(ctx context.Context, now time.Time, source string) ([]automation.TriggerInboxItem, []automation.RunResult, error) {
-	return s.processTriggersMatching(ctx, "", now, source, func(trigger automation.TriggerDefinition) bool {
+func (s *AutomationAppService) processContentTriggers(ctx context.Context, snap *automationWorkspaceSnapshot, now time.Time, source string) ([]automation.TriggerInboxItem, []automation.RunResult, error) {
+	return s.processTriggersMatching(ctx, snap, "", now, source, func(trigger automation.TriggerDefinition) bool {
 		return trigger.Type == automation.TriggerTypeChapterBatch || trigger.Type == automation.TriggerTypeSemantic
 	})
 }
 
-func (s *AutomationAppService) processTriggersMatching(ctx context.Context, onlyTaskID string, now time.Time, source string, includeTrigger func(automation.TriggerDefinition) bool) ([]automation.TriggerInboxItem, []automation.RunResult, error) {
-	tasks, err := s.List()
+func (s *AutomationAppService) processTriggersMatching(ctx context.Context, snap *automationWorkspaceSnapshot, onlyTaskID string, now time.Time, source string, includeTrigger func(automation.TriggerDefinition) bool) ([]automation.TriggerInboxItem, []automation.RunResult, error) {
+	unlock := triggerExecutionLocks.Lock(snap.workspace)
+	defer unlock()
+	target := automation.ExecutionTarget{Kind: automation.TargetKindUser}
+	if workspace := strings.TrimSpace(snap.workspace); workspace != "" {
+		target = automation.ExecutionTarget{Kind: automation.TargetKindWorkspace, Workspace: workspace}
+	}
+	store := storeForSnapshot(snap)
+	tasks, err := store.ListForTriggerEvaluation(target)
 	if err != nil {
 		return nil, nil, err
 	}
 	items := []automation.TriggerInboxItem{}
 	runs := []automation.RunResult{}
 	for _, task := range tasks {
-		if onlyTaskID != "" && task.ID != onlyTaskID {
+		if onlyTaskID != "" && !automation.TaskMatchesID(task, onlyTaskID) {
 			continue
 		}
 		if !task.Enabled {
@@ -164,17 +189,18 @@ func (s *AutomationAppService) processTriggersMatching(ctx context.Context, only
 			if includeTrigger != nil && !includeTrigger(trigger) {
 				continue
 			}
-			match, nextState, matched, err := s.evaluateTrigger(ctx, now, source, task, trigger)
+			stateKey := s.triggerStateKey(snap, task, trigger)
+			match, nextState, matched, err := s.evaluateTrigger(ctx, snap, now, source, task, trigger)
 			if err != nil {
 				log.Printf("[automation-trigger] evaluate failed task_id=%s trigger_id=%s type=%s err=%v", task.ID, trigger.ID, trigger.Type, err)
-				_, _ = s.store().UpdateTriggerState(task.ID, trigger.ID, nextState)
+				_, _ = store.UpdateTriggerState(task.ID, stateKey, nextState)
 				continue
 			}
 			if !matched {
-				_, _ = s.store().UpdateTriggerState(task.ID, trigger.ID, nextState)
+				_, _ = store.UpdateTriggerState(task.ID, stateKey, nextState)
 				continue
 			}
-			item, run, processed, err := s.processTriggerMatch(ctx, now, task, trigger, match)
+			item, run, processed, err := s.processTriggerMatch(ctx, snap, now, task, trigger, match)
 			if err != nil {
 				log.Printf("[automation-trigger] process failed task_id=%s trigger_id=%s type=%s err=%v", task.ID, trigger.ID, trigger.Type, err)
 				continue
@@ -189,14 +215,14 @@ func (s *AutomationAppService) processTriggersMatching(ctx context.Context, only
 			if run.Run.ID != "" {
 				runs = append(runs, run)
 			}
-			_, _ = s.store().UpdateTriggerState(task.ID, trigger.ID, nextState)
+			_, _ = store.UpdateTriggerState(task.ID, stateKey, nextState)
 		}
 	}
 	return items, runs, nil
 }
 
-func (s *AutomationAppService) chapterContentMutationPaths(paths []string) []string {
-	workspace := s.workspace()
+func (s *AutomationAppService) chapterContentMutationPaths(snap *automationWorkspaceSnapshot, paths []string) []string {
+	workspace := snap.workspace
 	seen := map[string]bool{}
 	targets := make([]string, 0, len(paths))
 	for _, raw := range paths {
@@ -205,8 +231,18 @@ func (s *AutomationAppService) chapterContentMutationPaths(paths []string) []str
 			continue
 		}
 		if filepath.IsAbs(path) && strings.TrimSpace(workspace) != "" {
-			if rel, err := filepath.Rel(workspace, path); err == nil {
+			rel, err := filepath.Rel(workspace, path)
+			if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 				path = rel
+			} else {
+				canonicalWorkspace := canonicalAutomationWorkspace(workspace)
+				canonicalPath := path
+				if resolved, resolveErr := filepath.EvalSymlinks(path); resolveErr == nil {
+					canonicalPath = resolved
+				}
+				if rel, relErr := filepath.Rel(canonicalWorkspace, canonicalPath); relErr == nil {
+					path = rel
+				}
 			}
 		}
 		path = filepath.ToSlash(strings.TrimPrefix(strings.TrimSpace(path), "./"))
@@ -228,27 +264,41 @@ func isChapterContentMutationPath(path string) bool {
 	return ext == ".md" || ext == ".txt"
 }
 
-func (s *AutomationAppService) evaluateTrigger(ctx context.Context, now time.Time, source string, task automation.Task, trigger automation.TriggerDefinition) (automation.TriggerMatch, automation.TriggerState, bool, error) {
-	state := task.TriggerState[trigger.ID]
+func (s *AutomationAppService) evaluateTrigger(ctx context.Context, snap *automationWorkspaceSnapshot, now time.Time, source string, task automation.Task, trigger automation.TriggerDefinition) (automation.TriggerMatch, automation.TriggerState, bool, error) {
+	state := task.TriggerState[s.triggerStateKey(snap, task, trigger)]
 	state.LastCheckedAt = now
 	switch trigger.Type {
 	case automation.TriggerTypeSchedule:
-		return s.evaluateScheduleTrigger(now, task, trigger, state)
+		return s.evaluateScheduleTrigger(snap, now, task, trigger, state)
 	case automation.TriggerTypeChapterBatch:
-		return s.evaluateChapterBatchTrigger(now, task, trigger, state)
+		return s.evaluateChapterBatchTrigger(snap, now, task, trigger, state)
 	case automation.TriggerTypeSemantic:
-		return s.evaluateSemanticTrigger(ctx, source, task, trigger, state)
+		return s.evaluateSemanticTrigger(ctx, snap, source, task, trigger, state)
 	default:
 		return automation.TriggerMatch{}, state, false, nil
 	}
 }
 
-func (s *AutomationAppService) nextChapterBatchTriggerScope(task automation.Task, trigger automation.TriggerDefinition, state automation.TriggerState, includeContent bool, dedupeBatchState bool) (chapterBatchTriggerScope, automation.TriggerState, bool, error) {
+func (s *AutomationAppService) triggerStateKey(snap *automationWorkspaceSnapshot, task automation.Task, trigger automation.TriggerDefinition) string {
+	if task.Scope != automation.ScopeUser {
+		return trigger.ID
+	}
+	return trigger.ID + "@workspace:" + automation.EvidenceFingerprint(canonicalAutomationWorkspace(snap.workspace))
+}
+
+func (s *AutomationAppService) triggerFingerprintParts(snap *automationWorkspaceSnapshot, task automation.Task) []string {
+	if task.Scope != automation.ScopeUser {
+		return nil
+	}
+	return []string{"workspace=" + canonicalAutomationWorkspace(snap.workspace)}
+}
+
+func (s *AutomationAppService) nextChapterBatchTriggerScope(snap *automationWorkspaceSnapshot, task automation.Task, trigger automation.TriggerDefinition, state automation.TriggerState, includeContent bool, dedupeBatchState bool) (chapterBatchTriggerScope, automation.TriggerState, bool, error) {
 	batchSize := trigger.ChapterBatchSize
 	if batchSize < 1 {
 		batchSize = 5
 	}
-	bookService := s.app.BookService()
+	bookService := snap.bookService
 	if bookService == nil {
 		return chapterBatchTriggerScope{}, state, false, nil
 	}
@@ -269,7 +319,7 @@ func (s *AutomationAppService) nextChapterBatchTriggerScope(task automation.Task
 	batchEnd := batchNumber * batchSize
 	batchStart := batchEnd - batchSize
 	batch := chapters[batchStart:batchEnd]
-	fingerprintParts := []string{task.ID, trigger.ID, fmt.Sprintf("batch_size=%d", batchSize), fmt.Sprintf("batch=%d", batchNumber)}
+	fingerprintParts := append(s.triggerFingerprintParts(snap, task), task.ID, trigger.ID, fmt.Sprintf("batch_size=%d", batchSize), fmt.Sprintf("batch=%d", batchNumber))
 	legacyFingerprintParts := append([]string(nil), fingerprintParts...)
 	evidence := make([]automation.TriggerEvidence, 0, len(batch))
 	source := "chapter_batch"
@@ -312,8 +362,8 @@ func (s *AutomationAppService) nextChapterBatchTriggerScope(task automation.Task
 	return scope, state, true, nil
 }
 
-func (s *AutomationAppService) evaluateChapterBatchTrigger(now time.Time, task automation.Task, trigger automation.TriggerDefinition, state automation.TriggerState) (automation.TriggerMatch, automation.TriggerState, bool, error) {
-	batch, nextState, matched, err := s.nextChapterBatchTriggerScope(task, trigger, state, false, true)
+func (s *AutomationAppService) evaluateChapterBatchTrigger(snap *automationWorkspaceSnapshot, now time.Time, task automation.Task, trigger automation.TriggerDefinition, state automation.TriggerState) (automation.TriggerMatch, automation.TriggerState, bool, error) {
+	batch, nextState, matched, err := s.nextChapterBatchTriggerScope(snap, task, trigger, state, false, true)
 	if err != nil {
 		return automation.TriggerMatch{}, nextState, false, err
 	}
@@ -321,7 +371,7 @@ func (s *AutomationAppService) evaluateChapterBatchTrigger(now time.Time, task a
 		return automation.TriggerMatch{}, nextState, false, nil
 	}
 	title := fmt.Sprintf("%s reached chapter batch %d", task.Name, batch.Number)
-	summaryText := fmt.Sprintf("Chapter batch %d is ready: %d non-empty chapters reached at %s.", batch.Number, batch.End, now.Local().Format("2006-01-02 15:04"))
+	summaryText := fmt.Sprintf("Chapter batch %d is ready: %d non-empty chapters reached at %s.", batch.Number, batch.End, now.Local().Format(book.DisplayTimeFormat))
 	return automation.TriggerMatch{
 		TaskID:      task.ID,
 		TriggerID:   trigger.ID,
@@ -332,21 +382,24 @@ func (s *AutomationAppService) evaluateChapterBatchTrigger(now time.Time, task a
 	}, nextState, true, nil
 }
 
-func (s *AutomationAppService) evaluateScheduleTrigger(now time.Time, task automation.Task, trigger automation.TriggerDefinition, state automation.TriggerState) (automation.TriggerMatch, automation.TriggerState, bool, error) {
+func (s *AutomationAppService) evaluateScheduleTrigger(snap *automationWorkspaceSnapshot, now time.Time, task automation.Task, trigger automation.TriggerDefinition, state automation.TriggerState) (automation.TriggerMatch, automation.TriggerState, bool, error) {
 	last := state.LastMatchedAt
 	if last.IsZero() && task.LastRun != nil {
-		last = task.LastRun.StartedAt
+		if task.Scope != automation.ScopeUser || canonicalAutomationWorkspace(task.LastRun.Workspace) == canonicalAutomationWorkspace(snap.workspace) {
+			last = task.LastRun.StartedAt
+		}
 	}
 	if !scheduleDueForTrigger(now, last, trigger.Schedule) {
 		return automation.TriggerMatch{}, state, false, nil
 	}
 	minute := now.Truncate(time.Minute).Format(time.RFC3339)
-	fingerprint := automation.EvidenceFingerprint(task.ID, trigger.ID, trigger.Schedule.Cron, minute)
+	fingerprintParts := append(s.triggerFingerprintParts(snap, task), task.ID, trigger.ID, trigger.Schedule.Cron, minute)
+	fingerprint := automation.EvidenceFingerprint(fingerprintParts...)
 	match := automation.TriggerMatch{
 		TaskID:      task.ID,
 		TriggerID:   trigger.ID,
 		Title:       fmt.Sprintf("%s scheduled trigger", task.Name),
-		Summary:     fmt.Sprintf("Schedule %s is due at %s.", trigger.Schedule.Kind, now.Local().Format("2006-01-02 15:04")),
+		Summary:     fmt.Sprintf("Schedule %s is due at %s.", trigger.Schedule.Kind, now.Local().Format(book.DisplayTimeFormat)),
 		Fingerprint: fingerprint,
 		Evidence: []automation.TriggerEvidence{{
 			Source:  "schedule",
@@ -357,12 +410,12 @@ func (s *AutomationAppService) evaluateScheduleTrigger(now time.Time, task autom
 	return match, state, true, nil
 }
 
-func (s *AutomationAppService) evaluateSemanticTrigger(ctx context.Context, source string, task automation.Task, trigger automation.TriggerDefinition, state automation.TriggerState) (automation.TriggerMatch, automation.TriggerState, bool, error) {
+func (s *AutomationAppService) evaluateSemanticTrigger(ctx context.Context, snap *automationWorkspaceSnapshot, source string, task automation.Task, trigger automation.TriggerDefinition, state automation.TriggerState) (automation.TriggerMatch, automation.TriggerState, bool, error) {
 	condition := strings.TrimSpace(trigger.SemanticCondition)
 	if condition == "" {
 		return automation.TriggerMatch{}, state, false, nil
 	}
-	batch, nextState, matched, err := s.nextChapterBatchTriggerScope(task, trigger, state, true, false)
+	batch, nextState, matched, err := s.nextChapterBatchTriggerScope(snap, task, trigger, state, true, false)
 	if err != nil {
 		return automation.TriggerMatch{}, nextState, false, err
 	}
@@ -377,13 +430,14 @@ func (s *AutomationAppService) evaluateSemanticTrigger(ctx context.Context, sour
 	if strings.TrimSpace(triggerCtx.Summary) == "" && len(triggerCtx.Evidence) == 0 {
 		return automation.TriggerMatch{}, nextState, false, nil
 	}
-	observation := automation.EvidenceFingerprint(task.ID, trigger.ID, condition, batch.Fingerprint)
+	observationParts := append(s.triggerFingerprintParts(snap, task), task.ID, trigger.ID, condition, batch.Fingerprint)
+	observation := automation.EvidenceFingerprint(observationParts...)
 	if observation == state.LastObservationFingerprint || observation == state.LastEvidenceFingerprint {
 		nextState.LastObservationFingerprint = observation
 		return automation.TriggerMatch{}, nextState, false, nil
 	}
 	instruction := buildSemanticTriggerInstruction(task, trigger, triggerCtx)
-	runtimeCfg := s.runtimeConfigForTask(task)
+	runtimeCfg := runtimeConfigForTask(snap, task)
 	raw, err := semanticTriggerEvaluator(ctx, &runtimeCfg, instruction)
 	if err != nil {
 		log.Printf("[automation-trigger] semantic evaluator failed task_id=%s trigger_id=%s err=%v", task.ID, trigger.ID, err)
@@ -412,13 +466,13 @@ func (s *AutomationAppService) evaluateSemanticTrigger(ctx context.Context, sour
 		Title:       title,
 		Summary:     summary,
 		Evidence:    triggerCtx.Evidence,
-		Fingerprint: automation.EvidenceFingerprint(task.ID, trigger.ID, condition, observation, eval.Reason),
+		Fingerprint: automation.EvidenceFingerprint(append(s.triggerFingerprintParts(snap, task), task.ID, trigger.ID, condition, observation, eval.Reason)...),
 	}
 	return match, nextState, true, nil
 }
 
-func (s *AutomationAppService) processTriggerMatch(ctx context.Context, now time.Time, task automation.Task, trigger automation.TriggerDefinition, match automation.TriggerMatch) (automation.TriggerInboxItem, automation.RunResult, bool, error) {
-	store := s.store()
+func (s *AutomationAppService) processTriggerMatch(ctx context.Context, snap *automationWorkspaceSnapshot, now time.Time, task automation.Task, trigger automation.TriggerDefinition, match automation.TriggerMatch) (automation.TriggerInboxItem, automation.RunResult, bool, error) {
+	store := storeForSnapshot(snap)
 	if trigger.Type == automation.TriggerTypeChapterBatch {
 		if existing, ok, err := store.FindInboxItemByEvidence(task.ID, trigger.ID, match.Evidence); err != nil {
 			return automation.TriggerInboxItem{}, automation.RunResult{}, false, err
@@ -452,7 +506,7 @@ func (s *AutomationAppService) processTriggerMatch(ctx context.Context, now time
 			TaskID:       task.ID,
 			TriggerID:    trigger.ID,
 			Scope:        task.Scope,
-			Workspace:    s.workspace(),
+			Workspace:    snap.workspace,
 			Status:       status,
 			ActionPolicy: actionPolicy,
 			NotifyPolicy: notifyPolicy,
@@ -470,7 +524,7 @@ func (s *AutomationAppService) processTriggerMatch(ctx context.Context, now time
 	if actionPolicy != automation.ActionPolicyAutoRun {
 		return item, automation.RunResult{}, true, nil
 	}
-	_, run, err := s.startTaskWithSourceRun(ctx, task.ID, runTriggerForDefinition(trigger), "", match.Evidence)
+	_, run, err := s.startTaskWithSourceRun(ctx, snap, task.ID, runTriggerForDefinition(trigger), "", match.Evidence)
 	if err != nil {
 		if item.ID != "" {
 			log.Printf("[automation-trigger] auto-run start failed after inbox created task_id=%s trigger_id=%s inbox_id=%s err=%v", task.ID, trigger.ID, item.ID, err)

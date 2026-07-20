@@ -26,8 +26,7 @@ import storyPicker from './zh-CN/storyPicker'
 import branchTimeline from './zh-CN/branchTimeline'
 import storyStage from './zh-CN/storyStage'
 import snapshot from './zh-CN/snapshot'
-import memoryPanel from './zh-CN/memoryPanel'
-import storyMemory from './zh-CN/storyMemory'
+import directorPanel from './zh-CN/directorPanel'
 import settings from './zh-CN/settings'
 import time from './zh-CN/time'
 import versions from './zh-CN/versions'
@@ -37,6 +36,7 @@ import skills from './zh-CN/skills'
 import automations from './zh-CN/automations'
 import messages from './zh-CN/messages'
 import onboarding from './zh-CN/onboarding'
+import changes from './zh-CN/changes'
 
 const zhCN = {
   ...common,
@@ -67,8 +67,7 @@ const zhCN = {
   ...branchTimeline,
   ...storyStage,
   ...snapshot,
-  ...memoryPanel,
-  ...storyMemory,
+  ...directorPanel,
   ...settings,
   ...time,
   ...versions,
@@ -78,6 +77,7 @@ const zhCN = {
   ...automations,
   ...messages,
   ...onboarding,
+  ...changes,
 } as const
 
 export default zhCN

@@ -10,18 +10,81 @@ import (
 
 // Append 追加消息并持久化到磁盘。
 func (s *Session) Append(msg *schema.Message) error {
+	return s.AppendWithMetadata(msg, MessageMetadata{})
+}
+
+func (s *Session) AppendWithMetadata(msg *schema.Message, metadata MessageMetadata) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	now := time.Now().UTC()
+	metadata = sanitizeMessageMetadata(metadata)
 	s.messages = append(s.messages, msg)
-	s.records = append(s.records, historyRecord{kind: historyTypeMessage, message: msg, createdAt: now})
+	s.records = append(s.records, historyRecord{kind: historyTypeMessage, message: msg, messageMetadata: metadata, createdAt: now})
 	s.UpdatedAt = now
 	if s.title == defaultSessionTitle && msg.Role == schema.User && strings.TrimSpace(msg.Content) != "" {
 		s.title = deriveTitle(msg.Content)
 	}
 
 	return s.persistLocked()
+}
+
+func sanitizeMessageMetadata(metadata MessageMetadata) MessageMetadata {
+	metadata.RunID = strings.TrimSpace(metadata.RunID)
+	metadata.AgentKind = strings.TrimSpace(metadata.AgentKind)
+	metadata.AgentName = strings.TrimSpace(metadata.AgentName)
+	metadata.RootAgentName = strings.TrimSpace(metadata.RootAgentName)
+	metadata.SubAgentSessionID = strings.TrimSpace(metadata.SubAgentSessionID)
+	metadata.SubAgentType = strings.TrimSpace(metadata.SubAgentType)
+	if len(metadata.RunPath) > 0 {
+		out := make([]string, 0, len(metadata.RunPath))
+		for _, step := range metadata.RunPath {
+			step = strings.TrimSpace(step)
+			if step != "" {
+				out = append(out, step)
+			}
+		}
+		metadata.RunPath = out
+	}
+	metadata.UserReferences = sanitizeUserMessageReferences(metadata.UserReferences)
+	return metadata
+}
+
+const (
+	maxUserMessageReferences      = 256
+	maxUserReferenceLabelBytes    = 1024
+	maxUserReferenceDetailBytes   = 2048
+	maxUserReferenceMetadataBytes = 128 * 1024
+)
+
+func sanitizeUserMessageReferences(values []UserMessageReference) []UserMessageReference {
+	result := make([]UserMessageReference, 0, min(len(values), maxUserMessageReferences))
+	totalBytes := 0
+	for _, value := range values {
+		if len(result) >= maxUserMessageReferences {
+			break
+		}
+		value.Kind = strings.TrimSpace(value.Kind)
+		value.ID = truncateUTF8ByBytes(strings.TrimSpace(value.ID), maxUserReferenceLabelBytes)
+		value.Label = truncateUTF8ByBytes(strings.TrimSpace(value.Label), maxUserReferenceLabelBytes)
+		value.Detail = truncateUTF8ByBytes(strings.TrimSpace(value.Detail), maxUserReferenceDetailBytes)
+		if value.Kind == "" || value.Label == "" {
+			continue
+		}
+		if value.StartLine < 0 {
+			value.StartLine = 0
+		}
+		if value.EndLine < value.StartLine {
+			value.EndLine = value.StartLine
+		}
+		size := len(value.Kind) + len(value.ID) + len(value.Label) + len(value.Detail) + 32
+		if totalBytes+size > maxUserReferenceMetadataBytes {
+			break
+		}
+		totalBytes += size
+		result = append(result, value)
+	}
+	return result
 }
 
 // AppendContextMessage appends a model-visible message that is hidden from UI history.
@@ -101,11 +164,20 @@ func (s *Session) History() []HistoryEntry {
 				continue
 			}
 			result = append(result, HistoryEntry{
-				Type:      historyTypeMessage,
-				Role:      string(record.message.Role),
-				Content:   record.message.Content,
-				Message:   record.message,
-				CreatedAt: record.createdAt,
+				Type:              historyTypeMessage,
+				Role:              string(record.message.Role),
+				Content:           record.message.Content,
+				Message:           record.message,
+				CreatedAt:         record.createdAt,
+				RunID:             record.messageMetadata.RunID,
+				AgentKind:         record.messageMetadata.AgentKind,
+				AgentName:         record.messageMetadata.AgentName,
+				RootAgentName:     record.messageMetadata.RootAgentName,
+				RunPath:           append([]string(nil), record.messageMetadata.RunPath...),
+				SubAgent:          record.messageMetadata.SubAgent,
+				SubAgentSessionID: record.messageMetadata.SubAgentSessionID,
+				SubAgentType:      record.messageMetadata.SubAgentType,
+				UserReferences:    append([]UserMessageReference(nil), record.messageMetadata.UserReferences...),
 			})
 		case historyTypeDisplay:
 			if record.display == nil {

@@ -16,37 +16,25 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
 
-	"casemagica/config"
-	agenttools "casemagica/internal/agent/tools"
-	"casemagica/internal/book"
-	"casemagica/internal/prompts"
-	"casemagica/internal/providercompat"
-	novaskills "casemagica/internal/skills"
+	"denova/config"
+	agenttools "denova/internal/agent/tools"
+	"denova/internal/book"
+	"denova/internal/interactive"
+	"denova/internal/prompts"
+	"denova/internal/providercompat"
+	novaskills "denova/internal/skills"
+	"denova/internal/workspacechange"
 )
 
 var newDeepAgent = deep.New
 
 const unlimitedAgentMaxIterations = 1_000_000
 
-var novaReadFileToolDesc = fmt.Sprintf(`Reads a file from the filesystem.
-- file_path must be an absolute path.
-- By default this tool reads up to %d lines from line 1. Do not use a smaller scan limit just to inspect normal source or writing files.
-- Use offset and limit to continue reading later sections. Set limit above %d only when the task truly needs more context.
-- Results are returned with line numbers in cat -n format.
-- Read a file before editing it.
-
-从文件系统读取文件。
-- file_path 必须是绝对路径。
-- 默认从第 1 行开始最多读取 %d 行。普通源码或正文文件不要先用更小的扫描 limit。
-- 需要继续读取后续片段时使用 offset 和 limit；只有确实需要更多上下文时才把 limit 设为超过 %d。
-- 结果以 cat -n 行号格式返回。
-- 编辑前必须先读取目标文件。`, agentFileReadDefaultLimitLines, agentFileReadDefaultLimitLines, agentFileReadDefaultLimitLines, agentFileReadDefaultLimitLines)
-
 // Build 构建小说创作 Agent（deep agent + 文件系统工具 + Skill 中间件）。
 func Build(ctx context.Context, cfg *config.Config, state *book.State, teller IDEStoryTeller) (adk.Agent, error) {
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindIDE,
-		Name:              "CaseMagicaAgent",
+		Name:              "DenovaAgent",
 		Description:       "AI 小说创作助手",
 		Instruction:       BuildInstruction(cfg, state, teller),
 		EnableSkills:      true,
@@ -55,31 +43,43 @@ func Build(ctx context.Context, cfg *config.Config, state *book.State, teller ID
 }
 
 func BuildInteractiveStory(ctx context.Context, cfg *config.Config, state *book.State, teller prompts.InteractiveStorySystemInstructionInput, toolContexts ...InteractiveStoryToolContext) (adk.Agent, error) {
+	handlers := []adk.ChatModelAgentMiddleware{newInteractiveStoryToolMiddleware()}
+	var outputGuard func(context.Context, *adk.RetryContext) *adk.RetryDecision
+	if len(toolContexts) > 0 && toolContexts[0].TurnResultReady != nil {
+		completionTokens, _ := EstimateContextProjectionReserves(cfg, config.AgentKindInteractiveStory, teller.ReplyTargetChars)
+		handlers = append(handlers, newInteractiveTurnProtocolMiddleware(toolContexts[0].TurnResultReady, completionTokens))
+		outputGuard = newInteractiveCompletionGuard(toolContexts[0].TurnResultReady)
+	}
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindInteractiveStory,
-		Name:              "CaseMagicaInteractiveStoryAgent",
+		Name:              "DenovaInteractiveStoryAgent",
 		Description:       "AI 互动故事叙事助手",
 		Instruction:       BuildInteractiveStoryInstruction(cfg, state, teller),
 		EnableSkills:      true,
 		DisableWriteTodos: true,
-		ExtraHandlers:     []adk.ChatModelAgentMiddleware{newInteractiveStoryToolMiddleware()},
+		ExtraHandlers:     handlers,
 		ExtraToolsFactory: interactiveStoryToolsFactory(cfg, toolContexts...),
+		ModelOutputGuard:  outputGuard,
 	})
 }
 
 func BuildInteractiveDirector(ctx context.Context, cfg *config.Config, state *book.State, toolContexts ...InteractiveStoryToolContext) (adk.Agent, error) {
-	var allowedPaths []string
+	maintenanceTask := ""
 	if len(toolContexts) > 0 {
-		allowedPaths = toolContexts[0].DirectorPlanAllowedPaths
+		maintenanceTask = toolContexts[0].MaintenanceTask
+	}
+	systemInstruction := prompts.BuildInteractiveDirectorSystemInstruction()
+	if maintenanceTask == "state_schema_initialization" {
+		systemInstruction = prompts.BuildInteractiveStateSchemaAdapterSystemInstruction()
 	}
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindInteractiveDirector,
-		Name:              "CaseMagicaInteractiveDirectorAgent",
+		Name:              "DenovaInteractiveDirectorAgent",
 		Description:       "AI 互动故事后台导演",
-		Instruction:       protectedSystemInstruction(cfg, config.AgentKindInteractiveDirector, prompts.BuildInteractiveDirectorSystemInstruction()),
+		Instruction:       protectedSystemInstruction(cfg, config.AgentKindInteractiveDirector, systemInstruction),
 		EnableSkills:      false,
 		DisableWriteTodos: true,
-		ExtraHandlers:     []adk.ChatModelAgentMiddleware{newInteractiveDirectorPlanFileMiddleware(allowedPaths)},
+		ExtraHandlers:     []adk.ChatModelAgentMiddleware{newInteractiveDirectorPlanFileMiddleware(maintenanceTask)},
 		ExtraToolsFactory: interactiveDirectorToolsFactory(cfg, toolContexts...),
 	})
 }
@@ -88,7 +88,7 @@ func BuildInteractiveDirector(ctx context.Context, cfg *config.Config, state *bo
 func BuildConfigManagerAgent(ctx context.Context, cfg *config.Config, state *book.State, resourceSkills ...ConfigManagerResourceSkill) (adk.Agent, error) {
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindConfigManager,
-		Name:              "CaseMagicaConfigManagerAgent",
+		Name:              "DenovaConfigManagerAgent",
 		Description:       "AI 配置与资源管理助手",
 		Instruction:       BuildConfigManagerInstruction(cfg, state, resourceSkills...),
 		EnableSkills:      true,
@@ -100,7 +100,7 @@ func BuildConfigManagerAgent(ctx context.Context, cfg *config.Config, state *boo
 func BuildAutomationAgent(ctx context.Context, cfg *config.Config, state *book.State, task AutomationTaskInstruction) (adk.Agent, error) {
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindAutomation,
-		Name:              "CaseMagicaAutomationAgent",
+		Name:              "DenovaAutomationAgent",
 		Description:       "AI 自动化任务助手",
 		Instruction:       BuildAutomationInstruction(cfg, state, task),
 		EnableSkills:      true,
@@ -112,7 +112,7 @@ func BuildAutomationAgent(ctx context.Context, cfg *config.Config, state *book.S
 func BuildImageAgent(ctx context.Context, cfg *config.Config, state *book.State, systemPrompt string) (adk.Agent, error) {
 	return buildDeepAgent(ctx, cfg, deepAgentSpec{
 		Kind:              config.AgentKindImage,
-		Name:              "CaseMagicaImageAgent",
+		Name:              "DenovaImageAgent",
 		Description:       "AI 图像生成助手",
 		Instruction:       BuildImageInstruction(cfg, state, systemPrompt),
 		EnableSkills:      true,
@@ -131,6 +131,7 @@ type deepAgentSpec struct {
 	ExtraHandlers     []adk.ChatModelAgentMiddleware
 	ExtraTools        []tool.BaseTool
 	ExtraToolsFactory func(config.ResolvedAgentToolSettings) ([]tool.BaseTool, error)
+	ModelOutputGuard  func(context.Context, *adk.RetryContext) *adk.RetryDecision
 }
 
 func buildDeepAgent(ctx context.Context, cfg *config.Config, spec deepAgentSpec) (adk.Agent, error) {
@@ -181,14 +182,7 @@ func buildDeepAgent(ctx context.Context, cfg *config.Config, spec deepAgentSpec)
 				UnknownToolsHandler: handleUnknownTool,
 			},
 		},
-		ModelRetryConfig: &adk.ModelRetryConfig{
-			MaxRetries: configModelMaxRetries(cfg),
-			IsRetryAble: func(_ context.Context, err error) bool {
-				return strings.Contains(err.Error(), "429") ||
-					strings.Contains(err.Error(), "Too Many Requests") ||
-					strings.Contains(err.Error(), "qpm limit")
-			},
-		},
+		ModelRetryConfig: modelRetryConfig(cfg, spec.ModelOutputGuard),
 	})
 }
 
@@ -214,14 +208,19 @@ func buildChatModelAgentAssembly(ctx context.Context, cfg *config.Config, spec c
 	if err != nil {
 		return chatModelAgentAssembly{}, fmt.Errorf("创建 backend 失败: %w", err)
 	}
-	backend := newAgentFilesystemBackend(localBackend)
+	workspace := ""
+	if cfg != nil {
+		workspace = cfg.Workspace
+	}
+	backend := newAgentFilesystemBackend(localBackend, workspace)
+	executionGate := sharedToolExecutionGate(workspace)
 	settings := spec.ToolSettings
 	middlewares := []agenttools.MiddlewareRegistration{
 		{
 			Name:    "filesystem",
 			Enabled: agenttools.FilesystemAllowed,
 			Build: func(ctx context.Context, _ agenttools.Settings) (adk.ChatModelAgentMiddleware, error) {
-				return newFilesystemMiddleware(ctx, backend, newAgentStreamingShell(), spec.ToolSettings)
+				return newFilesystemMiddleware(ctx, backend, newAgentStreamingShell(workspace), spec.ToolSettings, workspace)
 			},
 		},
 		{
@@ -255,6 +254,7 @@ func buildChatModelAgentAssembly(ctx context.Context, cfg *config.Config, spec c
 					toolSettings:        spec.ToolSettings,
 					enforceToolSettings: true,
 					toolResultMaxBytes:  configToolResultMaxBytes(cfg),
+					executionGate:       executionGate,
 				}, nil
 			},
 		},
@@ -316,7 +316,7 @@ func newSkillMiddleware(ctx context.Context, cfg *config.Config, agentKind strin
 		return nil, nil
 	}
 	skillBackend := novaskills.NewAgentBackend(
-		novaskills.NewDirectories(cfg.SkillsDir, cfg.DenovaDir, cfg.Workspace),
+		novaskills.NewDirectories(cfg.SkillsDir, cfg.DataDir(), cfg.Workspace),
 		agentKind,
 		config.ResolveAgentSkillOverrides(cfg, agentKind),
 	)
@@ -392,15 +392,35 @@ func buildConfiguredSubAgent(ctx context.Context, cfg *config.Config, parent dee
 				UnknownToolsHandler: handleUnknownTool,
 			},
 		},
-		ModelRetryConfig: &adk.ModelRetryConfig{
-			MaxRetries: configModelMaxRetries(cfg),
-			IsRetryAble: func(_ context.Context, err error) bool {
-				return strings.Contains(err.Error(), "429") ||
-					strings.Contains(err.Error(), "Too Many Requests") ||
-					strings.Contains(err.Error(), "qpm limit")
-			},
-		},
+		ModelRetryConfig: modelRetryConfig(cfg, nil),
 	})
+}
+
+func modelRetryConfig(cfg *config.Config, outputGuard func(context.Context, *adk.RetryContext) *adk.RetryDecision) *adk.ModelRetryConfig {
+	retryConfig := &adk.ModelRetryConfig{
+		MaxRetries:  configModelMaxRetries(cfg),
+		IsRetryAble: isTransientModelError,
+	}
+	if outputGuard == nil {
+		return retryConfig
+	}
+	retryConfig.IsRetryAble = nil
+	retryConfig.ShouldRetry = func(ctx context.Context, retryCtx *adk.RetryContext) *adk.RetryDecision {
+		if retryCtx != nil && retryCtx.Err != nil {
+			return &adk.RetryDecision{Retry: isTransientModelError(ctx, retryCtx.Err)}
+		}
+		return outputGuard(ctx, retryCtx)
+	}
+	return retryConfig
+}
+
+func isTransientModelError(_ context.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "429") ||
+		strings.Contains(err.Error(), "Too Many Requests") ||
+		strings.Contains(err.Error(), "qpm limit")
 }
 
 func buildSubAgentInstruction(parent deepAgentSpec, sub config.SubAgentConfig) string {
@@ -434,11 +454,11 @@ func buildSubAgentInstruction(parent deepAgentSpec, sub config.SubAgentConfig) s
 }
 
 func loreToolsFactory(cfg *config.Config, forceReadOnly bool) func(config.ResolvedAgentToolSettings) ([]tool.BaseTool, error) {
-	return func(_ config.ResolvedAgentToolSettings) ([]tool.BaseTool, error) {
-		if cfg == nil {
+	return func(settings config.ResolvedAgentToolSettings) ([]tool.BaseTool, error) {
+		if cfg == nil || (!settings.LoreRead && !settings.LoreWrite) {
 			return nil, nil
 		}
-		allowWrite := !forceReadOnly
+		allowWrite := !forceReadOnly && settings.LoreWrite
 		return newLoreTools(cfg.Workspace, allowWrite)
 	}
 }
@@ -482,11 +502,11 @@ func interactiveStoryToolsFactory(cfg *config.Config, toolContexts ...Interactiv
 			tools = append(tools, loreTools...)
 		}
 		if len(toolContexts) > 0 {
-			memoryTools, err := newInteractiveMemoryTools(toolContexts[0])
+			historyTools, err := newInteractiveHistoryTools(toolContexts[0])
 			if err != nil {
 				return nil, err
 			}
-			tools = append(tools, memoryTools...)
+			tools = append(tools, historyTools...)
 			turnTools, err := newInteractiveTurnTools(toolContexts[0])
 			if err != nil {
 				return nil, err
@@ -499,23 +519,56 @@ func interactiveStoryToolsFactory(cfg *config.Config, toolContexts ...Interactiv
 
 func interactiveDirectorToolsFactory(cfg *config.Config, toolContexts ...InteractiveStoryToolContext) func(config.ResolvedAgentToolSettings) ([]tool.BaseTool, error) {
 	return func(settings config.ResolvedAgentToolSettings) ([]tool.BaseTool, error) {
-		_ = cfg
-		_ = settings
-		if len(toolContexts) == 0 {
-			return nil, nil
-		}
 		var tools []tool.BaseTool
-		actorTools, err := newInteractiveActorStateTools(toolContexts[0])
-		if err != nil {
-			return nil, err
+		var storyToolContext InteractiveStoryToolContext
+		if len(toolContexts) > 0 {
+			storyToolContext = toolContexts[0]
 		}
-		tools = append(tools, actorTools...)
-		memoryPatchTools, err := newInteractiveStoryMemoryPatchTools(toolContexts[0])
-		if err != nil {
-			return nil, err
+		if cfg != nil && settings.LoreRead {
+			var options []loreToolsOptions
+			switch strings.TrimSpace(storyToolContext.MaintenanceTask) {
+			case "state_schema_initialization":
+				options = append(options, loreToolsOptions{ReadPolicy: &loreReadPolicy{
+					MaxItemsPerCall: interactive.StateSchemaLoreReadMaxItemsPerCall,
+					MaxResultBytes:  interactive.StateSchemaLoreReadMaxResultBytes,
+					MaxTotalBytes:   interactive.StateSchemaLoreReadMaxTotalBytes,
+					OnRead:          storyToolContext.OnLoreItemsRead,
+				}})
+			case "director_plan_update", "opening_plan":
+				policy := defaultLoreReadPolicy()
+				policy.OnRead = storyToolContext.OnLoreItemsRead
+				options = append(options, loreToolsOptions{ReadPolicy: policy})
+			}
+			loreTools, err := newLoreTools(cfg.Workspace, false, options...)
+			if err != nil {
+				return nil, err
+			}
+			tools = append(tools, loreTools...)
 		}
-		tools = append(tools, memoryPatchTools...)
-		return tools, nil
+		if len(toolContexts) == 0 {
+			return tools, nil
+		}
+		ctx := storyToolContext
+		switch strings.TrimSpace(ctx.MaintenanceTask) {
+		case "state_schema_initialization":
+			stateSchemaTools, err := newInteractiveStateSchemaTools(ctx)
+			return append(tools, stateSchemaTools...), err
+		case "director_plan_update", "opening_plan":
+			historyTools, err := newInteractiveHistoryTools(ctx)
+			if err != nil {
+				return nil, err
+			}
+			eventTools, err := newInteractiveEventTools(ctx)
+			if err != nil {
+				return nil, err
+			}
+			planTools, err := newInteractiveDirectorPlanTools(ctx)
+			tools = append(tools, historyTools...)
+			tools = append(tools, eventTools...)
+			return append(tools, planTools...), err
+		default:
+			return tools, nil
+		}
 	}
 }
 
@@ -544,23 +597,48 @@ func configManagerFactoryAllowed(settings config.ResolvedAgentToolSettings) bool
 		settings.AgentConfigWrite
 }
 
-func newFilesystemMiddleware(ctx context.Context, backend filesystem.Backend, streamingShell filesystem.StreamingShell, settings config.ResolvedAgentToolSettings) (adk.ChatModelAgentMiddleware, error) {
+func newFilesystemMiddleware(ctx context.Context, backend filesystem.Backend, streamingShell filesystem.StreamingShell, settings config.ResolvedAgentToolSettings, workspaces ...string) (adk.ChatModelAgentMiddleware, error) {
 	if backend == nil {
 		return nil, nil
 	}
 	if !settings.FileRead && !settings.FileWrite && !settings.ShellExecute {
 		return nil, nil
 	}
+	workspace := ""
+	if len(workspaces) > 0 {
+		workspace = strings.TrimSpace(workspaces[0])
+	}
+	readTool, err := newWorkspaceReadFileTool(backend, workspace)
+	if err != nil {
+		return nil, fmt.Errorf("创建 read_file 工具失败: %w", err)
+	}
+	readToolConfig := &filesystemmw.ToolConfig{CustomTool: readTool}
+	writeToolConfig := &filesystemmw.ToolConfig{}
+	editToolConfig := &filesystemmw.ToolConfig{}
+	if workspace != "" && settings.FileWrite {
+		changes, err := workspacechange.ForWorkspace(workspace)
+		if err != nil {
+			return nil, fmt.Errorf("创建 workspace change service 失败: %w", err)
+		}
+		writeTool, err := newWorkspaceWriteFileTool(changes)
+		if err != nil {
+			return nil, fmt.Errorf("创建 write_file 工具失败: %w", err)
+		}
+		editTool, err := newWorkspaceEditFileTool(changes)
+		if err != nil {
+			return nil, fmt.Errorf("创建 edit_file 工具失败: %w", err)
+		}
+		writeToolConfig.CustomTool = writeTool
+		editToolConfig.CustomTool = editTool
+	}
 	mwConfig := &filesystemmw.MiddlewareConfig{
-		Backend:      backend,
-		LsToolConfig: &filesystemmw.ToolConfig{},
-		ReadFileToolConfig: &filesystemmw.ToolConfig{
-			Desc: &novaReadFileToolDesc,
-		},
+		Backend:             backend,
+		LsToolConfig:        &filesystemmw.ToolConfig{},
+		ReadFileToolConfig:  readToolConfig,
 		GlobToolConfig:      &filesystemmw.ToolConfig{},
 		GrepToolConfig:      &filesystemmw.ToolConfig{},
-		WriteFileToolConfig: &filesystemmw.ToolConfig{},
-		EditFileToolConfig:  &filesystemmw.ToolConfig{},
+		WriteFileToolConfig: writeToolConfig,
+		EditFileToolConfig:  editToolConfig,
 	}
 	if streamingShell != nil {
 		mwConfig.StreamingShell = streamingShell
@@ -598,7 +676,7 @@ func configModelMaxRetries(cfg *config.Config) int {
 
 func configToolResultMaxBytes(cfg *config.Config) int {
 	if cfg == nil || cfg.AgentToolResultLimitKB <= 0 {
-		return 0
+		return defaultToolResultMaxBytes
 	}
 	return cfg.AgentToolResultLimitKB * 1024
 }

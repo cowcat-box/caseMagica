@@ -10,9 +10,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"casemagica/config"
-	"casemagica/internal/book"
-	"casemagica/internal/prompts"
+	"denova/config"
+	"denova/internal/book"
+	"denova/internal/prompts"
 )
 
 // IDEStoryTeller 描述写作 Agent 本轮使用的默认导演规则。
@@ -401,6 +401,7 @@ func buildInteractiveStoryBuiltinInstruction(cfg *config.Config, state *book.Sta
 		CreatorPrompt:           creator,
 		Workspace:               workspace,
 		ReplyTargetChars:        replyTargetChars,
+		ChoiceCount:             teller.ChoiceCount,
 		StoryTellerID:           teller.StoryTellerID,
 		StoryTellerName:         teller.StoryTellerName,
 		StoryTellerDescription:  teller.StoryTellerDescription,
@@ -423,7 +424,7 @@ func buildImageBuiltinInstruction(cfg *config.Config, state *book.State, systemP
 		}
 	}
 	parts := []string{
-		"你是 CaseMagica 的通用图像 Agent，负责把调用方提供的有界上下文转换成图像生成请求。",
+		"你是 Denova 的通用图像 Agent，负责把调用方提供的有界上下文转换成图像生成请求。",
 		"必须先理解本次 purpose、source_context、调用方系统提示和已加载 Skill，再调用 generate_image 工具生成图像。",
 		"只能生成图像和图像元数据，不得修改故事正文、章节正文、资料库、配置或其他 workspace 内容。",
 		"图像提示词应清晰描述主体、场景、构图、光线、视觉风格、情绪和需要避免的文字、水印、logo。",
@@ -449,16 +450,15 @@ func BuiltinAgentPrompts(cfg *config.Config, state *book.State, ideTeller IDESto
 		promptCfg = &copy
 	}
 	return config.AgentPromptSettings{
-		IDE:                   config.AgentPromptOverride{SystemPrompt: BuildInstruction(promptCfg, state, ideTeller)},
-		InteractiveStory:      config.AgentPromptOverride{SystemPrompt: BuildInteractiveStoryInstruction(promptCfg, state, prompts.InteractiveStorySystemInstructionInput{})},
-		ConfigManager:         config.AgentPromptOverride{SystemPrompt: BuildConfigManagerInstruction(promptCfg, state)},
-		InteractiveDirector:   config.AgentPromptOverride{SystemPrompt: protectedSystemInstruction(promptCfg, config.AgentKindInteractiveDirector, prompts.BuildInteractiveDirectorSystemInstruction())},
-		InteractiveHotChoices: config.AgentPromptOverride{SystemPrompt: protectedSystemInstruction(promptCfg, config.AgentKindInteractiveHotChoices, prompts.BuildInteractiveHotChoicesSystemInstruction())},
-		VersionSummary:        config.AgentPromptOverride{SystemPrompt: protectedSystemInstruction(promptCfg, config.AgentKindVersionSummary, "你是 CaseMagica 小说工作台的版本说明生成器。根据文件变更推理这次保存的核心创作变化。只输出一句中文版本说明，10 到 30 个汉字，不要编号、引号、冒号、句号或解释。")},
-		ToolAgent:             config.AgentPromptOverride{SystemPrompt: protectedSystemInstruction(promptCfg, config.AgentKindToolAgent, chapterSplitRegexSystemInstruction())},
-		Image:                 config.AgentPromptOverride{SystemPrompt: BuildImageInstruction(promptCfg, state, "")},
-		Automation:            config.AgentPromptOverride{SystemPrompt: BuildAutomationInstruction(promptCfg, state, AutomationTaskInstruction{})},
-		ContextCompaction:     config.AgentPromptOverride{SystemPrompt: protectedSystemInstruction(promptCfg, config.AgentKindContextCompaction, contextCompactionSystemInstruction())},
+		IDE:                 config.AgentPromptOverride{SystemPrompt: BuildInstruction(promptCfg, state, ideTeller)},
+		InteractiveStory:    config.AgentPromptOverride{SystemPrompt: BuildInteractiveStoryInstruction(promptCfg, state, prompts.InteractiveStorySystemInstructionInput{})},
+		ConfigManager:       config.AgentPromptOverride{SystemPrompt: BuildConfigManagerInstruction(promptCfg, state)},
+		InteractiveDirector: config.AgentPromptOverride{SystemPrompt: protectedSystemInstruction(promptCfg, config.AgentKindInteractiveDirector, prompts.BuildInteractiveDirectorSystemInstruction())},
+		VersionSummary:      config.AgentPromptOverride{SystemPrompt: protectedSystemInstruction(promptCfg, config.AgentKindVersionSummary, "你是 Denova 小说工作台的版本说明生成器。根据文件变更推理这次保存的核心创作变化。只输出一句中文版本说明，10 到 30 个汉字，不要编号、引号、冒号、句号或解释。")},
+		ToolAgent:           config.AgentPromptOverride{SystemPrompt: protectedSystemInstruction(promptCfg, config.AgentKindToolAgent, chapterSplitRegexSystemInstruction())},
+		Image:               config.AgentPromptOverride{SystemPrompt: BuildImageInstruction(promptCfg, state, "")},
+		Automation:          config.AgentPromptOverride{SystemPrompt: BuildAutomationInstruction(promptCfg, state, AutomationTaskInstruction{})},
+		ContextCompaction:   config.AgentPromptOverride{SystemPrompt: protectedSystemInstruction(promptCfg, config.AgentKindContextCompaction, contextCompactionSystemInstruction())},
 	}
 }
 
@@ -473,16 +473,15 @@ func BuiltinAgentPromptBlocks(cfg *config.Config, state *book.State, ideTeller I
 	_, interactiveWorkspace, _ := buildInteractiveStoryBuiltinInstruction(promptCfg, state, prompts.InteractiveStorySystemInstructionInput{})
 	configManagerFlow := configManagerFlowInstruction(promptCfg, state)
 	return config.AgentPromptBlockSettings{
-		IDE:                   builtinPromptBlocks(promptCfg, config.AgentKindIDE, ideFlowInstruction(promptCfg, ideWorkspace)),
-		InteractiveStory:      builtinPromptBlocks(promptCfg, config.AgentKindInteractiveStory, interactiveStoryFlowInstruction(promptCfg, interactiveWorkspace)),
-		ConfigManager:         builtinPromptBlocks(promptCfg, config.AgentKindConfigManager, configManagerFlow),
-		InteractiveDirector:   builtinPromptBlocks(promptCfg, config.AgentKindInteractiveDirector, prompts.BuildInteractiveDirectorSystemInstruction()),
-		InteractiveHotChoices: builtinPromptBlocks(promptCfg, config.AgentKindInteractiveHotChoices, prompts.BuildInteractiveHotChoicesSystemInstruction()),
-		VersionSummary:        builtinPromptBlocks(promptCfg, config.AgentKindVersionSummary, "你是 CaseMagica 小说工作台的版本说明生成器。根据文件变更推理这次保存的核心创作变化。只输出一句中文版本说明，10 到 30 个汉字，不要编号、引号、冒号、句号或解释。"),
-		ToolAgent:             builtinPromptBlocks(promptCfg, config.AgentKindToolAgent, chapterSplitRegexSystemInstruction()),
-		Image:                 builtinPromptBlocks(promptCfg, config.AgentKindImage, ""),
-		Automation:            builtinPromptBlocks(promptCfg, config.AgentKindAutomation, editableAutomationBuiltinInstruction(promptCfg, state, AutomationTaskInstruction{})),
-		ContextCompaction:     builtinPromptBlocks(promptCfg, config.AgentKindContextCompaction, contextCompactionSystemInstruction()),
+		IDE:                 builtinPromptBlocks(promptCfg, config.AgentKindIDE, ideFlowInstruction(promptCfg, ideWorkspace)),
+		InteractiveStory:    builtinPromptBlocks(promptCfg, config.AgentKindInteractiveStory, interactiveStoryFlowInstruction(promptCfg, interactiveWorkspace)),
+		ConfigManager:       builtinPromptBlocks(promptCfg, config.AgentKindConfigManager, configManagerFlow),
+		InteractiveDirector: builtinPromptBlocks(promptCfg, config.AgentKindInteractiveDirector, prompts.BuildInteractiveDirectorSystemInstruction()),
+		VersionSummary:      builtinPromptBlocks(promptCfg, config.AgentKindVersionSummary, "你是 Denova 小说工作台的版本说明生成器。根据文件变更推理这次保存的核心创作变化。只输出一句中文版本说明，10 到 30 个汉字，不要编号、引号、冒号、句号或解释。"),
+		ToolAgent:           builtinPromptBlocks(promptCfg, config.AgentKindToolAgent, chapterSplitRegexSystemInstruction()),
+		Image:               builtinPromptBlocks(promptCfg, config.AgentKindImage, ""),
+		Automation:          builtinPromptBlocks(promptCfg, config.AgentKindAutomation, editableAutomationBuiltinInstruction(promptCfg, state, AutomationTaskInstruction{})),
+		ContextCompaction:   builtinPromptBlocks(promptCfg, config.AgentKindContextCompaction, contextCompactionSystemInstruction()),
 	}
 }
 
@@ -508,14 +507,13 @@ func BuiltinAgentPromptSources(cfg *config.Config, state *book.State, ideTeller 
 		InteractiveStory: builtinPromptSourceList(promptCfg, config.AgentKindInteractiveStory, interactiveStoryFlowInstruction(promptCfg, interactiveWorkspace),
 			readonlyPromptSource("creator", "CREATOR.md", "CREATOR.md", interactiveCreator),
 		),
-		ConfigManager:         builtinPromptSourceList(promptCfg, config.AgentKindConfigManager, configManagerFlow, readonlyPromptSource("creator", "CREATOR.md", "CREATOR.md", configManagerCreator)),
-		InteractiveDirector:   builtinPromptSourceList(promptCfg, config.AgentKindInteractiveDirector, prompts.BuildInteractiveDirectorSystemInstruction()),
-		InteractiveHotChoices: builtinPromptSourceList(promptCfg, config.AgentKindInteractiveHotChoices, prompts.BuildInteractiveHotChoicesSystemInstruction()),
-		VersionSummary:        builtinPromptSourceList(promptCfg, config.AgentKindVersionSummary, "你是 CaseMagica 小说工作台的版本说明生成器。根据文件变更推理这次保存的核心创作变化。只输出一句中文版本说明，10 到 30 个汉字，不要编号、引号、冒号、句号或解释。"),
-		ToolAgent:             builtinPromptSourceList(promptCfg, config.AgentKindToolAgent, chapterSplitRegexSystemInstruction()),
-		Image:                 builtinPromptSourceList(promptCfg, config.AgentKindImage, ""),
-		Automation:            builtinPromptSourceList(promptCfg, config.AgentKindAutomation, editableAutomationBuiltinInstruction(promptCfg, state, AutomationTaskInstruction{})),
-		ContextCompaction:     builtinPromptSourceList(promptCfg, config.AgentKindContextCompaction, contextCompactionSystemInstruction()),
+		ConfigManager:       builtinPromptSourceList(promptCfg, config.AgentKindConfigManager, configManagerFlow, readonlyPromptSource("creator", "CREATOR.md", "CREATOR.md", configManagerCreator)),
+		InteractiveDirector: builtinPromptSourceList(promptCfg, config.AgentKindInteractiveDirector, prompts.BuildInteractiveDirectorSystemInstruction()),
+		VersionSummary:      builtinPromptSourceList(promptCfg, config.AgentKindVersionSummary, "你是 Denova 小说工作台的版本说明生成器。根据文件变更推理这次保存的核心创作变化。只输出一句中文版本说明，10 到 30 个汉字，不要编号、引号、冒号、句号或解释。"),
+		ToolAgent:           builtinPromptSourceList(promptCfg, config.AgentKindToolAgent, chapterSplitRegexSystemInstruction()),
+		Image:               builtinPromptSourceList(promptCfg, config.AgentKindImage, ""),
+		Automation:          builtinPromptSourceList(promptCfg, config.AgentKindAutomation, editableAutomationBuiltinInstruction(promptCfg, state, AutomationTaskInstruction{})),
+		ContextCompaction:   builtinPromptSourceList(promptCfg, config.AgentKindContextCompaction, contextCompactionSystemInstruction()),
 	}
 }
 
@@ -532,14 +530,14 @@ func builtinPromptSourceList(cfg *config.Config, agentKind, flow string, extraSo
 	sources = append(sources, config.AgentPromptSource{
 		ID:      "runtime_contract",
 		Title:   "运行契约",
-		Source:  "CaseMagica runtime",
+		Source:  "Denova runtime",
 		Content: runtimeContractForAgent(cfg, agentKind),
 	})
 	if outputProtocol := strings.TrimSpace(outputProtocolForAgent(agentKind)); outputProtocol != "" {
 		sources = append(sources, config.AgentPromptSource{
 			ID:      "output_protocol",
 			Title:   "输出格式",
-			Source:  "CaseMagica runtime",
+			Source:  "Denova runtime",
 			Content: outputProtocol,
 		})
 	}
@@ -551,7 +549,7 @@ func builtinPromptSourceList(cfg *config.Config, agentKind, flow string, extraSo
 	sources = append(sources, config.AgentPromptSource{
 		ID:       "flow",
 		Title:    "流程规则",
-		Source:   "CaseMagica built-in",
+		Source:   "Denova built-in",
 		Content:  editablePromptFlowForAgent(agentKind, flow),
 		Editable: true,
 		Field:    "flow_prompt",
@@ -626,8 +624,6 @@ func editablePromptFlowForAgent(agentKind, flow string) string {
 	switch agentKind {
 	case config.AgentKindInteractiveDirector:
 		return ""
-	case config.AgentKindInteractiveHotChoices:
-		return filterPromptLines(flow, "必须只输出", "不要输出")
 	case config.AgentKindVersionSummary:
 		return ""
 	case config.AgentKindToolAgent:
@@ -651,7 +647,7 @@ func appendConfigManagerResourceSkills(builtIn string, resourceSkills []ConfigMa
 		}
 		if sb.Len() == 0 {
 			sb.WriteString("\n\n## 本轮自动加载的配置 Skills\n\n")
-			sb.WriteString("以下内容来自当前生效的 CaseMagica Skills，用于在调用复杂 write_* 配置工具前确认 JSON 结构、枚举、默认值和安全流程；若与运行时契约或后端校验冲突，以运行时契约和后端校验为准。\n")
+			sb.WriteString("以下内容来自当前生效的 Denova Skills，用于在调用复杂 write_* 配置工具前确认 JSON 结构、枚举、默认值和安全流程；若与运行时契约或后端校验冲突，以运行时契约和后端校验为准。\n")
 		}
 		sb.WriteString("\n### /")
 		sb.WriteString(name)
@@ -692,7 +688,7 @@ func configManagerFlowInstruction(cfg *config.Config, state *book.State) string 
 
 func configManagerFlowInstructionFor(workspace, creator string) string {
 	var sb strings.Builder
-	sb.WriteString("你是 CaseMagica 的统一配置管理 Agent，负责在模块内嵌入口中帮助用户管理资料库、方案预设（叙事风格、故事导演、状态系统和图像方案）、自动化任务、Skills、故事记忆结构和故事记忆记录。\n\n")
+	sb.WriteString("你是 Denova 的统一配置管理 Agent，负责在模块内嵌入口中帮助用户管理资料库、方案预设（叙事风格、故事导演、状态系统和图像方案）、自动化任务、Skills 和 Agent 配置。\n\n")
 	if strings.TrimSpace(workspace) != "" {
 		sb.WriteString("当前作品 workspace: ")
 		sb.WriteString(strings.TrimSpace(workspace))
@@ -706,19 +702,19 @@ func configManagerFlowInstructionFor(workspace, creator string) string {
 	sb.WriteString(strings.Join([]string{
 		"## 工作方式",
 		"- 根据用户所在模块和当前资源上下文，优先使用对应模块工具完成管理任务。",
-		"- 每个模块先用 list 工具查看索引；需要详情时再用 read 工具批量读取。故事记忆结构没有 read 工具，list 已返回完整结构。",
+		"- 每个模块先用 list 工具查看索引；需要详情时再用 read 工具批量读取。",
 		"- 增删改统一使用对应 write 工具批量完成，写入后用简短中文总结实际变更。",
 		"- Agent 页配置使用 list_agent_configs 一次读取全量配置，再用 write_agent_configs 写入；写入必须显式指定 scope=user 或 scope=workspace。",
 		"- 不要修改端口、主题、远程访问、编辑器外观等非 Agent 页设置。",
-		"- 不要通过文件工具直接改资料库、方案预设、自动化、Skills、故事记忆或 Agent 配置的底层存储文件。",
+		"- 不要通过文件工具直接改资料库、方案预设、自动化、Skills 或 Agent 配置的底层存储文件。",
 		"- 删除、隐藏、覆盖、大范围重写必须有用户明确指令；缺少明确指令时先询问。",
 		"",
 		"## 模块边界",
-		"- 资料库记录长期稳定设定；短期位置、伤势、心理、目标优先进入故事记忆或写作状态，不默认写资料库。",
-		"- 叙事风格只维护文风、提示词槽位、场景风格和上下文策略；故事导演维护编排策略，并通过 module_refs 可插拔组合叙事风格、多个事件包、TRPG 检定、状态系统、开局选择器和图像方案；事件包只维护事件卡列表；TRPG 检定只维护 1d20 检定规则模板（类型、默认难度、掷骰方式、失败处理、状态影响和后果写法）；状态系统是结构化状态和可计算字段的唯一真源；图像方案只维护视觉风格、媒介、构图、限制和避免项。",
+		"- 资料库记录长期稳定设定；游戏模式中已发生事实进入 Turn 历史，当前位置、伤势、关系、资源和规则值进入 Actor State，不默认写资料库。",
+		"- 叙事风格只维护文风、提示词槽位、场景风格和上下文策略；故事导演维护编排策略，并通过 module_refs 可插拔组合叙事风格、多个事件包、TRPG 检定、状态系统和图像方案；事件包只维护事件卡列表；每个 TRPG 检定资源代表一种 DM 检定风格，检定固定使用 d20，并可通过 state_bindings 绑定状态系统字段；状态系统是结构化状态、开局词条、当前时间地点、当前事件、可计算字段和规则消费字段的唯一真源，模板只是状态表 schema，可表示故事上下文、主角、重要角色、敌人、世界、故事倒计时、特定角色、势力、基地或副本等任意状态对象；图像方案只维护视觉风格、媒介、构图、限制和避免项。",
+		"- 故事导演 strategy.state_schema_adaptation_mode 默认 after_opening：首轮正文落盘后由初始化 Director 基于有界真实开局对状态预设做一次适配并在校验后冻结；off 表示始终使用创建时冻结的原始预设。不要把故事专属适配回写到全局状态预设。",
 		"- Skills 写入 SKILL.md 文档，必须说明适用场景、上下文获取和具体工作流；内置预制 Skill 只能通过工作区同名覆盖修改，不得写入内置 Skills 目录。",
 		"- 自动化任务必须保持触发条件、通知/执行策略和写入权限清晰。",
-		"- 故事记忆结构定义字段和生成规则；故事记忆记录保存叙事承接和派生状态摘要，不改变状态系统中的真实状态，两者必须分开操作。",
 	}, "\n"))
 	return sb.String()
 }
@@ -747,7 +743,7 @@ func systemPromptSourceSummary(mode, creator string, stateParts []book.CompactCo
 		}
 		contextLog.add("作品状态", section.Title, section.Content, section.Source)
 	}
-	contextLog.add("系统提示", "CaseMagica "+mode+" 内置规则", "基础规则、工具边界、工作流约束", "")
+	contextLog.add("系统提示", "Denova "+mode+" 内置规则", "基础规则、工具边界、工作流约束", "")
 	return contextLog.String()
 }
 

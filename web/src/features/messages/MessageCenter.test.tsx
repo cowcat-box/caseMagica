@@ -39,11 +39,16 @@ describe('MessageCenterButton', () => {
     expect(await screen.findByText('1')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '打开消息中心' }))
 
-    expect(await screen.findAllByText('CaseMagica 未发布更新')).toHaveLength(2)
+    expect(await screen.findAllByText('Denova 未发布更新')).toHaveLength(2)
     expect(await screen.findAllByText('消息中心。')).toHaveLength(2)
-    expect(await screen.findByText('给 CaseMagica 充点 token')).toBeInTheDocument()
-    expect(screen.getByText('如果 CaseMagica 项目有帮到你，可以给它也充点 token，帮助 CaseMagica 持续开源、持续迭代。非常感谢！')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'CaseMagica 赞助二维码' })).toHaveAttribute('src', '/donate.png')
+    expect(await screen.findByText('给 Denova 充点 token')).toBeInTheDocument()
+    expect(screen.getByText('如果 Denova 项目有帮到你，可以给它也充点 token，帮助 Denova 持续开源、持续迭代。非常感谢！')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Denova 赞助二维码' })).toHaveAttribute('src', '/donate.png')
+    expect(screen.getByText('给 Denova 点个 Star')).toBeInTheDocument()
+    expect(screen.getByText('如果 Denova 项目有帮到你，欢迎去 GitHub 点个 Star，这是对 Denova 持续开源、持续迭代最大的支持。')).toBeInTheDocument()
+    const starLink = screen.getByRole('link', { name: '去 GitHub 点 Star' })
+    expect(starLink).toHaveAttribute('href', 'https://github.com/alfredxw/denova')
+    expect(starLink).toHaveAttribute('target', '_blank')
     await waitFor(() => expect(markRead).toHaveBeenCalledWith('changelog:unreleased'))
     await waitFor(() => expect(screen.queryByText('1')).not.toBeInTheDocument())
   })
@@ -70,8 +75,10 @@ describe('MessageCenterButton', () => {
     await userEvent.click(screen.getByRole('button', { name: '打开消息中心' }))
 
     expect(await screen.findAllByText('系统通知')).toHaveLength(2)
-    expect(screen.queryByText('给 CaseMagica 充点 token')).not.toBeInTheDocument()
-    expect(screen.queryByRole('img', { name: 'CaseMagica 赞助二维码' })).not.toBeInTheDocument()
+    expect(screen.queryByText('给 Denova 充点 token')).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Denova 赞助二维码' })).not.toBeInTheDocument()
+    expect(screen.queryByText('给 Denova 点个 Star')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '去 GitHub 点 Star' })).not.toBeInTheDocument()
   })
 
   it('marks all messages as read from the center header', async () => {
@@ -123,5 +130,48 @@ describe('MessageCenterButton', () => {
     await waitFor(() => expect(markAllRead).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(screen.queryByText('2')).not.toBeInTheDocument())
     await waitFor(() => expect(screen.queryByText('1')).not.toBeInTheDocument())
+  })
+
+  it('opens a cross-workspace automation from a unified notification', async () => {
+    const onOpenAutomation = vi.fn()
+    server.use(
+      http.get('/api/messages', () =>
+        HttpResponse.json({
+          unread_count: 1,
+          items: [{
+            id: 'automation-run:run-1',
+            type: 'automation',
+            title: '整理人物设定',
+            summary: '自动化任务已完成',
+            body: '任务已完成。',
+            published_at: '2026-07-18T12:30:00Z',
+            task_id: 'workspace-a:task-1',
+            run_id: 'run-1',
+            workspace: '/books/a',
+            status: 'success',
+          }],
+        }),
+      ),
+      http.post('/api/messages/:id/read', () => HttpResponse.json({
+        id: 'automation-run:run-1',
+        type: 'automation',
+        title: '整理人物设定',
+        body: '任务已完成。',
+        read_at: '2026-07-18T12:31:00Z',
+      })),
+    )
+
+    render(<MessageCenterButton className="h-8 w-8" onOpenAutomation={onOpenAutomation} />)
+    await userEvent.click(screen.getByRole('button', { name: '打开消息中心' }))
+
+    expect(await screen.findAllByText('整理人物设定')).toHaveLength(2)
+    await userEvent.click(screen.getByRole('button', { name: '打开自动化任务' }))
+
+    expect(onOpenAutomation).toHaveBeenCalledWith({
+      taskId: 'workspace-a:task-1',
+      runId: 'run-1',
+      inboxId: undefined,
+      workspace: '/books/a',
+    })
   })
 })

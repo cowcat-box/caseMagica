@@ -1,6 +1,8 @@
+// MessageItem render model. Agent API/history/stream payloads use AgentUIMessage;
+// this shape remains for the render adapter and local legacy interactive state.
 export interface ChatMessage {
   type?: 'message' | 'clear'
-  role?: 'user' | 'assistant' | 'thinking' | 'tool_call' | 'tool_result' | 'context_compaction' | 'token_usage' | 'plan_question' | 'proposed_plan' | 'system' | 'error'
+  role?: 'user' | 'assistant' | 'thinking' | 'tool_call' | 'tool_result' | 'rule_roll' | 'context_compaction' | 'token_usage' | 'plan_question' | 'proposed_plan' | 'system' | 'error'
   content?: string
   id?: string
   render_key?: string
@@ -16,10 +18,15 @@ export interface ChatMessage {
   interactive_images?: InteractiveImage[]
   interactive_image_error?: InteractiveImageError
   interactive_image_status?: 'running' | 'success' | 'error'
+  rule_roll?: PublicRuleRoll
   phase?: string
   attempt?: number
   tokens_before?: number
   tokens_after?: number
+	projected_tokens_before?: number
+	projected_tokens_after?: number
+	reserved_completion_tokens?: number
+	reserved_tool_result_tokens?: number
   context_window_tokens?: number
   threshold?: number
   target_ratio?: number
@@ -56,6 +63,42 @@ export interface ChatMessage {
   created_at?: string
   turn_versions?: { turn_id: string; ts: string; current?: boolean }[]
   turn_version_index?: number
+  user_references?: UserMessageReference[]
+}
+
+export interface UserMessageReference {
+  kind: 'file' | 'lore' | 'style' | 'selection' | 'review_comment'
+  id?: string
+  label: string
+  detail?: string
+  start_line?: number
+  end_line?: number
+}
+
+export interface PublicRuleRoll {
+  resolution_id?: string
+  label?: string
+  difficulty?: string
+  dice?: string
+  roll_mode?: string
+  rolls?: number[]
+  kept_roll?: number
+  base_target?: number
+  target?: number
+  bonus_total?: number
+  total?: number
+  outcome?: string
+  result?: string
+  cost?: string
+  stakes?: string
+  state_changes?: PublicRuleStateChange[]
+}
+
+export interface PublicRuleStateChange {
+  actor_id: string
+  field_id: string
+  change: number
+  reason?: string
 }
 
 export interface ChapterIllustration {
@@ -106,7 +149,7 @@ export interface InteractiveImageError {
   created_at?: string
 }
 
-interface TokenUsageCall {
+export interface TokenUsageCall {
   index?: number
   created_at?: string
   finish_reason?: string
@@ -143,7 +186,21 @@ export interface AgentRunTraceSummary {
   reason?: string
   events: number
   context_parts: number
+  tool_calls?: number
+  tool_successes?: number
+  tool_blocked?: number
+  tool_errors?: number
+  tool_truncated?: number
+  invalid_tool_args?: number
+  tool_domain_accepted?: number
+  tool_domain_rejected?: number
+  tool_domain_pending?: number
+  tool_domain_diagnostics?: number
   llm_calls?: number
+  prompt_tokens?: number
+  cached_prompt_tokens?: number
+  uncached_prompt_tokens?: number
+  cache_hit_rate?: number
   duration_ms?: number
   task_id?: string
   agent_kind?: string
@@ -202,6 +259,9 @@ export interface ContextAnalysis {
   context_messages: ContextAnalysisPart[]
   message_count: number
   token_estimate?: number
+	projected_token_estimate?: number
+	reserved_completion_tokens?: number
+	reserved_tool_result_tokens?: number
   context_window_tokens?: number
   context_usage_ratio?: number
   compaction_epoch?: number
@@ -242,6 +302,13 @@ export interface BookRecord {
   author: string
   cover_updated_at?: string
   last_opened_at: string
+}
+
+export type BookSortMode = 'recent' | 'manual'
+
+export interface BookshelfResult {
+  books: BookRecord[]
+  sort_mode: BookSortMode
 }
 
 export interface BookCoverResult {
@@ -319,6 +386,10 @@ export interface CharacterCardImportResult {
   workspace?: string
   book_meta?: BookMeta
   message: string
+  resident_lore_bytes: number
+  classification_mode: LoreClassificationMode
+  classification_counts: Partial<Record<LoreItem['type'], number>>
+  uncertain_type_count: number
 }
 
 export interface CharacterCardPreview {
@@ -329,12 +400,28 @@ export interface CharacterCardPreview {
   user_placeholder_found: boolean
   will_import_cover: boolean
   compatibility: CharacterCardCompatibilityReport
+  enabled_entry_count: number
+  disabled_entry_count: number
+  resident_entry_count: number
+  resident_entry_bytes: number
+  resident_lore_bytes: number
+  auto_entry_count: number
+  removed_runtime_entry_count: number
+  sanitized_mixed_entry_count: number
+  opening_truncated_count: number
+  resident_lore_warning: boolean
+  resident_lore_warning_threshold_kb: number
+  classification_mode: LoreClassificationMode
+  classification_counts: Partial<Record<LoreItem['type'], number>>
+  uncertain_type_count: number
 }
 
 interface CharacterCardCompatibilityReport {
-  imported_fields: string[]
-  downgraded_fields: string[]
-  unsupported_fields: string[]
+  capabilities: string[]
+  sanitized_runtime: string[]
+  discarded_extensions: string[]
+  warnings: string[]
+  ignored_loading_rules: boolean
 }
 
 interface NovelImportChapter {
@@ -470,6 +557,7 @@ export interface LoreItem {
   id: string
   enabled: boolean
   type: 'character' | 'world' | 'location' | 'faction' | 'rule' | 'item' | 'other'
+  type_source: 'heuristic' | 'semantic' | 'manual' | 'legacy'
   name: string
   importance: 'major' | 'important' | 'minor'
   load_mode: 'resident' | 'auto' | 'manual'
@@ -480,6 +568,49 @@ export interface LoreItem {
   created_at: string
   updated_at: string
   image?: LoreItemImage
+  provenance?: {
+    kind: string
+    source_name: string
+    source_record_id: string
+    source_hash: string
+  }
+}
+
+export type LoreClassificationMode = 'heuristic' | 'semantic'
+
+export interface LoreClassificationPreviewRequest {
+  item_ids?: string[]
+  mode?: LoreClassificationMode
+}
+
+export interface LoreClassificationPreviewItem {
+  id: string
+  name: string
+  current_type: LoreItem['type']
+  current_type_source: LoreItem['type_source']
+  suggested_type: LoreItem['type']
+  confidence: 'high' | 'medium' | 'low'
+  reason?: string
+  suggestion_source: 'heuristic' | 'semantic'
+}
+
+export interface LoreClassificationPreview {
+  revision: string
+  mode: LoreClassificationMode
+  items: LoreClassificationPreviewItem[]
+  counts: Partial<Record<LoreItem['type'], number>>
+  warning?: string
+}
+
+export interface LoreClassificationApplyRequest {
+  revision: string
+  changes: Array<{ id: string; type: LoreItem['type'] }>
+}
+
+export interface LoreTypeApplyResult {
+  revision: string
+  items: LoreItem[]
+  updated: LoreItem[]
 }
 
 interface LoreItemImage {
@@ -582,7 +713,7 @@ export interface SkillInstallResult {
   installed: SkillSummary[]
 }
 
-export type LoreItemInput = Omit<LoreItem, 'created_at' | 'updated_at'>
+export type LoreItemInput = Omit<LoreItem, 'created_at' | 'updated_at' | 'provenance'>
 
 type AutomationScope = 'user' | 'workspace'
 type AutomationTemplate = 'memory_consolidation' | 'review' | 'continue_writing' | 'custom_prompt'
@@ -596,6 +727,12 @@ type AutomationActionPolicy = 'confirm' | 'auto_run' | 'notify_only'
 export type AutomationNotifyPolicy = 'inbox' | 'silent'
 type AutomationInboxStatus = 'pending' | 'dismissed' | 'confirmed' | 'auto_run'
 type AutomationInboxPurpose = 'trigger' | 'write_confirmation'
+
+export interface AutomationExecutionTarget {
+  kind: 'user' | 'workspace'
+  workspace_id?: string
+  workspace?: string
+}
 
 interface AutomationSchedule {
   kind: AutomationScheduleKind
@@ -646,7 +783,9 @@ export interface AutomationRunRecord {
 
 export interface AutomationTask {
   id?: string
+  catalog_id?: string
   scope: AutomationScope
+  target?: AutomationExecutionTarget
   enabled: boolean
   name: string
   template: AutomationTemplate
@@ -665,6 +804,29 @@ export interface AutomationTask {
   recent_runs: AutomationRunRecord[]
   created_at?: string
   updated_at?: string
+}
+
+export type AutomationTaskTemplateDefaults = Pick<AutomationTask,
+  | 'enabled'
+  | 'name'
+  | 'template'
+  | 'prompt'
+  | 'model_profile_id'
+  | 'schedule'
+  | 'triggers'
+  | 'default_action_policy'
+  | 'write_mode'
+  | 'write_scope'
+  | 'output_policy'
+  | 'output_path'
+>
+
+export interface AutomationTaskTemplate {
+  id: string
+  version: number
+  description: string
+  target_kinds: AutomationExecutionTarget['kind'][]
+  defaults: AutomationTaskTemplateDefaults
 }
 
 export interface AutomationActiveRun {

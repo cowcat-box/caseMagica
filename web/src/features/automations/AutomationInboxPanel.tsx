@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { Check, Inbox, MessageSquareText, Play, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { EmptyState } from '@/components/common/EmptyState'
 import type { AutomationInboxItem, AutomationTask } from '@/lib/api'
+import { findAutomationTaskByTarget } from './automation-catalog'
 
 export function InboxPanel({
   items,
@@ -19,13 +21,13 @@ export function InboxPanel({
   onOpenRun: (runId: string) => void
 }) {
   const { t } = useTranslation()
-  const taskNames = useMemo(() => new Map(tasks.map((task) => [task.id || '', task.name])), [tasks])
+  const taskNames = useMemo(() => new Map(items.map((item) => [item.id, findAutomationTaskByTarget(tasks, item.task_id, item.workspace)?.name || item.task_id])), [items, tasks])
   if (items.length === 0) {
-    return <div className="flex min-h-0 flex-1 items-center justify-center text-xs text-[var(--nova-text-faint)]">{t('automations.inbox.empty')}</div>
+    return <EmptyState variant="page" icon={Inbox} title={t('automations.inbox.empty')} className="min-h-0 flex-1 text-[var(--nova-text-faint)]" />
   }
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-      <div className="mx-auto max-w-5xl space-y-3">
+      <div className="mx-auto max-w-5xl flex flex-col gap-3">
         {items.map((item) => (
           <div key={item.id} className="rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface)] p-3 text-xs">
             <div className="flex items-start gap-3">
@@ -35,12 +37,12 @@ export function InboxPanel({
                   <span className="font-medium text-[var(--nova-text)]">{item.title}</span>
                   <span className="rounded border border-[var(--nova-border)] px-1.5 py-0.5 text-[10px] text-[var(--nova-text-faint)]">{inboxPurposeLabel(item.purpose || 'trigger', t)}</span>
                   <span className="rounded border border-[var(--nova-border)] px-1.5 py-0.5 text-[10px] text-[var(--nova-text-faint)]">{inboxStatusLabel(item.status, t)}</span>
-                  <span className="text-[11px] text-[var(--nova-text-faint)]">{taskNames.get(item.task_id) || item.task_id}</span>
+                  <span className="text-[11px] text-[var(--nova-text-faint)]">{taskNames.get(item.id) || item.task_id}</span>
                   <span className="ml-auto text-[11px] text-[var(--nova-text-faint)]">{new Date(item.created_at).toLocaleString()}</span>
                 </div>
                 <div className="mt-1 whitespace-pre-wrap leading-5 text-[var(--nova-text-muted)]">{item.summary}</div>
                 {item.evidence.length > 0 && (
-                  <div className="mt-2 space-y-1">
+                  <div className="mt-2 flex flex-col gap-1">
                     {item.evidence.slice(0, 3).map((evidence, index) => (
                       <div key={`${item.id}-${index}`} className="rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2 py-1 text-[11px] text-[var(--nova-text-muted)]">
                         <span className="font-medium">{evidence.source}</span>

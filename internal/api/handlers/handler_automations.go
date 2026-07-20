@@ -9,8 +9,9 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"casemagica/internal/api/sse"
-	"casemagica/internal/automation"
+	"denova/internal/api/agentui"
+	"denova/internal/api/sse"
+	"denova/internal/automation"
 )
 
 func (h *Handlers) HandleAutomations(ctx context.Context, c *app.RequestContext) {
@@ -20,6 +21,12 @@ func (h *Handlers) HandleAutomations(ctx context.Context, c *app.RequestContext)
 		return
 	}
 	writeJSON(c, consts.StatusOK, automation.ListResult{Tasks: tasks})
+}
+
+func (h *Handlers) HandleAutomationTemplates(ctx context.Context, c *app.RequestContext) {
+	writeJSON(c, consts.StatusOK, automation.TemplateListResult{
+		Templates: h.app.AutomationTemplates(c.Query("locale")),
+	})
 }
 
 func (h *Handlers) HandleAutomationInbox(ctx context.Context, c *app.RequestContext) {
@@ -114,9 +121,6 @@ func (h *Handlers) HandleAutomationRun(ctx context.Context, c *app.RequestContex
 }
 
 func (h *Handlers) HandleAutomationRunStream(ctx context.Context, c *app.RequestContext) {
-	if !h.requireWorkspace(c) {
-		return
-	}
 	var req struct {
 		TriggerEvidence []automation.TriggerEvidence `json:"trigger_evidence"`
 	}
@@ -132,7 +136,7 @@ func (h *Handlers) HandleAutomationRunStream(ctx context.Context, c *app.Request
 		return
 	}
 	log.Printf("[automation-sse] attach run task_id=%s run_id=%s backend_task_id=%s", run.TaskID, run.ID, task.ID())
-	sse.StreamTask(c, task)
+	sse.StreamTaskUI(c, task)
 }
 
 func (h *Handlers) HandleAutomationActiveRuns(ctx context.Context, c *app.RequestContext) {
@@ -146,13 +150,10 @@ func (h *Handlers) HandleAutomationRunStreamByID(ctx context.Context, c *app.Req
 		return
 	}
 	log.Printf("[automation-sse] attach active run task_id=%s run_id=%s backend_task_id=%s", run.TaskID, run.ID, task.ID())
-	sse.StreamTask(c, task)
+	sse.StreamTaskUI(c, task)
 }
 
 func (h *Handlers) HandleAutomationRunChatStream(ctx context.Context, c *app.RequestContext) {
-	if !h.requireWorkspace(c) {
-		return
-	}
 	var req struct {
 		Message string `json:"message"`
 	}
@@ -170,7 +171,7 @@ func (h *Handlers) HandleAutomationRunChatStream(ctx context.Context, c *app.Req
 		return
 	}
 	log.Printf("[automation-sse] attach run follow-up task_id=%s run_id=%s backend_task_id=%s", run.TaskID, run.ID, task.ID())
-	sse.StreamTask(c, task)
+	sse.StreamTaskUI(c, task)
 }
 
 func (h *Handlers) HandleAutomationRunAbort(ctx context.Context, c *app.RequestContext) {
@@ -187,5 +188,5 @@ func (h *Handlers) HandleAutomationRunMessages(ctx context.Context, c *app.Reque
 		writeError(c, consts.StatusNotFound, err.Error())
 		return
 	}
-	writeJSON(c, consts.StatusOK, historyEntriesToMessageDTOs(entries))
+	writeJSON(c, consts.StatusOK, agentui.MessagesFromHistory(entries))
 }

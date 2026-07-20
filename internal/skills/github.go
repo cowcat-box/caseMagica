@@ -96,28 +96,9 @@ func DownloadGitHubArchive(ctx context.Context, repo GitHubRepository) ([]byte, 
 		urlpkg.PathEscape(repo.Repo),
 		urlpkg.PathEscape(ref),
 	)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, archiveURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "casemagica-skill-installer")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("download GitHub Skill archive failed: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("download GitHub Skill archive failed: HTTP %d: %s", resp.StatusCode, readSmallResponse(resp.Body))
-	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, MaxInstallArchiveBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(data)) > MaxInstallArchiveBytes {
-		return nil, fmt.Errorf("GitHub Skill archive must be %dMB or smaller", MaxInstallArchiveBytes/(1024*1024))
-	}
-	return data, nil
+	return downloadSkillArchive(ctx, archiveURL, "GitHub", map[string]string{
+		"Accept": "application/vnd.github+json",
+	})
 }
 
 func parseGitHubShorthand(raw string) (string, string, bool) {
@@ -188,8 +169,8 @@ func resolveGitHubDefaultBranch(ctx context.Context, repo GitHubRepository) (str
 		return "", err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "casemagica-skill-installer")
-	resp, err := http.DefaultClient.Do(req)
+	req.Header.Set("User-Agent", "denova-skill-installer")
+	resp, err := skillInstallHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("resolve GitHub default branch failed: %w", err)
 	}

@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"casemagica/config"
-	"casemagica/internal/agent"
-	"casemagica/internal/book"
-	"casemagica/internal/imagepreset"
-	"casemagica/internal/interactive"
-	"casemagica/internal/session"
-	"casemagica/internal/styleref"
+	"denova/config"
+	"denova/internal/agent"
+	"denova/internal/book"
+	"denova/internal/imagepreset"
+	"denova/internal/interactive"
+	"denova/internal/session"
+	"denova/internal/styleref"
 )
 
 // ChatAppService 负责普通创作 Agent 任务与会话管理。
@@ -22,6 +22,7 @@ type ChatAppService struct {
 }
 
 type ideChatRuntime struct {
+	app            *App
 	sess           *session.Session
 	state          *book.State
 	bookService    *book.Service
@@ -238,21 +239,35 @@ func (s *ChatAppService) SessionMessages(id string) ([]session.HistoryEntry, err
 }
 
 // StartTask 启动后台 Agent 任务。如果有正在运行的任务，先终止它。
-func (a *App) StartTask(req agent.ChatRequest) *Task {
-	return a.chat().StartTask(req)
+func (a *App) StartTask(ctx context.Context, req agent.ChatRequest) *Task {
+	return a.chat().StartTask(ctx, req)
 }
 
-func (s *ChatAppService) StartTask(req agent.ChatRequest) *Task {
-	runtime, req, err := s.prepareIDEChatRuntime(req, true)
+func (s *ChatAppService) StartTask(ctx context.Context, req agent.ChatRequest) *Task {
+	task, err := s.StartTaskWithError(ctx, req)
 	if err != nil {
 		log.Printf("[agent-task] 准备 IDE Agent 运行时失败 err=%v", err)
 		return nil
 	}
+	return task
+}
 
-	runner, err := buildAgentRunner(context.Background(), &runtime.cfg, runtime.state, runtime.ideTeller)
+// StartTaskWithError preserves preparation failures so HTTP callers can
+// distinguish invalid review references from a missing workspace.
+func (a *App) StartTaskWithError(ctx context.Context, req agent.ChatRequest) (*Task, error) {
+	return a.chat().StartTaskWithError(ctx, req)
+}
+
+func (s *ChatAppService) StartTaskWithError(ctx context.Context, req agent.ChatRequest) (*Task, error) {
+	runtime, req, err := s.prepareIDEChatRuntime(ctx, req, true)
+	if err != nil {
+		return nil, err
+	}
+
+	runner, err := buildAgentRunner(ctx, &runtime.cfg, runtime.state, runtime.ideTeller)
 	if err != nil {
 		log.Printf("[agent-task] 刷新 Agent Runner 失败 workspace=%s err=%v", runtime.workspace, err)
-		return nil
+		return nil, err
 	}
 	a := s.app
 	a.mu.Lock()
@@ -285,16 +300,24 @@ func (s *ChatAppService) StartTask(req agent.ChatRequest) *Task {
 			runtimeContexts.DynamicTitle,
 			runtimeContexts.Dynamic,
 		)
+		var onUserMessageCommitted func(context.Context) error
+		if !req.ResolvedReviewFeedback.Empty() {
+			onUserMessageCommitted = func(ctx context.Context) error {
+				return s.consumeResolvedReviewFeedback(ctx, runtime, req)
+			}
+		}
 		runtime.chatService.RunWithOptions(ctx, runner, conversation, runtime.bookService, req, agent.RunOptions{
-			AgentKind:           agent.AgentKindIDE,
-			TaskID:              task.ID(),
-			SessionID:           runtime.sess.ID,
-			Workspace:           runtime.workspace,
-			Mode:                "ide",
-			IdleTimeout:         agentIdleTimeout(runtime.cfg),
-			ToolResultMaxBytes:  agentToolResultMaxBytes(runtime.cfg),
-			SystemPromptLog:     agent.BuildInstructionComposition(&runtime.cfg, runtime.state, runtime.ideTeller),
-			OnMutationsVerified: a.automationMutationCallback("ide_agent_post_run"),
+			AgentKind:              agent.AgentKindIDE,
+			TaskID:                 task.ID(),
+			SessionID:              runtime.sess.ID,
+			ReviewThreadID:         req.ResolvedReviewFeedback.PrimaryReviewThreadID(),
+			Workspace:              runtime.workspace,
+			Mode:                   "ide",
+			IdleTimeout:            agentIdleTimeout(runtime.cfg),
+			ToolResultMaxBytes:     agentToolResultMaxBytes(runtime.cfg),
+			SystemPromptLog:        agent.BuildInstructionComposition(&runtime.cfg, runtime.state, runtime.ideTeller),
+			OnMutationsVerified:    a.automationMutationCallback("ide_agent_post_run"),
+			OnUserMessageCommitted: onUserMessageCommitted,
 		}, emit)
 		if runtime.versionService != nil && hasBeforeVersionState {
 			settings := book.DefaultVersionAutoSettings()
@@ -318,7 +341,7 @@ func (s *ChatAppService) StartTask(req agent.ChatRequest) *Task {
 	a.activeTask = task
 	a.mu.Unlock()
 
-	return task
+	return task, nil
 }
 
 func agentIdleTimeout(cfg config.Config) time.Duration {
@@ -328,12 +351,12 @@ func agentIdleTimeout(cfg config.Config) time.Duration {
 	return time.Duration(cfg.AgentIdleTimeoutSeconds) * time.Second
 }
 
-func (a *App) AnalyzeContext(req agent.ChatRequest) (agent.ContextAnalysis, error) {
-	return a.chat().AnalyzeContext(req)
+func (a *App) AnalyzeContext(ctx context.Context, req agent.ChatRequest) (agent.ContextAnalysis, error) {
+	return a.chat().AnalyzeContext(ctx, req)
 }
 
-func (s *ChatAppService) AnalyzeContext(req agent.ChatRequest) (agent.ContextAnalysis, error) {
-	runtime, req, err := s.prepareIDEChatRuntime(req, false)
+func (s *ChatAppService) AnalyzeContext(ctx context.Context, req agent.ChatRequest) (agent.ContextAnalysis, error) {
+	runtime, req, err := s.prepareIDEChatRuntime(ctx, req, false)
 	if err != nil {
 		return agent.ContextAnalysis{}, err
 	}
@@ -353,7 +376,7 @@ func (a *App) CompactContext(ctx context.Context) (agent.ContextCompactionResult
 }
 
 func (s *ChatAppService) CompactContext(ctx context.Context) (agent.ContextCompactionResult, error) {
-	runtime, _, err := s.prepareIDEChatRuntime(agent.ChatRequest{}, false)
+	runtime, _, err := s.prepareIDEChatRuntime(ctx, agent.ChatRequest{}, false)
 	if err != nil {
 		return agent.ContextCompactionResult{}, err
 	}
@@ -389,19 +412,16 @@ func (s *ChatAppService) RemoveContextCompaction() (bool, error) {
 	return removed, err
 }
 
-func (s *ChatAppService) prepareIDEChatRuntime(req agent.ChatRequest, abortRunning bool) (ideChatRuntime, agent.ChatRequest, error) {
+func (s *ChatAppService) prepareIDEChatRuntime(ctx context.Context, req agent.ChatRequest, abortRunning bool) (ideChatRuntime, agent.ChatRequest, error) {
 	a := s.app
 	a.mu.Lock()
 	if a.session == nil || a.bookState == nil || a.cfg == nil {
 		a.mu.Unlock()
 		return ideChatRuntime{}, req, ErrNoWorkspace
 	}
-	if abortRunning && a.activeTask != nil && a.activeTask.Status() == TaskRunning {
-		log.Printf("[agent-task] replace running task id=%s", a.activeTask.ID())
-		a.activeTask.Abort()
-	}
 
 	runtime := ideChatRuntime{
+		app:            a,
 		sess:           a.session,
 		state:          a.bookState,
 		bookService:    a.bookService,
@@ -412,10 +432,10 @@ func (s *ChatAppService) prepareIDEChatRuntime(req agent.ChatRequest, abortRunni
 	}
 	runtime.cfg.Workspace = runtime.workspace
 	runtime.ideTeller = ideStoryTellerForConfig(&runtime.cfg)
-	denovaDir := runtime.cfg.DenovaDir
+	novaDir := runtime.cfg.DataDir()
 	a.mu.Unlock()
 
-	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, runtime.workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, runtime.workspace); err == nil {
 		applyLayeredSettingsToConfig(&runtime.cfg, layered)
 		applyRequestLocaleToConfig(&runtime.cfg, req.Locale)
 		runtime.cfg.IDEStoryTellerID = layered.Effective.IDEStoryTellerID
@@ -428,9 +448,9 @@ func (s *ChatAppService) prepareIDEChatRuntime(req agent.ChatRequest, abortRunni
 		req.TellerID = runtime.cfg.IDEStoryTellerID
 		log.Printf("[agent-task] load ide teller id=%s workspace=%s", runtime.cfg.IDEStoryTellerID, runtime.workspace)
 
-		teller := loadInteractiveTeller(denovaDir, runtime.cfg.IDEStoryTellerID)
+		teller := loadInteractiveTeller(novaDir, runtime.cfg.IDEStoryTellerID)
 		if len(teller.StyleRefs) > 0 || len(teller.StyleRules) > 0 {
-			converted := convertTellerStyleRules(denovaDir, teller.StyleRefs, teller.StyleRules, req.StyleScenes)
+			converted := convertTellerStyleRules(novaDir, teller.StyleRefs, teller.StyleRules, req.StyleScenes)
 			req.StyleRules = converted
 			log.Printf("[agent-task] inject teller style rules teller_id=%s scenes=%q count=%d rules=%q", teller.ID, req.StyleScenes, len(converted), appStyleRuleNames(converted))
 		}
@@ -442,6 +462,29 @@ func (s *ChatAppService) prepareIDEChatRuntime(req agent.ChatRequest, abortRunni
 	applyImagePresetRuntimePolicy(&runtime, &req)
 	if err := applyWritingSkillRuntimePolicy(&runtime, &req); err != nil {
 		return ideChatRuntime{}, req, err
+	}
+	if err := s.resolveReviewFeedback(ctx, runtime, &req); err != nil {
+		return ideChatRuntime{}, req, err
+	}
+	residentBytes, err := book.NewLoreStore(runtime.workspace).ResidentContentBytes()
+	if err != nil {
+		return ideChatRuntime{}, req, fmt.Errorf("读取常驻资料预算失败: %w", err)
+	}
+	if residentBytes > book.ResidentLoreSafetyMaxBytes {
+		return ideChatRuntime{}, req, fmt.Errorf("常驻资料正文异常过大（%d KB）；请检查是否误将大型文件设为常驻资料", (residentBytes+1023)/1024)
+	}
+	if abortRunning {
+		a.mu.Lock()
+		if a.workspace != runtime.workspace {
+			actualWorkspace := a.workspace
+			a.mu.Unlock()
+			return ideChatRuntime{}, req, fmt.Errorf("%w: expected=%q actual=%q", ErrWorkspaceChanged, runtime.workspace, actualWorkspace)
+		}
+		if a.activeTask != nil && a.activeTask.Status() == TaskRunning {
+			log.Printf("[agent-task] replace running task id=%s", a.activeTask.ID())
+			a.activeTask.Abort()
+		}
+		a.mu.Unlock()
 	}
 	return runtime, req, nil
 }
@@ -459,8 +502,8 @@ func applyImagePresetRuntimePolicy(runtime *ideChatRuntime, req *agent.ChatReque
 	}
 	req.ImagePresetID = presetID
 	preset := imagepreset.DefaultPreset()
-	if strings.TrimSpace(runtime.cfg.DenovaDir) != "" {
-		loaded, err := imagepreset.NewLibrary(runtime.cfg.DenovaDir).Get(presetID)
+	if strings.TrimSpace(runtime.cfg.DataDir()) != "" {
+		loaded, err := imagepreset.NewLibrary(runtime.cfg.DataDir()).Get(presetID)
 		if err != nil {
 			log.Printf("[agent-task] load image preset failed id=%s workspace=%s err=%v; fallback=%s", presetID, runtime.workspace, err, imagepreset.DefaultID)
 		} else {
@@ -530,10 +573,10 @@ func appStyleRuleNames(rules []agent.StyleRule) []string {
 	return names
 }
 
-func convertTellerStyleRules(denovaDir string, globalRefs []string, rules []interactive.StyleRule, scenes []string) []agent.StyleRule {
+func convertTellerStyleRules(novaDir string, globalRefs []string, rules []interactive.StyleRule, scenes []string) []agent.StyleRule {
 	converted := make([]agent.StyleRule, 0, len(rules)+1)
 	allowed := styleSceneSet(scenes)
-	styleRefs := styleref.NewLibrary(denovaDir)
+	styleRefs := styleref.NewLibrary(novaDir)
 	if len(globalRefs) > 0 {
 		converted = append(converted, agent.StyleRule{
 			Global:          true,

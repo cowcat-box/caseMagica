@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next'
 import type { ChatMessage } from '@/lib/api'
-import type { DirectorPlanMetadata, Snapshot, StoryMemoryRecord, StoryMemoryStructure, TurnDisplayEvent } from '../../types'
+import type { DirectorPlanMetadata, Snapshot, TurnDisplayEvent } from '../../types'
 import type { DirectorStatusLike } from './types'
 
 export function extractDirectorDisplayEvents(snapshot: Snapshot | null, status?: DirectorStatusLike) {
@@ -10,7 +10,7 @@ export function extractDirectorDisplayEvents(snapshot: Snapshot | null, status?:
   return events.filter(isDirectorDisplayEvent)
 }
 
-function isDirectorDisplayEvent(event: TurnDisplayEvent) {
+export function isDirectorDisplayEvent(event: TurnDisplayEvent) {
   if (event.agent_kind === 'interactive_director') return true
   const name = event.name || event.content || ''
   if (!['read_file', 'write_file', 'edit_file'].includes(name)) return false
@@ -20,7 +20,8 @@ function isDirectorDisplayEvent(event: TurnDisplayEvent) {
 export function displayEventToChatMessage(event: TurnDisplayEvent, fallbackID: string): ChatMessage {
   return {
     id: event.id || fallbackID,
-    role: event.role,
+    // narrative 锚点只属于游戏主时间线，导演后台时间线（isDirectorDisplayEvent 过滤）不会出现；此处仅做类型收窄兜底。
+    role: event.role === 'narrative' ? undefined : event.role,
     content: event.content || event.name || '',
     name: event.name || event.content,
     args: event.args || '',
@@ -46,35 +47,35 @@ export function directorStatusFallback(status: string, t: TFunction) {
   switch (status) {
     case 'running':
     case 'loading':
-      return t('memoryPanel.directorChat.running')
+      return t('directorPanel.directorChat.running')
     case 'ready':
-      return t('memoryPanel.directorChat.ready')
+      return t('directorPanel.directorChat.ready')
     case 'failed':
-      return t('memoryPanel.directorChat.failed')
+      return t('directorPanel.directorChat.failed')
     case 'conflict':
-      return t('memoryPanel.directorChat.conflict')
+      return t('directorPanel.directorChat.conflict')
     case 'waiting_opening':
-      return t('memoryPanel.directorChat.waitingOpening')
+      return t('directorPanel.directorChat.waitingOpening')
     default:
-      return t('memoryPanel.directorChat.noRun')
+      return t('directorPanel.directorChat.noRun')
   }
 }
 
 export function directorStatusLabel(status: DirectorStatusLike | undefined, loading: boolean | undefined, t: TFunction) {
-  if (loading && !status?.status) return t('memoryPanel.status.running')
+  if (loading && !status?.status) return t('directorPanel.status.running')
   switch (status?.status) {
     case 'running':
-      return t('memoryPanel.status.running')
+      return t('directorPanel.status.running')
     case 'ready':
-      return t('memoryPanel.status.ready')
+      return t('directorPanel.status.ready')
     case 'failed':
-      return t('memoryPanel.status.failed')
+      return t('directorPanel.status.failed')
     case 'conflict':
-      return t('memoryPanel.status.conflict')
+      return t('directorPanel.status.conflict')
     case 'waiting_opening':
-      return t('memoryPanel.status.waitingOpening')
+      return t('directorPanel.status.waitingOpening')
     default:
-      return t('memoryPanel.status.idle')
+      return t('directorPanel.status.idle')
   }
 }
 
@@ -98,44 +99,6 @@ export function ruleOutcomeClass(outcome: string) {
 export function stateEntries(state?: Record<string, unknown>) {
   if (!state) return []
   return Object.entries(state).filter(([, value]) => value !== undefined && value !== null)
-}
-
-export function safeJSONString(value: unknown, limit = 1200) {
-  try {
-    const text = JSON.stringify(value, null, 2)
-    return text.length > limit ? `${text.slice(0, limit)}...` : text
-  } catch {
-    return String(value)
-  }
-}
-
-export function readNumber(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0
-}
-
-export function storyMemoryEnabled(value?: boolean) {
-  return value !== false
-}
-
-export function storyMemorySearchText(record: StoryMemoryRecord, structure?: StoryMemoryStructure) {
-  return [
-    structure?.name,
-    structure?.description,
-    record.key,
-    ...Object.values(record.values || {}),
-  ].filter(Boolean).join('\n')
-}
-
-export function storyMemoryRecordTitle(record: StoryMemoryRecord, structure: StoryMemoryStructure, fallback: string) {
-  if (record.key?.trim()) return record.key.trim()
-  const keyField = structure.key_field_id ? record.values?.[structure.key_field_id]?.trim() : ''
-  if (keyField) return keyField
-  const firstValue = structure.fields.map((field) => record.values?.[field.id]?.trim()).find(Boolean)
-  return firstValue || structure.name || fallback
-}
-
-export function recordFieldValue(record: StoryMemoryRecord, fieldId: string) {
-  return record.values?.[fieldId] || ''
 }
 
 export function isMissingDirectorPlanError(err: unknown) {

@@ -2,17 +2,18 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
 
 	"github.com/cloudwego/eino/adk"
 
-	"casemagica/config"
-	"casemagica/internal/agent"
-	"casemagica/internal/book"
-	"casemagica/internal/interactive"
-	"casemagica/internal/session"
+	"denova/config"
+	"denova/internal/agent"
+	"denova/internal/book"
+	"denova/internal/interactive"
+	"denova/internal/session"
 )
 
 // App 是 API 层使用的应用门面；具体业务由领域应用服务承接。
@@ -32,10 +33,14 @@ type App struct {
 	bookMetaStore          *BookMetaStore
 	versionService         *book.VersionService
 	activeTask             *Task
-	activeInteractiveTask  *Task
+	activeInteractiveRun   *interactiveTaskRun
 	activeLoreImageTask    *Task
 	activeAutomationTasks  map[string]*Task
 	activeAutomationRuns   map[string]automationRunState
+	activeAutomationClaims map[string]*automationRunClaim
+	automationTriggers     *automationTriggerCoordinator
+	workspaceDirectorTasks *workspaceDirectorTaskGroup
+	directorGenerator      interactiveDirectorGenerator
 
 	runtimeManager *WorkspaceRuntimeManager
 	chatApp        *ChatAppService
@@ -50,11 +55,37 @@ type App struct {
 	mu sync.RWMutex
 }
 
+// SetInteractiveDirectorGeneratorForTest installs an App-scoped Director
+// generator so tests do not share mutable package-level state.
+func (a *App) SetInteractiveDirectorGeneratorForTest(generator interactiveDirectorGenerator) func() {
+	if a == nil {
+		return func() {}
+	}
+	a.mu.Lock()
+	previous := a.directorGenerator
+	a.directorGenerator = generator
+	a.mu.Unlock()
+	return func() {
+		a.mu.Lock()
+		a.directorGenerator = previous
+		a.mu.Unlock()
+	}
+}
+
+func (a *App) interactiveDirectorGenerator() interactiveDirectorGenerator {
+	if a == nil {
+		return nil
+	}
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.directorGenerator
+}
+
 // New 创建应用运行时。当 workspace 为空且没有上次打开的 workspace 时，App 进入“无书籍”状态，
 // 等待用户在前端书籍管理页选择或新建书籍后再构建 runtime。
 func New(ctx context.Context, cfg *config.Config) (*App, error) {
-	registry := NewBookRegistry(cfg.DenovaDir)
-	bookMetaStore := NewBookMetaStore(cfg.DenovaDir)
+	registry := NewBookRegistry(cfg.DataDir())
+	bookMetaStore := NewBookMetaStore(cfg.DataDir())
 	workspace := cfg.Workspace
 	if workspace == "" && cfg.ResumeLastWorkspace {
 		if lastWorkspace := registry.Current(); lastWorkspace != "" {
@@ -91,8 +122,12 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 // ErrNoWorkspace 表示当前 App 尚未绑定任何书籍 workspace。
 var ErrNoWorkspace = fmt.Errorf("尚未选择书籍工作区")
 
+// ErrNoWorkspaceOpen 表示请求需要一个已打开的工作区但当前没有。
+var ErrNoWorkspaceOpen = errors.New("当前没有打开的工作区")
+
 func (a *App) ensureServices() {
 	a.servicesOnce.Do(func() {
+		a.automationTriggers = newAutomationTriggerCoordinator()
 		a.runtimeManager = &WorkspaceRuntimeManager{app: a}
 		a.chatApp = &ChatAppService{app: a}
 		a.interactiveApp = &InteractiveAppService{app: a}
@@ -154,6 +189,7 @@ func (a *App) applyRuntime(runtime *runtimeState) {
 	a.agentRunner = runtime.agentRunner
 	a.interactiveStoryRunner = runtime.interactiveStoryRunner
 	a.versionService = runtime.versionService
+	a.workspaceDirectorTasks = newWorkspaceDirectorTaskGroup()
 }
 
 func (a *App) clearRuntime() {
@@ -167,6 +203,32 @@ func (a *App) clearRuntime() {
 	a.agentRunner = nil
 	a.interactiveStoryRunner = nil
 	a.versionService = nil
+}
+
+func (a *App) stopWorkspaceDirectorTasks() {
+	a.mu.Lock()
+	tasks := a.workspaceDirectorTasks
+	a.workspaceDirectorTasks = nil
+	a.mu.Unlock()
+	tasks.Close()
+}
+
+func (a *App) directorTasksForWorkspace(workspace string) *workspaceDirectorTaskGroup {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if a.workspace != workspace {
+		return nil
+	}
+	return a.workspaceDirectorTasks
+}
+
+// Close stops background work owned by the current workspace runtime.
+func (a *App) Close() {
+	a.ensureServices()
+	if a.automationTriggers != nil {
+		a.automationTriggers.Close()
+	}
+	a.stopWorkspaceDirectorTasks()
 }
 
 // RemoteAccessConfig returns the current process-level access policy used by

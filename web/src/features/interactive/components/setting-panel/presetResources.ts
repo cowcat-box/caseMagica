@@ -1,5 +1,5 @@
 import type { PresetResourceKind } from '../../preset-ownership'
-import type { ActorStateModule, EventPackageModule, ImagePreset, OpeningSelectorModule, RuleSystemModule, StoryDirector, StoryMemoryStructureModule, Teller } from '../../types'
+import type { ActorStateModule, EventPackageModule, ImagePreset, RuleSystemModule, StoryDirector, Teller } from '../../types'
 import { defaultRuleTemplates, normalizeTRPGSystem } from '../preset-config/ruleTemplates'
 
 export const TELLER_CONFIG_AGENT_ENTRY_ID = '__config_manager_teller__'
@@ -10,8 +10,6 @@ export const EMPTY_IMAGE_PRESETS: ImagePreset[] = []
 export const EMPTY_EVENT_PACKAGES: EventPackageModule[] = []
 export const EMPTY_RULE_SYSTEMS: RuleSystemModule[] = []
 export const EMPTY_ACTOR_STATES: ActorStateModule[] = []
-export const EMPTY_MEMORY_STRUCTURES: StoryMemoryStructureModule[] = []
-export const EMPTY_OPENING_SELECTORS: OpeningSelectorModule[] = []
 
 export const PRESET_DELETE_COPY: Record<PresetResourceKind, { titleKey: string; descriptionKey: string }> = {
   teller: { titleKey: 'settingPanel.deleteTeller', descriptionKey: 'settingPanel.confirmDeleteTeller' },
@@ -20,8 +18,6 @@ export const PRESET_DELETE_COPY: Record<PresetResourceKind, { titleKey: string; 
   event: { titleKey: 'settingPanel.deleteEventPackage', descriptionKey: 'settingPanel.confirmDeleteEventPackage' },
   rule: { titleKey: 'settingPanel.deleteRuleSystem', descriptionKey: 'settingPanel.confirmDeleteRuleSystem' },
   'actor-state': { titleKey: 'settingPanel.deleteActorState', descriptionKey: 'settingPanel.confirmDeleteActorState' },
-  'memory-structure': { titleKey: 'settingPanel.deleteMemoryStructure', descriptionKey: 'settingPanel.confirmDeleteMemoryStructure' },
-  opening: { titleKey: 'settingPanel.deleteOpeningSelector', descriptionKey: 'settingPanel.confirmDeleteOpeningSelector' },
 }
 
 export interface PresetDeleteTarget {
@@ -39,28 +35,15 @@ export interface PresetDrafts {
   event: EventPackageModule | null
   rule: RuleSystemModule | null
   actorState: ActorStateModule | null
-  memoryStructure: StoryMemoryStructureModule | null
-  opening: OpeningSelectorModule | null
 }
 
-export function splitTags(value: string) {
-  return value
-    .split(/[，,]/)
-    .map((tag) => tag.trim())
-    .filter(Boolean)
-}
-
-export function presetResourceDraftSignature(item: object, tagDraft: string) {
-  return JSON.stringify({
-    ...item,
-    tags: splitTags(tagDraft),
-  })
+export function presetResourceDraftSignature(item: object) {
+  return JSON.stringify(item)
 }
 
 export function cloneTeller(teller: Teller): Teller {
   return {
     ...teller,
-    tags: [...(teller.tags || [])],
     slots: [...(teller.slots || [])],
     context_policy: { ...teller.context_policy },
     style_refs: [...(teller.style_refs || [])],
@@ -69,7 +52,7 @@ export function cloneTeller(teller: Teller): Teller {
 }
 
 export function cloneImagePreset(preset: ImagePreset): ImagePreset {
-  return { ...preset, tags: [...(preset.tags || [])] }
+  return { ...preset }
 }
 
 export function cloneStoryDirector(director: StoryDirector): StoryDirector {
@@ -88,105 +71,59 @@ export function cloneActorState(item: ActorStateModule): ActorStateModule {
   return cloneJSON(item)
 }
 
-export function cloneMemoryStructure(item: StoryMemoryStructureModule): StoryMemoryStructureModule {
-  return cloneJSON(item)
-}
-
-export function cloneOpeningSelector(item: OpeningSelectorModule): OpeningSelectorModule {
-  return cloneJSON(item)
-}
-
-export function makeTellerPayload(draft: Teller, tagDraft: string): Partial<Teller> {
+export function makeTellerPayload(draft: Teller): Partial<Teller> {
   return {
     ...draft,
     id: draft.id,
-    tags: splitTags(tagDraft),
   }
 }
 
-export function makeImagePresetPayload(draft: ImagePreset, tagDraft: string): Partial<ImagePreset> {
+export function makeImagePresetPayload(draft: ImagePreset): Partial<ImagePreset> {
   return {
     ...draft,
     id: draft.id,
-    tags: splitTags(tagDraft),
   }
 }
 
-export function makeStoryDirectorPayload(draft: StoryDirector, tagDraft: string): Partial<StoryDirector> {
-  const payload = cloneStoryDirector({
-    ...draft,
-    id: draft.id,
-    tags: splitTags(tagDraft),
-  })
-  delete (payload as unknown as Record<string, unknown>).event_system
-  const refs = payload.module_refs
-  if (refs) {
-    if (!refs.event_package_ids?.length && refs.event_system_id) {
-      refs.event_package_ids = [refs.event_system_id]
-    }
-    if (refs.event_packages_disabled === undefined && refs.event_system_disabled === true) {
-      refs.event_packages_disabled = true
-    }
-    delete (refs as Record<string, unknown>).event_system_id
-    delete (refs as Record<string, unknown>).event_system_disabled
-  }
-  return payload
+export function makeStoryDirectorPayload(draft: StoryDirector): Partial<StoryDirector> {
+  return cloneStoryDirector({
+		...draft,
+		id: draft.id,
+	})
 }
 
-export function makeEventPackagePayload(draft: EventPackageModule, tagDraft: string): Partial<EventPackageModule> {
-  const payload = cloneEventPackage({
-    ...draft,
-    id: draft.id,
-    tags: splitTags(tagDraft),
-  })
-  delete (payload as unknown as Record<string, unknown>).event_system
-  delete (payload as unknown as Record<string, unknown>).custom_events
-  return payload
+export function makeEventPackagePayload(draft: EventPackageModule): Partial<EventPackageModule> {
+	return cloneEventPackage({
+		...draft,
+		id: draft.id,
+	})
 }
 
-export function makeRuleSystemPayload(draft: RuleSystemModule, tagDraft: string): Partial<RuleSystemModule> {
+export function makeRuleSystemPayload(draft: RuleSystemModule): Partial<RuleSystemModule> {
   return {
     ...draft,
     id: draft.id,
     trpg_system: normalizeTRPGSystem(draft.trpg_system),
-    tags: splitTags(tagDraft),
   }
 }
 
-export function makeActorStatePayload(draft: ActorStateModule, tagDraft: string): Partial<ActorStateModule> {
+export function makeActorStatePayload(draft: ActorStateModule): Partial<ActorStateModule> {
   return {
     ...draft,
     id: draft.id,
-    tags: splitTags(tagDraft),
   }
 }
 
-export function makeMemoryStructurePayload(draft: StoryMemoryStructureModule, tagDraft: string): Partial<StoryMemoryStructureModule> {
-  return {
-    ...draft,
-    id: draft.id,
-    tags: splitTags(tagDraft),
-  }
-}
+type PresetDraftTranslator = (key: string) => string
 
-export function makeOpeningSelectorPayload(draft: OpeningSelectorModule, tagDraft: string): Partial<OpeningSelectorModule> {
-  return {
-    ...draft,
-    id: draft.id,
-    tags: splitTags(tagDraft),
-  }
-}
-
-export function newTellerDraft(): Partial<Teller> {
+export function newTellerDraft(t?: PresetDraftTranslator): Partial<Teller> {
   const id = `custom-${Date.now()}`
   return {
     id,
-    name: '自定义叙事风格',
-    description: '新的叙事风格',
-    random_event_rate: 0.15,
+    name: presetDraftText(t, 'settingPanel.presetDraft.teller.name', '自定义叙事风格'),
+    description: presetDraftText(t, 'settingPanel.presetDraft.teller.description', '新的叙事风格'),
     style_refs: [],
     style_rules: [],
-    tags: ['自定义'],
     context_policy: {
       creator: 'always',
       lore: 'relevant',
@@ -195,41 +132,32 @@ export function newTellerDraft(): Partial<Teller> {
     slots: [
       {
         id: 'identity',
-        name: '系统提示',
+        name: presetDraftText(t, 'settingPanel.presetDraft.teller.systemName', '系统提示'),
         target: 'system',
         enabled: true,
-        content: '你是一套自定义叙事风格。你要明确影响故事的文风倾向、角色反应、剧情裁定、节奏推进和长期叙事原则。',
+        content: presetDraftText(t, 'settingPanel.presetDraft.teller.systemContent', '你是一套自定义叙事风格。你要明确影响故事的文风倾向、角色反应、剧情裁定、节奏推进和长期叙事原则。'),
       },
       {
         id: 'turn_context',
-        name: '本轮上下文',
+        name: presetDraftText(t, 'settingPanel.presetDraft.teller.turnName', '本轮上下文'),
         target: 'turn_context',
         enabled: true,
-        content: '每轮都要让用户行动带来具体后果，并主动制造符合叙事风格的反馈、阻碍、发现、NPC 反应、代价、暗线推进或新的行动入口。',
-      },
-      {
-        id: 'state_memory',
-        name: '记忆沉淀规则',
-        target: 'state_memory',
-        enabled: true,
-        content: '记录本回合已经成立的关系变化、风险、线索、资源、暗线和可继续行动的入口。',
+        content: presetDraftText(t, 'settingPanel.presetDraft.teller.turnContent', '每轮都要让用户行动带来具体后果，并主动制造符合叙事风格的反馈、阻碍、发现、NPC 反应、代价、暗线推进或新的行动入口。'),
       },
     ],
   }
 }
 
-export function newStoryDirectorDraft(): Partial<StoryDirector> {
+export function newStoryDirectorDraft(t?: PresetDraftTranslator): Partial<StoryDirector> {
   return {
     id: `custom-director-${Date.now()}`,
-    name: '自定义故事导演',
-    description: '新的故事导演，组合叙事风格、事件包、TRPG 检定、状态系统、开局选择器和图像方案。',
+    name: presetDraftText(t, 'settingPanel.presetDraft.director.name', '自定义故事导演'),
+    description: presetDraftText(t, 'settingPanel.presetDraft.director.description', '新的故事导演，组合叙事风格、事件包、TRPG 检定、状态系统和图像方案。'),
     module_refs: {
       narrative_style_id: 'classic',
       event_package_ids: ['default'],
       rule_system_id: 'default',
       actor_state_id: 'default',
-      memory_structure_id: 'default',
-      opening_selector_id: 'default',
       image_preset_id: 'game-cg',
     },
     strategy: {
@@ -237,8 +165,11 @@ export function newStoryDirectorDraft(): Partial<StoryDirector> {
       mainline_strength: 'balanced',
       failure_policy: 'consequence',
       pacing_curve: 'goal-pressure-payoff',
-      random_event_rate: 0.15,
+			event_frequency: 'balanced',
       director_agent_mode: 'triggered',
+		state_schema_adaptation_mode: 'after_opening',
+      rule_state_consumption_mode: 'hybrid_auto',
+      rule_visibility_mode: 'audit_only',
       branch_planning_turns: 5,
     },
     event_packages: [],
@@ -249,109 +180,72 @@ export function newStoryDirectorDraft(): Partial<StoryDirector> {
       templates: [],
       initial_actors: [],
     },
-    opening_selector: {
-      enabled: true,
-      trait_pools: [],
-      initial_state_ops: [],
-    },
-    tags: ['自定义'],
     version: 2,
     custom: true,
   }
 }
 
-export function newEventPackageDraft(): Partial<EventPackageModule> {
+export function newEventPackageDraft(t?: PresetDraftTranslator): Partial<EventPackageModule> {
   return {
     id: `custom-event-package-${Date.now()}`,
-    name: '自定义事件包',
-    description: '新的事件包，配置事件卡、强度、冷却和事件描述。',
+    name: presetDraftText(t, 'settingPanel.presetDraft.event.name', '自定义事件包'),
+    description: presetDraftText(t, 'settingPanel.presetDraft.event.description', '新的事件包，配置事件卡、强度、冷却和事件描述。'),
     events: [],
-    tags: ['自定义'],
     version: 1,
     custom: true,
   }
 }
 
-export function newRuleSystemDraft(): Partial<RuleSystemModule> {
+export function newRuleSystemDraft(t?: PresetDraftTranslator): Partial<RuleSystemModule> {
   return {
     id: `custom-rule-${Date.now()}`,
-    name: '自定义 TRPG 检定',
-    description: '新的 TRPG 检定，基于开箱规则模板配置常见行动、战斗、潜行、调查和社交检定。',
+    name: presetDraftText(t, 'settingPanel.presetDraft.rule.name', '自定义 TRPG 检定'),
+    description: presetDraftText(t, 'settingPanel.presetDraft.rule.description', '新的 TRPG 检定，代表一种 DM 检定风格，并配置固定 d20、难度修正、失败处理、难度判断、状态影响指引和可选 State Binding。'),
     trpg_system: {
       rule_templates: defaultRuleTemplates(),
     },
-    tags: ['自定义'],
     version: 1,
     custom: true,
   }
 }
 
-export function newActorStateDraft(): Partial<ActorStateModule> {
+export function newActorStateDraft(t?: PresetDraftTranslator): Partial<ActorStateModule> {
   return {
     id: `custom-actor-state-${Date.now()}`,
-    name: '自定义状态系统',
-    description: '新的状态系统，配置关键角色模板、字段 schema 和初始 Actor。',
+    name: presetDraftText(t, 'settingPanel.presetDraft.actor.name', '自定义状态系统'),
+    description: presetDraftText(t, 'settingPanel.presetDraft.actor.description', '新的状态系统，配置状态表模板、字段 schema 和初始状态对象。'),
     actor_state: {
       templates: [
         {
           id: 'protagonist',
-          name: '主角',
-          description: '主角可计算状态模板。',
+          name: presetDraftText(t, 'settingPanel.presetDraft.actor.templateName', '默认主角状态表'),
+          description: presetDraftText(t, 'settingPanel.presetDraft.actor.templateDescription', '示例主角状态表，可替换或新增世界、故事、势力、基地、特定角色等状态表。'),
           fields: [
-            { id: 'hp', path: 'resources.hp', name: '生命', type: 'number', default: 10, min: 0, max: 10, visibility: 'visible' },
+            { id: 'current_status', path: 'current.status', name: presetDraftText(t, 'settingPanel.presetDraft.actor.fieldName', '当前状态'), type: 'string', default: presetDraftText(t, 'settingPanel.presetDraft.actor.fieldDefault', '状态稳定，等待剧情确定。'), visibility: 'visible' },
           ],
         },
       ],
-      initial_actors: [{ id: 'protagonist', name: '主角', template_id: 'protagonist', role: 'protagonist' }],
-    },
-    tags: ['自定义'],
-    version: 1,
-    custom: true,
-  }
-}
-
-export function newMemoryStructureDraft(): Partial<StoryMemoryStructureModule> {
-  return {
-    id: `custom-memory-${Date.now()}`,
-    name: '自定义记忆结构',
-    description: '新的故事记忆结构，配置长期记忆分组、字段和整理要求。',
-    structures: [],
-    tags: ['自定义'],
-    version: 1,
-    custom: true,
-  }
-}
-
-export function newOpeningSelectorDraft(): Partial<OpeningSelectorModule> {
-  return {
-    id: `custom-opening-${Date.now()}`,
-    name: '自定义开局选择器',
-    description: '新的开局选择器，配置词条池、初始状态变更和抽取规则。',
-    opening_selector: {
-      enabled: true,
       trait_pools: [],
-      initial_state_ops: [],
+      initial_actors: [{ id: 'protagonist', name: presetDraftText(t, 'settingPanel.presetDraft.actor.initialName', '主角'), template_id: 'protagonist', role: 'protagonist' }],
     },
-    tags: ['自定义'],
-    version: 1,
+    version: 5,
     custom: true,
   }
 }
 
-export function newImagePresetDraft(): Partial<ImagePreset> {
+export function newImagePresetDraft(t?: PresetDraftTranslator): Partial<ImagePreset> {
   return {
     id: `custom-image-${Date.now()}`,
-    name: '自定义图像方案',
-    description: '新的图像风格方案',
-    prompt: '描述画面风格、媒介、构图、镜头语言、光影、色彩、角色与环境呈现限制，以及需要避免的内容。',
-    tags: ['自定义'],
+    name: presetDraftText(t, 'settingPanel.presetDraft.image.name', '自定义图像方案'),
+    description: presetDraftText(t, 'settingPanel.presetDraft.image.description', '新的图像风格方案'),
+    prompt: presetDraftText(t, 'settingPanel.presetDraft.image.prompt', '描述画面风格、媒介、构图、镜头语言、光影、色彩、角色与环境呈现限制，以及需要避免的内容。'),
     version: 1,
     custom: true,
   }
 }
 
 export function isPresetConfigResourceKind(kind: PresetResourceKind) {
-  return kind === 'director' || kind === 'event' || kind === 'rule' || kind === 'actor-state' || kind === 'memory-structure' || kind === 'opening'
+  return kind === 'director' || kind === 'event' || kind === 'rule' || kind === 'actor-state'
 }
 
 export function currentPresetBuiltinOverridden(kind: PresetResourceKind, drafts: PresetDrafts) {
@@ -360,8 +254,6 @@ export function currentPresetBuiltinOverridden(kind: PresetResourceKind, drafts:
   if (kind === 'event') return Boolean(drafts.event?.builtin_overridden)
   if (kind === 'rule') return Boolean(drafts.rule?.builtin_overridden)
   if (kind === 'actor-state') return Boolean(drafts.actorState?.builtin_overridden)
-  if (kind === 'memory-structure') return Boolean(drafts.memoryStructure?.builtin_overridden)
-  if (kind === 'opening') return Boolean(drafts.opening?.builtin_overridden)
   return Boolean(drafts.teller?.builtin_overridden)
 }
 
@@ -371,8 +263,6 @@ export function presetEditorTitle(kind: PresetResourceKind, drafts: PresetDrafts
   if (kind === 'event') return drafts.event?.name || t('settingPanel.editor.defaultEventPackage')
   if (kind === 'rule') return drafts.rule?.name || t('settingPanel.editor.defaultRuleSystem')
   if (kind === 'actor-state') return drafts.actorState?.name || t('settingPanel.editor.defaultActorState')
-  if (kind === 'memory-structure') return drafts.memoryStructure?.name || t('settingPanel.editor.defaultMemoryStructure')
-  if (kind === 'opening') return drafts.opening?.name || t('settingPanel.editor.defaultOpeningSelector')
   return drafts.teller?.name || t('settingPanel.editor.defaultTeller')
 }
 
@@ -382,11 +272,13 @@ export function presetEditorSubtitle(kind: PresetResourceKind, drafts: PresetDra
   if (kind === 'event') return drafts.event?.description || t('settingPanel.editor.eventPackageSubtitle')
   if (kind === 'rule') return drafts.rule?.description || t('settingPanel.editor.ruleSystemSubtitle')
   if (kind === 'actor-state') return drafts.actorState?.description || t('settingPanel.editor.actorStateSubtitle')
-  if (kind === 'memory-structure') return drafts.memoryStructure?.description || t('settingPanel.editor.memoryStructureSubtitle')
-  if (kind === 'opening') return drafts.opening?.description || t('settingPanel.editor.openingSelectorSubtitle')
   return drafts.teller?.description || t('settingPanel.editor.tellerSubtitle')
 }
 
 function cloneJSON<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
+}
+
+function presetDraftText(t: PresetDraftTranslator | undefined, key: string, fallback: string) {
+  return t?.(key) || fallback
 }

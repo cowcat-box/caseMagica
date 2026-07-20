@@ -1,5 +1,7 @@
-import { fetchAPI, jsonHeaders, parseSSEStream, requestJSON } from './client'
-import type { AgentRunTrace, AgentRunTraceSummary, ChatMessage, ContextAnalysis, IDEContext, SSEEvent, SessionSummary, TextSelection } from './types'
+import type { UIMessageChunk } from 'ai'
+import { fetchAPI, jsonHeaders, parseUIMessageStream, requestJSON } from './client'
+import type { AgentRunTrace, AgentRunTraceSummary, ContextAnalysis, IDEContext, SessionSummary, TextSelection } from './types'
+import type { AgentUIMessage } from '@/lib/agent-ui'
 
 export async function sendMessage(
   message: string,
@@ -13,7 +15,7 @@ export async function sendMessage(
   ideContext?: IDEContext,
   imagePresetId?: string,
   tellerId?: string,
-): Promise<ReadableStream<SSEEvent>> {
+): Promise<ReadableStream<UIMessageChunk>> {
   const res = await fetchAPI('/api/chat', {
     method: 'POST',
     headers: jsonHeaders,
@@ -40,7 +42,7 @@ export async function sendMessage(
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   if (!res.body) throw new Error('No response body')
 
-  return parseSSEStream(res.body)
+  return parseUIMessageStream(res.body)
 }
 
 export async function analyzeChatContext(
@@ -95,11 +97,11 @@ export async function getActiveChatTask(): Promise<{ active: boolean; status?: s
   return requestJSON('/api/chat/active')
 }
 
-export async function streamActiveChat(signal?: AbortSignal): Promise<ReadableStream<SSEEvent>> {
+export async function streamActiveChat(signal?: AbortSignal): Promise<ReadableStream<UIMessageChunk>> {
   const res = await fetchAPI('/api/chat/stream', { signal })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   if (!res.body) throw new Error('No response body')
-  return parseSSEStream(res.body)
+  return parseUIMessageStream(res.body)
 }
 
 export async function abortChat(): Promise<void> {
@@ -115,7 +117,7 @@ export async function executeCommand(command: string): Promise<string> {
   return data.result || ''
 }
 
-export async function getMessages(sessionId?: string): Promise<ChatMessage[]> {
+export async function getMessages(sessionId?: string): Promise<AgentUIMessage[]> {
   const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''
   return requestJSON(`/api/session/messages${query}`)
 }

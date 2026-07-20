@@ -34,6 +34,9 @@ func TestCreateStoryInitializesIndexAndStoryFile(t *testing.T) {
 	if story.ReplyTargetChars != DefaultStoryReplyTargetChars || index.Stories[0].ReplyTargetChars != DefaultStoryReplyTargetChars {
 		t.Fatalf("reply target chars = story:%d index:%d, want %d", story.ReplyTargetChars, index.Stories[0].ReplyTargetChars, DefaultStoryReplyTargetChars)
 	}
+	if story.ChoiceCount != DefaultStoryChoiceCount || index.Stories[0].ChoiceCount != DefaultStoryChoiceCount {
+		t.Fatalf("choice count = story:%d index:%d, want %d", story.ChoiceCount, index.Stories[0].ChoiceCount, DefaultStoryChoiceCount)
+	}
 
 	storyFile := filepath.Join(store.Root(), "interactive", "story", "story-"+story.ID+".jsonl")
 	data, err := os.ReadFile(storyFile)
@@ -44,6 +47,30 @@ func TestCreateStoryInitializesIndexAndStoryFile(t *testing.T) {
 	assertContains(t, string(data), `"current_branch":"main"`)
 	assertContains(t, string(data), `"story_teller_id":"grimdark"`)
 	assertContains(t, string(data), fmt.Sprintf(`"reply_target_chars":%d`, DefaultStoryReplyTargetChars))
+	assertContains(t, string(data), fmt.Sprintf(`"choice_count":%d`, DefaultStoryChoiceCount))
+}
+
+func TestCreateAndUpdateStoryChoiceCount(t *testing.T) {
+	store := NewStore(t.TempDir())
+	story, err := store.CreateStory(CreateStoryRequest{Title: "七选一", ChoiceCount: 7})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if story.ChoiceCount != 7 {
+		t.Fatalf("choice count = %d, want 7", story.ChoiceCount)
+	}
+	choiceCount := 3
+	updated, err := store.UpdateStory(story.ID, UpdateStoryRequest{ChoiceCount: &choiceCount})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.ChoiceCount != 3 {
+		t.Fatalf("updated choice count = %d, want 3", updated.ChoiceCount)
+	}
+	invalid := MaxStoryChoiceCount + 1
+	if _, err := store.UpdateStory(story.ID, UpdateStoryRequest{ChoiceCount: &invalid}); err == nil {
+		t.Fatal("choice count above the configured range should fail")
+	}
 }
 
 func TestCreateStoryPersistsCustomReplyTargetChars(t *testing.T) {
@@ -66,6 +93,55 @@ func TestCreateStoryPersistsCustomReplyTargetChars(t *testing.T) {
 	}
 	if ctx.Meta.ReplyTargetChars != 800 {
 		t.Fatalf("meta reply target chars = %d, want 800", ctx.Meta.ReplyTargetChars)
+	}
+}
+
+func TestCreateStoryPersistsStoryModuleOverrides(t *testing.T) {
+	store := NewStore(t.TempDir())
+	refs := StoryDirectorModuleRefs{
+		NarrativeStyleID:      "noir",
+		RuleSystemID:          "light-rules",
+		ActorStateID:          "detective-state",
+		EventPackageIDs:       []string{"city-events"},
+		ImagePresetID:         "film-noir",
+		EventPackagesDisabled: false,
+	}
+	story, err := store.CreateStory(CreateStoryRequest{Title: "雾都", StoryDirectorID: "default", ModuleRefs: &refs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	refs.EventPackageIDs[0] = "mutated"
+	if story.ModuleRefs == nil || story.ModuleRefs.ActorStateID != "detective-state" || story.ModuleRefs.EventPackageIDs[0] != "city-events" {
+		t.Fatalf("story module refs not persisted independently: %#v", story.ModuleRefs)
+	}
+	ctx, err := store.StoryContext(story.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ctx.Meta.ModuleRefs == nil || ctx.Meta.ModuleRefs.ActorStateID != "detective-state" {
+		t.Fatalf("story meta module refs missing: %#v", ctx.Meta.ModuleRefs)
+	}
+}
+
+func TestUpdateStorySetupPersistsOriginAndModuleOverrides(t *testing.T) {
+	store := NewStore(t.TempDir())
+	story, err := store.CreateStory(CreateStoryRequest{Title: "旧标题", StoryDirectorID: "default"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	origin := "新的故事简介"
+	refs := StoryDirectorModuleRefs{NarrativeStyleID: "noir", RuleSystemID: "mystery"}
+	updated, err := store.UpdateStory(story.ID, UpdateStoryRequest{
+		Title:           "新标题",
+		Origin:          &origin,
+		StoryDirectorID: "default",
+		ModuleRefs:      &refs,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Origin != origin || updated.ModuleRefs == nil || updated.ModuleRefs.RuleSystemID != "mystery" {
+		t.Fatalf("updated setup not persisted: %#v", updated)
 	}
 }
 
@@ -487,12 +563,6 @@ func TestAppendTurnWithStatePersistsTurnAndDeltaAtomically(t *testing.T) {
 			{Op: "set", Path: "on_stage", Value: []any{"林川"}},
 			{Op: "merge", Path: "characters.林川", Value: map[string]any{"location": "黄泉酒馆"}},
 		},
-		HotState: &HotState{Choices: []string{
-			"我靠近地窖门，观察门缝和周围痕迹。",
-			"",
-			"我靠近地窖门，观察门缝和周围痕迹。",
-			"我回头询问柜台后的影子是谁。",
-		}},
 	})
 	if err != nil {
 		t.Fatalf("AppendTurnWithState failed: %v", err)
@@ -505,9 +575,6 @@ func TestAppendTurnWithStatePersistsTurnAndDeltaAtomically(t *testing.T) {
 	}
 	if turn.StateDelta == nil || len(turn.StateDelta.Ops) != 2 {
 		t.Fatalf("expected turn to carry embedded state delta: %#v", turn.StateDelta)
-	}
-	if turn.HotState == nil || len(turn.HotState.Choices) != 2 {
-		t.Fatalf("expected normalized hot state choices: %#v", turn.HotState)
 	}
 
 	snapshot, err := store.Snapshot(story.ID, "main")
@@ -565,17 +632,195 @@ func TestAppendTurnWithStatePersistsTurnAndDeltaAtomically(t *testing.T) {
 	if _, ok := turnLine["state_delta"].(map[string]any)["narrative"]; ok {
 		t.Fatalf("state_delta should not contain narrative: %#v", turnLine["state_delta"])
 	}
-	hotState, ok := turnLine["hot_state"].(map[string]any)
-	if !ok {
-		t.Fatalf("turn should embed hot_state: %#v", turnLine)
-	}
-	choices, ok := hotState["choices"].([]any)
-	if !ok || len(choices) != 2 {
-		t.Fatalf("hot_state choices = %#v, want 2 choices", hotState["choices"])
+	if _, ok := turnLine["hot_state"]; ok {
+		t.Fatalf("new turns should keep choices only in turn_result: %#v", turnLine["hot_state"])
 	}
 	if _, ok := turnLine["state"]; ok {
 		t.Fatalf("turn should not persist copied full state: %#v", turnLine["state"])
 	}
+}
+
+func TestAppendTurnWithStateConsumesRuleStateChanges(t *testing.T) {
+	store, director := newStoreWithStaminaTestDirector(t)
+	story, err := store.CreateStory(CreateStoryRequest{
+		StoryDirectorID: director.ID,
+		Title:           "规则状态",
+		ActorState:      &director.ActorState,
+	})
+	if err != nil {
+		t.Fatalf("CreateStory failed: %v", err)
+	}
+	req := sampleTurnCheckRequest()
+	req.Outcomes.Failure.StateChanges = []TurnStateChange{{ActorID: "protagonist", FieldID: "体力", Change: -10, Reason: "强行开锁透支体力"}}
+	seed := seedForTurnCheckOutcome(t, "1d20", "normal", "normal", 0, 0, "failure")
+	resolution, err := resolveTurnRulesWithSeed(story.ID, "main", initialStoryState(), req, seed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	turn, _, err := store.AppendTurnWithState(story.ID, AppendTurnWithStateRequest{
+		BranchID:       "main",
+		User:           "我撬锁",
+		Narrative:      "锁芯卡住，主角不得不后退喘息。",
+		RuleResolution: &resolution,
+	})
+	if err != nil {
+		t.Fatalf("AppendTurnWithState failed: %v", err)
+	}
+	if turn.RuleResolution == nil || turn.RuleResolution.StateConsumption == nil {
+		t.Fatalf("expected state consumption audit: %#v", turn.RuleResolution)
+	}
+	if turn.RuleResolution.StateConsumption.Status != "applied" {
+		t.Fatalf("state consumption status = %s", turn.RuleResolution.StateConsumption.Status)
+	}
+	if len(turn.RuleResolution.StateConsumption.AppliedActorOps) != 1 {
+		t.Fatalf("expected one applied op: %#v", turn.RuleResolution.StateConsumption)
+	}
+	op := turn.RuleResolution.StateConsumption.AppliedActorOps[0]
+	if op.ActorID != "protagonist" || op.FieldID != "体力" || op.SourceKind != StateOpSourceRuleResolution || op.SourceID != resolution.ID {
+		t.Fatalf("unexpected applied op: %#v", op)
+	}
+
+	snapshot, err := store.Snapshot(story.ID, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	value := actorStateFieldValue(snapshot.State, "protagonist", "体力")
+	if got := numberFromAny(value); got != 0 {
+		t.Fatalf("stamina should clamp to 0, got %#v in state %#v", value, snapshot.State)
+	}
+}
+
+func TestAppendTurnWithStateSkipsUnknownRuleStateChanges(t *testing.T) {
+	store := NewStore(t.TempDir())
+	director := DefaultStoryDirector()
+	story, err := store.CreateStory(CreateStoryRequest{Title: "规则状态跳过", ActorState: &director.ActorState})
+	if err != nil {
+		t.Fatalf("CreateStory failed: %v", err)
+	}
+	req := sampleTurnCheckRequest()
+	req.Outcomes.Failure.StateChanges = []TurnStateChange{{ActorID: "protagonist", FieldID: "中毒", Change: 1, Reason: "中毒"}}
+	seed := seedForTurnCheckOutcome(t, "1d20", "normal", "normal", 0, 0, "failure")
+	resolution, err := resolveTurnRulesWithSeed(story.ID, "main", initialStoryState(), req, seed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	turn, _, err := store.AppendTurnWithState(story.ID, AppendTurnWithStateRequest{
+		BranchID:       "main",
+		User:           "我撬锁",
+		Narrative:      "锁芯卡住。",
+		RuleResolution: &resolution,
+	})
+	if err != nil {
+		t.Fatalf("AppendTurnWithState failed: %v", err)
+	}
+	if turn.RuleResolution == nil || turn.RuleResolution.StateConsumption == nil {
+		t.Fatalf("expected state consumption audit: %#v", turn.RuleResolution)
+	}
+	if turn.RuleResolution.StateConsumption.Status != "skipped" || len(turn.RuleResolution.StateConsumption.Warnings) != 1 {
+		t.Fatalf("expected skipped warning: %#v", turn.RuleResolution.StateConsumption)
+	}
+	if turn.StateDelta != nil {
+		t.Fatalf("skipped state changes should not create delta: %#v", turn.StateDelta)
+	}
+}
+
+func TestRerollRuleResolutionReplacesAutomaticRuleStateOps(t *testing.T) {
+	store, director := newStoreWithStaminaTestDirector(t)
+	story, err := store.CreateStory(CreateStoryRequest{
+		StoryDirectorID: director.ID,
+		Title:           "规则重抽",
+		ActorState:      &director.ActorState,
+	})
+	if err != nil {
+		t.Fatalf("CreateStory failed: %v", err)
+	}
+	req := sampleTurnCheckRequest()
+	stateChange := []TurnStateChange{{ActorID: "protagonist", FieldID: "体力", Change: -1, Reason: "本次检定消耗体力"}}
+	req.Outcomes.CriticalSuccess.StateChanges = stateChange
+	req.Outcomes.Success.StateChanges = stateChange
+	req.Outcomes.Failure.StateChanges = stateChange
+	req.Outcomes.CriticalFailure.StateChanges = stateChange
+	resolution, err := resolveTurnRulesWithSeed(story.ID, "main", initialStoryState(), req, 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn, _, err := store.AppendTurnWithState(story.ID, AppendTurnWithStateRequest{
+		BranchID:       "main",
+		User:           "我撬锁",
+		Narrative:      "锁芯发出轻响。",
+		RuleResolution: &resolution,
+	})
+	if err != nil {
+		t.Fatalf("AppendTurnWithState failed: %v", err)
+	}
+	reroll, err := store.RerollRuleResolution(story.ID, resolution.ID, RuleResolutionRerollRequest{TurnID: turn.ID})
+	if err != nil {
+		t.Fatalf("RerollRuleResolution failed: %v", err)
+	}
+
+	snapshot, err := store.Snapshot(story.ID, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := numberFromAny(actorStateFieldValue(snapshot.State, "protagonist", "体力")); got != 4 {
+		t.Fatalf("reroll should replace old automatic op instead of stacking, stamina=%v state=%#v", got, snapshot.State)
+	}
+	if snapshot.CurrentTurn == nil || snapshot.CurrentTurn.StateDelta == nil || len(snapshot.CurrentTurn.StateDelta.ActorOps) != 1 {
+		t.Fatalf("expected exactly one rule state op after reroll: %#v", snapshot.CurrentTurn)
+	}
+	op := snapshot.CurrentTurn.StateDelta.ActorOps[0]
+	if op.SourceKind != StateOpSourceRuleResolution || op.SourceID != reroll.ID {
+		t.Fatalf("expected reroll op to point at new resolution: %#v", op)
+	}
+	if snapshot.CurrentTurn.RuleResolution == nil || snapshot.CurrentTurn.RuleResolution.StateConsumption == nil || snapshot.CurrentTurn.RuleResolution.StateConsumption.Status != "applied" {
+		t.Fatalf("expected reroll state consumption audit: %#v", snapshot.CurrentTurn.RuleResolution)
+	}
+}
+
+func newStoreWithStaminaTestDirector(t *testing.T) (*Store, StoryDirector) {
+	t.Helper()
+	root := t.TempDir()
+	novaDir := filepath.Join(root, ".nova")
+	staminaMin, staminaMax := 0.0, 5.0
+	director, err := NewStoryDirectorLibrary(novaDir).Create(StoryDirector{
+		ID:   "stamina-test-director",
+		Name: "体力测试导演",
+		ModuleRefs: StoryDirectorModuleRefs{
+			NarrativeStyleDisabled: true,
+			EventPackagesDisabled:  true,
+			RuleSystemDisabled:     true,
+			ImagePresetDisabled:    true,
+		},
+		Strategy: StoryDirectorStrategy{Enabled: true},
+		ActorState: StoryDirectorActorStateSystem{
+			Templates: []ActorStateTemplate{{
+				ID:   "protagonist",
+				Name: "主角",
+				Fields: []ActorStateField{{
+					ID:         "stamina",
+					Path:       "resources.stamina",
+					Name:       "体力",
+					Type:       "number",
+					Default:    5.0,
+					Min:        &staminaMin,
+					Max:        &staminaMax,
+					Visibility: "visible",
+				}},
+			}},
+			InitialActors: []ActorStateInitialActor{{
+				ID:         DefaultActorID,
+				Name:       "主角",
+				TemplateID: "protagonist",
+				Role:       "protagonist",
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create stamina test director failed: %v", err)
+	}
+	return NewStoreWithNovaDir(root, novaDir), director
 }
 
 func TestAppendTurnWithStatePersistsDisplayEventTimelineDetails(t *testing.T) {
@@ -595,9 +840,9 @@ func TestAppendTurnWithStatePersistsDisplayEventTimelineDetails(t *testing.T) {
 		Narrative: "档案柜里露出一张潮湿的地图。",
 		DisplayEvents: []DisplayEvent{
 			{Role: "thinking", Content: "先确认可用线索。"},
-			{ID: "call-1", Role: "tool_call", Name: "list_lore_items", Args: `{"query":"档案柜"}`, Status: "success", Result: "找到 2 条资料"},
+			{ID: "call-1", Role: "tool_call", Name: "list_lore_items", Args: `{"keywords":["档案柜"]}`, Status: "success", Result: "找到 2 条资料"},
 			{Role: "thinking", Content: "基于资料继续判断下一步。"},
-			{ID: "call-2", Role: "tool_call", Name: "apply_story_memory_patches", Args: `{"patches":[{"table":"plot_summary"}]}`, Status: "success", Result: "已写入 1 条记忆"},
+			{ID: "call-2", Role: "tool_call", Name: "search_story_history", Args: `{"keywords":["钟楼"]}`, Status: "success", Result: "找到 1 个历史回合"},
 		},
 	})
 	if err != nil {
@@ -618,10 +863,10 @@ func TestAppendTurnWithStatePersistsDisplayEventTimelineDetails(t *testing.T) {
 			t.Fatalf("event[%d].role = %q, want %q; events=%#v", i, events[i].Role, want, events)
 		}
 	}
-	if events[1].Args != `{"query":"档案柜"}` || events[1].Result != "找到 2 条资料" {
+	if events[1].Args != `{"keywords":["档案柜"]}` || events[1].Result != "找到 2 条资料" {
 		t.Fatalf("first tool details not persisted: %#v", events[1])
 	}
-	if events[3].Args == "" || events[3].Result != "已写入 1 条记忆" {
+	if events[3].Args == "" || events[3].Result != "找到 1 个历史回合" {
 		t.Fatalf("second tool details not persisted: %#v", events[3])
 	}
 }
@@ -1006,7 +1251,7 @@ func TestSwitchTurnVersionKeepsLaterCanonicalPath(t *testing.T) {
 }
 
 func TestBackgroundTurnUpdatesDoNotRewindBranchHead(t *testing.T) {
-	t.Run("state delta", func(t *testing.T) {
+	t.Run("state delta rejects stale turn", func(t *testing.T) {
 		store := NewStore(t.TempDir())
 		story, err := store.CreateStory(CreateStoryRequest{Title: "状态晚到", StoryTellerID: "classic"})
 		if err != nil {
@@ -1024,8 +1269,8 @@ func TestBackgroundTurnUpdatesDoNotRewindBranchHead(t *testing.T) {
 			ParentID: first.ID,
 			BranchID: "main",
 			Ops:      []StateOp{{Op: "set", Path: "scene.phase", Value: "late-state"}},
-		}); err != nil {
-			t.Fatal(err)
+		}); err == nil || !strings.Contains(err.Error(), "不是当前分支头") {
+			t.Fatalf("late state update should be rejected, got %v", err)
 		}
 
 		snapshot, err := store.Snapshot(story.ID, "main")
@@ -1033,42 +1278,13 @@ func TestBackgroundTurnUpdatesDoNotRewindBranchHead(t *testing.T) {
 			t.Fatal(err)
 		}
 		if len(snapshot.Turns) != 2 || snapshot.Turns[0].ID != first.ID || snapshot.Turns[1].ID != second.ID {
-			t.Fatalf("late state update should not rewind branch head: %#v", snapshot.Turns)
+			t.Fatalf("rejected late state update should not rewind branch head: %#v", snapshot.Turns)
 		}
 		if snapshot.CurrentTurn == nil || snapshot.CurrentTurn.ID != second.ID {
 			t.Fatalf("current turn should remain latest after late state update: %#v", snapshot.CurrentTurn)
 		}
 	})
 
-	t.Run("memory ready", func(t *testing.T) {
-		store := NewStore(t.TempDir())
-		story, err := store.CreateStory(CreateStoryRequest{Title: "记忆晚到", StoryTellerID: "classic"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		first, err := store.AppendTurn(story.ID, AppendTurnRequest{BranchID: "main", User: "第一步", Narrative: "第一段。"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		second, err := store.AppendTurn(story.ID, AppendTurnRequest{BranchID: "main", User: "第二步", Narrative: "第二段。"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := store.MarkInteractiveMemoryReady(story.ID, "main", first.ID); err != nil {
-			t.Fatal(err)
-		}
-
-		snapshot, err := store.Snapshot(story.ID, "main")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(snapshot.Turns) != 2 || snapshot.Turns[0].ID != first.ID || snapshot.Turns[1].ID != second.ID {
-			t.Fatalf("late memory update should not rewind branch head: %#v", snapshot.Turns)
-		}
-		if snapshot.CurrentTurn == nil || snapshot.CurrentTurn.ID != second.ID {
-			t.Fatalf("current turn should remain latest after late memory update: %#v", snapshot.CurrentTurn)
-		}
-	})
 }
 
 func TestUpdateAndDeleteStory(t *testing.T) {

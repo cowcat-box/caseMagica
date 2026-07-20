@@ -1,3 +1,4 @@
+import { parseJsonEventStream, uiMessageChunkSchema, type UIMessageChunk } from 'ai'
 import type { SSEEvent } from './types'
 import i18next from '@/i18n'
 import { toast } from 'sonner'
@@ -10,6 +11,23 @@ const REMOTE_ACCESS_REQUIRED_EVENT = 'nova:remote-access-required'
 
 type APIRequestInit = RequestInit & {
   suppressBackendUnavailableToast?: boolean
+}
+
+/** HTTP/API domain failure with transport and machine-readable backend context intact. */
+export class APIError extends Error {
+  readonly status: number
+  readonly code?: string
+  readonly details?: Record<string, unknown>
+  readonly payload: Record<string, unknown>
+
+  constructor(message: string, options: { status: number; code?: string; details?: Record<string, unknown>; payload?: Record<string, unknown> }) {
+    super(message)
+    this.name = 'APIError'
+    this.status = options.status
+    this.code = options.code
+    this.details = options.details
+    this.payload = options.payload ?? {}
+  }
 }
 
 export async function fetchAPI(input: RequestInfo | URL, init?: APIRequestInit): Promise<Response> {
@@ -38,7 +56,12 @@ export async function requestJSON<T>(url: string, init?: RequestInit): Promise<T
     }
   }
   if (!res.ok) {
-    throw new Error(data.error || `HTTP ${res.status}`)
+    const message = typeof data.error === 'string' && data.error ? data.error : `HTTP ${res.status}`
+    const code = typeof data.code === 'string' && data.code ? data.code : undefined
+    const details = data.details && typeof data.details === 'object' && !Array.isArray(data.details)
+      ? data.details as Record<string, unknown>
+      : undefined
+    throw new APIError(message, { status: res.status, code, details, payload: data })
   }
   return data as T
 }
@@ -89,6 +112,18 @@ export function parseSSEStream<T extends SSEEvent = SSEEvent>(body: ReadableStre
       }
     },
   })
+}
+
+export function parseUIMessageStream(body: ReadableStream<Uint8Array>): ReadableStream<UIMessageChunk> {
+  return parseJsonEventStream({
+    stream: body,
+    schema: uiMessageChunkSchema,
+  }).pipeThrough(new TransformStream({
+    transform(chunk, controller) {
+      if (!chunk.success) throw chunk.error
+      controller.enqueue(chunk.value)
+    },
+  }))
 }
 
 export function setRemoteAccessCredentials(username: string, password: string) {

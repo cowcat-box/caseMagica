@@ -22,20 +22,68 @@ type Conversation interface {
 	ResolveInterruption(id string) error
 }
 
+// UserMessageReferencesSetter lets a durable conversation attach bounded,
+// display-only references to the next persisted user message.
+type UserMessageReferencesSetter interface {
+	SetUserMessageReferences([]session.UserMessageReference)
+}
+
 // ContextSourceReporter 可由 Conversation 提供本轮已拼装的业务上下文来源。
 // ChatService 会在 PrepareMessages 后追加打印，便于排查非通用注入内容。
 type ContextSourceReporter interface {
 	ContextSourceSummary() string
 }
 
+// ContextLedgerReporter exposes bounded metadata for the actual domain context
+// fragments assembled by a Conversation. Full fragment content is never
+// persisted by the runtime.
+type ContextLedgerReporter interface {
+	ContextLedgerParts() []ContextLedgerPart
+}
+
+// FinalContextLedgerReporter rebuilds domain context audit metadata from the
+// exact message list sent to the model after context compaction. Implementers
+// must not retain full message bodies in the returned durable records.
+type FinalContextLedgerReporter interface {
+	ContextLedgerPartsForMessages(messages []*schema.Message) []ContextLedgerPart
+}
+
+// RunTraceMetadata is the bounded interactive identity attached to one run.
+// A Conversation may fill fields such as TurnID only after its final output is
+// committed, so the runtime resolves it again during finish.
+type RunTraceMetadata struct {
+	StoryID         string `json:"story_id,omitempty"`
+	BranchID        string `json:"branch_id,omitempty"`
+	TurnID          string `json:"turn_id,omitempty"`
+	MaintenanceTask string `json:"maintenance_task,omitempty"`
+}
+
+type RunTraceMetadataReporter interface {
+	RunTraceMetadata() RunTraceMetadata
+}
+
+// InteractiveNarrativeReadinessReporter marks the protocol boundary after a
+// Game Agent has successfully staged its hidden TurnResult and may emit prose.
+type InteractiveNarrativeReadinessReporter interface {
+	InteractiveNarrativeReady() bool
+}
+
 type SessionConversation struct {
-	session             *session.Session
-	cfg                 *config.Config
-	agentKind           string
-	stableContextTitle  string
-	stableContext       string
-	dynamicContextTitle string
-	dynamicContext      string
+	session               *session.Session
+	cfg                   *config.Config
+	agentKind             string
+	stableContextTitle    string
+	stableContext         string
+	dynamicContextTitle   string
+	dynamicContext        string
+	userMessageReferences []session.UserMessageReference
+}
+
+func (c *SessionConversation) SetUserMessageReferences(references []session.UserMessageReference) {
+	if c == nil {
+		return
+	}
+	c.userMessageReferences = append([]session.UserMessageReference(nil), references...)
 }
 
 func NewSessionConversation(sess *session.Session, options ...SessionConversationOption) *SessionConversation {
@@ -99,7 +147,7 @@ func (c *SessionConversation) PrepareMessages(originalMessage, agentMessage stri
 	if c == nil || c.session == nil {
 		return nil, fmt.Errorf("会话不存在")
 	}
-	if err := c.session.Append(schema.UserMessage(originalMessage)); err != nil {
+	if err := c.session.AppendWithMetadata(schema.UserMessage(originalMessage), session.MessageMetadata{UserReferences: c.userMessageReferences}); err != nil {
 		return nil, err
 	}
 	result, err := agentcontext.Build(context.Background(), agentcontext.Request{
@@ -121,30 +169,35 @@ func (c *SessionConversation) ContextSourceSummary() string {
 
 func (c *SessionConversation) CompactContextIfNeeded(ctx context.Context, input ContextCompactionInput) ([]*schema.Message, ContextCompactionResult, error) {
 	policy := c.compactionPolicy()
+	input = withDefaultContextProjectionReserves(c.cfg, c.agentKind, input, 0)
 	phase := strings.TrimSpace(input.Phase)
 	if phase == "" {
 		phase = contextCompactionPhasePreRun
 	}
 	tokensBefore := EstimateContextTokens(input.Messages, input.Tools)
+	projectedTokensBefore := projectedContextTokens(tokensBefore, input)
 	result := ContextCompactionResult{
-		Phase:               phase,
-		TokensBefore:        tokensBefore,
-		ContextWindowTokens: policy.ContextWindowTokens,
-		Strategy:            policy.Strategy,
-		Threshold:           policy.Threshold,
-		MessageCountBefore:  len(input.Messages),
-		RetainedTurns:       policy.RetainedTurns,
+		Phase:                    phase,
+		TokensBefore:             tokensBefore,
+		ProjectedTokensBefore:    projectedTokensBefore,
+		ReservedCompletionTokens: input.ReservedCompletionTokens,
+		ReservedToolResultTokens: input.ReservedToolResultTokens,
+		ContextWindowTokens:      policy.ContextWindowTokens,
+		Strategy:                 policy.Strategy,
+		Threshold:                policy.Threshold,
+		MessageCountBefore:       len(input.Messages),
+		RetainedTurns:            policy.RetainedTurns,
 	}
-	shouldCompact, skipped := policy.shouldCompact(tokensBefore, input.Force)
+	shouldCompact, skipped := policy.shouldCompact(projectedTokensBefore, input.Force)
 	if !shouldCompact {
 		result.SkippedReason = skipped
 		return input.Messages, result, nil
 	}
-	source, existingMemory, sourceStart, sourceEnd := c.compactionIncrementalSource(input.KeepLatestUser)
-	if strings.TrimSpace(input.ExistingMemory) != "" {
-		existingMemory = input.ExistingMemory
+	source, existingCheckpoint, sourceStart, sourceEnd := c.compactionIncrementalSource(input.KeepLatestUser)
+	if strings.TrimSpace(input.ExistingCheckpoint) != "" {
+		existingCheckpoint = input.ExistingCheckpoint
 	}
-	if len(source) == 0 && strings.TrimSpace(existingMemory) == "" && strings.TrimSpace(input.ReferenceContext) == "" {
+	if len(source) == 0 && strings.TrimSpace(existingCheckpoint) == "" && strings.TrimSpace(input.ReferenceContext) == "" {
 		result.SkippedReason = "empty_source"
 		return input.Messages, result, nil
 	}
@@ -156,7 +209,7 @@ func (c *SessionConversation) CompactContextIfNeeded(ctx context.Context, input 
 	}
 	sourceTokens := EstimateContextTokens(source, nil)
 	emitContextCompactionEvent(input.Emit, phase, "started", result)
-	summary, inputChars, err := summarizeContextForCompaction(ctx, c.cfg, c.agentKind, existingMemory, source, input.ReferenceContext, sourceTokens, policy, func(attempt int, delta string) {
+	summary, inputChars, err := summarizeContextForCompaction(ctx, c.cfg, c.agentKind, existingCheckpoint, source, input.ReferenceContext, sourceTokens, policy, func(attempt int, delta string) {
 		emitContextCompactionDeltaEvent(input.Emit, phase, result, attempt, delta)
 	})
 	if err != nil {
@@ -173,6 +226,7 @@ func (c *SessionConversation) CompactContextIfNeeded(ctx context.Context, input 
 	result.Epoch = epoch
 	result.Summary = summary
 	result.TokensAfter = EstimateContextTokens(newMessages, input.Tools)
+	result.ProjectedTokensAfter = projectedContextTokens(result.TokensAfter, input)
 	result.TargetRatio = contextCompactionRatio(countRunes(summary), inputChars)
 	result.SourceMessageCount = len(source)
 	result.MessageCountAfter = len(newMessages)
@@ -189,6 +243,7 @@ func (c *SessionConversation) CompactContextIfNeeded(ctx context.Context, input 
 			newMessages = append(append([]*schema.Message(nil), leading...), newMessages...)
 		}
 		result.TokensAfter = EstimateContextTokens(newMessages, input.Tools)
+		result.ProjectedTokensAfter = projectedContextTokens(result.TokensAfter, input)
 		result.MessageCountAfter = len(newMessages)
 	}
 	emitContextCompactionEvent(input.Emit, phase, "completed", result)
@@ -307,9 +362,9 @@ func (c *SessionConversation) compactionIncrementalSource(keepLatestUser bool) (
 	if sourceStart < 0 {
 		sourceStart = 0
 	}
-	existingMemory := ""
+	existingCheckpoint := ""
 	if compaction, ok := c.session.LatestContextCompaction(c.agentKind); ok {
-		existingMemory = compaction.Summary
+		existingCheckpoint = compaction.Summary
 		if compaction.SourceEndIndex > sourceStart {
 			sourceStart = compaction.SourceEndIndex
 		}
@@ -325,7 +380,7 @@ func (c *SessionConversation) compactionIncrementalSource(keepLatestUser bool) (
 		sourceEnd = sourceStart
 	}
 	source := compactionSourceMessages(applyToolResultContextPolicy(messages[sourceStart:sourceEnd], c.ToolResultContextPolicy()), true)
-	return source, existingMemory, sourceStart, sourceEnd
+	return source, existingCheckpoint, sourceStart, sourceEnd
 }
 
 func compactionSourceMessages(messages []*schema.Message, keepLatestUser bool) []*schema.Message {
@@ -380,10 +435,14 @@ func retainTailByUserTurns(messages []*schema.Message, retainedTurns int) []*sch
 }
 
 func (c *SessionConversation) AppendAssistant(content string) error {
+	return c.AppendAssistantWithMetadata(content, "", session.MessageMetadata{})
+}
+
+func (c *SessionConversation) AppendAssistantWithMetadata(content, _ string, metadata session.MessageMetadata) error {
 	if c == nil || c.session == nil {
 		return fmt.Errorf("会话不存在")
 	}
-	return c.session.Append(schema.AssistantMessage(content, nil))
+	return c.session.AppendWithMetadata(schema.AssistantMessage(content, nil), metadata)
 }
 
 func (c *SessionConversation) AppendContextMessage(msg *schema.Message) error {

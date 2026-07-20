@@ -40,33 +40,58 @@ type HistoryEntry struct {
 	Message      *schema.Message      `json:"-"`
 	CreatedAt    time.Time            `json:"created_at,omitempty"`
 
-	RunID                string           `json:"run_id,omitempty"`
-	AgentKind            string           `json:"agent_kind,omitempty"`
-	AgentName            string           `json:"agent_name,omitempty"`
-	RootAgentName        string           `json:"root_agent_name,omitempty"`
-	RunPath              []string         `json:"run_path,omitempty"`
-	SubAgent             bool             `json:"subagent,omitempty"`
-	SubAgentSessionID    string           `json:"subagent_session_id,omitempty"`
-	SubAgentType         string           `json:"subagent_type,omitempty"`
-	PromptTokens         int              `json:"prompt_tokens,omitempty"`
-	CachedPromptTokens   int              `json:"cached_prompt_tokens,omitempty"`
-	UncachedPromptTokens int              `json:"uncached_prompt_tokens,omitempty"`
-	CacheHitRate         float64          `json:"cache_hit_rate,omitempty"`
-	CompletionTokens     int              `json:"completion_tokens,omitempty"`
-	ReasoningTokens      int              `json:"reasoning_tokens,omitempty"`
-	TotalTokens          int              `json:"total_tokens,omitempty"`
-	ModelCalls           int              `json:"model_calls,omitempty"`
-	GeneratedBytes       int              `json:"generated_bytes,omitempty"`
-	UsageCalls           []TokenUsageCall `json:"usage_calls,omitempty"`
-	SSEHiddenFields      []string         `json:"sse_hidden_fields,omitempty"`
-	SSEHiddenReason      string           `json:"sse_hidden_reason,omitempty"`
-	SSEDisplayNotice     string           `json:"sse_display_notice,omitempty"`
-	SSEGeneratedChars    int              `json:"sse_generated_chars,omitempty"`
+	RunID                string                 `json:"run_id,omitempty"`
+	AgentKind            string                 `json:"agent_kind,omitempty"`
+	AgentName            string                 `json:"agent_name,omitempty"`
+	RootAgentName        string                 `json:"root_agent_name,omitempty"`
+	RunPath              []string               `json:"run_path,omitempty"`
+	SubAgent             bool                   `json:"subagent,omitempty"`
+	SubAgentSessionID    string                 `json:"subagent_session_id,omitempty"`
+	SubAgentType         string                 `json:"subagent_type,omitempty"`
+	PromptTokens         int                    `json:"prompt_tokens,omitempty"`
+	CachedPromptTokens   int                    `json:"cached_prompt_tokens,omitempty"`
+	UncachedPromptTokens int                    `json:"uncached_prompt_tokens,omitempty"`
+	CacheHitRate         float64                `json:"cache_hit_rate,omitempty"`
+	CompletionTokens     int                    `json:"completion_tokens,omitempty"`
+	ReasoningTokens      int                    `json:"reasoning_tokens,omitempty"`
+	TotalTokens          int                    `json:"total_tokens,omitempty"`
+	ModelCalls           int                    `json:"model_calls,omitempty"`
+	GeneratedBytes       int                    `json:"generated_bytes,omitempty"`
+	UsageCalls           []TokenUsageCall       `json:"usage_calls,omitempty"`
+	SSEHiddenFields      []string               `json:"sse_hidden_fields,omitempty"`
+	SSEHiddenReason      string                 `json:"sse_hidden_reason,omitempty"`
+	SSEDisplayNotice     string                 `json:"sse_display_notice,omitempty"`
+	SSEGeneratedChars    int                    `json:"sse_generated_chars,omitempty"`
+	UserReferences       []UserMessageReference `json:"user_references,omitempty"`
+}
+
+// UserMessageReference is display-only context attached to one durable user
+// message. It is intentionally excluded from the model-visible message body.
+type UserMessageReference struct {
+	Kind      string `json:"kind"`
+	ID        string `json:"id,omitempty"`
+	Label     string `json:"label"`
+	Detail    string `json:"detail,omitempty"`
+	StartLine int    `json:"start_line,omitempty"`
+	EndLine   int    `json:"end_line,omitempty"`
+}
+
+type MessageMetadata struct {
+	RunID             string                 `json:"run_id,omitempty"`
+	AgentKind         string                 `json:"agent_kind,omitempty"`
+	AgentName         string                 `json:"agent_name,omitempty"`
+	RootAgentName     string                 `json:"root_agent_name,omitempty"`
+	RunPath           []string               `json:"run_path,omitempty"`
+	SubAgent          bool                   `json:"subagent,omitempty"`
+	SubAgentSessionID string                 `json:"subagent_session_id,omitempty"`
+	SubAgentType      string                 `json:"subagent_type,omitempty"`
+	UserReferences    []UserMessageReference `json:"user_references,omitempty"`
 }
 
 type historyRecord struct {
 	kind              string
 	message           *schema.Message
+	messageMetadata   MessageMetadata
 	display           *DisplayEvent
 	interruption      *Interruption
 	compaction        *ContextCompaction
@@ -80,6 +105,7 @@ type messageRecord struct {
 	Type      string         `json:"type"`
 	CreatedAt time.Time      `json:"created_at,omitempty"`
 	Message   schema.Message `json:"message"`
+	MessageMetadata
 }
 
 // DisplayEvent 表示只用于前端展示的非上下文事件，例如 thinking 和工具卡片。

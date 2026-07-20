@@ -11,10 +11,10 @@ import (
 
 	toml "github.com/pelletier/go-toml/v2"
 
-	"casemagica/internal/workspacepath"
+	"denova/internal/workspacepath"
 )
 
-// Settings 是用户可见且可在三层配置中持久化的字段。
+// Settings 是用户设置的持久化模型。工作区文件只会从中取出 Agent 定制字段。
 // 指针类型用于区分 "未设置"（继承上层）与 "显式置零"。
 type Settings struct {
 
@@ -39,8 +39,8 @@ type Settings struct {
 
 	// 路径
 	SkillsDir    string `toml:"skills_dir,omitempty" json:"skills_dir,omitempty"`
-	CaseMagicaDir    string `toml:"casemagica_dir,omitempty" json:"casemagica_dir,omitempty"`
-	DenovaDir      string `toml:"denova_dir,omitempty" json:"denova_dir,omitempty"`
+	DenovaDir    string `toml:"denova_dir,omitempty" json:"denova_dir,omitempty"`
+	NovaDir      string `toml:"nova_dir,omitempty" json:"nova_dir,omitempty"`
 	BackendPort  *int   `toml:"backend_port,omitempty" json:"backend_port,omitempty"`
 	FrontendPort *int   `toml:"frontend_port,omitempty" json:"frontend_port,omitempty"`
 
@@ -90,7 +90,6 @@ type Settings struct {
 	WritingSkillDefault     string `toml:"writing_skill_default,omitempty" json:"writing_skill_default,omitempty"`
 
 	// 游戏模式
-	InteractiveHotChoices      *bool    `toml:"interactive_hot_choices_enabled,omitempty" json:"interactive_hot_choices_enabled,omitempty"`
 	InteractiveStageFontSize   *int     `toml:"interactive_stage_font_size,omitempty" json:"interactive_stage_font_size,omitempty"`
 	InteractiveStageLineHeight *float64 `toml:"interactive_stage_line_height,omitempty" json:"interactive_stage_line_height,omitempty"`
 }
@@ -103,7 +102,7 @@ func stringPtr(v string) *string  { return &v }
 const (
 	DefaultWritingSkillName        = "novel-lite"
 	DefaultAgentIdleTimeoutSeconds = 0
-	DefaultAgentToolResultLimitKB  = 0
+	DefaultAgentToolResultLimitKB  = 1024
 	DefaultTraceCaptureLevel       = "summary"
 	DefaultTraceExporter           = "local"
 	DefaultTraceRetentionRuns      = 100
@@ -119,8 +118,8 @@ func DefaultSettings() Settings {
 		ImageAPIModel:               DefaultImageAPIModel,
 		DefaultImageAPIProfileID:    DefaultImageAPIProfileID,
 		SkillsDir:                   "./skills",
-		CaseMagicaDir:                   "./" + workspacepath.DataDirName,
-		DenovaDir:                     "./" + workspacepath.DataDirName,
+		DenovaDir:                   "./" + workspacepath.DataDirName,
+		NovaDir:                     "./" + workspacepath.DataDirName,
 		BackendPort:                 intPtr(8080),
 		FrontendPort:                intPtr(5173),
 		AllowLANAccess:              boolPtr(false),
@@ -152,11 +151,10 @@ func DefaultSettings() Settings {
 		TraceExporter:               DefaultTraceExporter,
 		TraceRetentionRuns:          intPtr(DefaultTraceRetentionRuns),
 		AgentModels: AgentModelSettings{
-			IDE:                   AgentModelOverride{EnableThinking: boolPtr(true)},
-			ConfigManager:         AgentModelOverride{EnableThinking: boolPtr(true)},
-			InteractiveHotChoices: AgentModelOverride{EnableThinking: boolPtr(false)},
-			VersionSummary:        AgentModelOverride{EnableThinking: boolPtr(false)},
-			ToolAgent:             AgentModelOverride{EnableThinking: boolPtr(false)},
+			IDE:            AgentModelOverride{EnableThinking: boolPtr(true)},
+			ConfigManager:  AgentModelOverride{EnableThinking: boolPtr(true)},
+			VersionSummary: AgentModelOverride{EnableThinking: boolPtr(false)},
+			ToolAgent:      AgentModelOverride{EnableThinking: boolPtr(false)},
 		},
 		AgentTools:                 DefaultAgentToolSettings(),
 		AgentSkills:                AgentSkillSettings{},
@@ -167,7 +165,6 @@ func DefaultSettings() Settings {
 		IDEStoryTellerID:           "classic",
 		IDEImagePresetID:           "game-cg",
 		WritingSkillDefault:        DefaultWritingSkillName,
-		InteractiveHotChoices:      boolPtr(true),
 		InteractiveStageFontSize:   intPtr(16),
 		InteractiveStageLineHeight: floatPtr(1.78),
 	}
@@ -213,13 +210,13 @@ func Merge(parent, child Settings) Settings {
 	if child.SkillsDir != "" {
 		out.SkillsDir = child.SkillsDir
 	}
-	if child.DenovaDir != "" {
-		out.CaseMagicaDir = child.DenovaDir
-		out.DenovaDir = child.DenovaDir
+	if child.NovaDir != "" {
+		out.DenovaDir = child.NovaDir
+		out.NovaDir = child.NovaDir
 	}
-	if child.CaseMagicaDir != "" {
-		out.CaseMagicaDir = child.CaseMagicaDir
-		out.DenovaDir = child.CaseMagicaDir
+	if child.DenovaDir != "" {
+		out.DenovaDir = child.DenovaDir
+		out.NovaDir = child.DenovaDir
 	}
 	if child.BackendPort != nil {
 		out.BackendPort = child.BackendPort
@@ -333,9 +330,6 @@ func Merge(parent, child Settings) Settings {
 	if child.WritingSkillDefault != "" {
 		out.WritingSkillDefault = child.WritingSkillDefault
 	}
-	if child.InteractiveHotChoices != nil {
-		out.InteractiveHotChoices = child.InteractiveHotChoices
-	}
 	if child.InteractiveStageFontSize != nil {
 		out.InteractiveStageFontSize = child.InteractiveStageFontSize
 	}
@@ -346,9 +340,9 @@ func Merge(parent, child Settings) Settings {
 }
 
 const (
-	// UserConfigFilename 是用户级配置文件名（位于 CaseMagicaDir 下）。
+	// UserConfigFilename 是用户级配置文件名（位于 DenovaDir 下）。
 	UserConfigFilename = "config.toml"
-	// WorkspaceConfigDir 是工作区级配置目录（相对于 workspace）。
+	// WorkspaceConfigDir 是工作区级 Agent 定制目录（相对于 workspace）。
 	WorkspaceConfigDir = workspacepath.DataDirName
 	// LegacyWorkspaceConfigDir 是改名前的工作区级配置目录，仅用于兼容已有工作区。
 	LegacyWorkspaceConfigDir = workspacepath.LegacyDataDirName
@@ -356,7 +350,7 @@ const (
 	WorkspaceConfigFilename = "config.toml"
 )
 
-// LayeredSettings 暴露三层快照及合并后的 effective 值。
+// LayeredSettings 暴露默认、全局、用户与工作区 Agent 定制快照及合并后的 effective 值。
 type LayeredSettings struct {
 	Default                   Settings                  `json:"default"`
 	Global                    Settings                  `json:"global"`
@@ -376,8 +370,8 @@ var ErrSettingsRevisionConflict = errors.New("配置已被其他操作更新，�
 
 // SettingsPaths 是设置页只读展示的真实配置路径。
 type SettingsPaths struct {
-	CaseMagicaDir       string `json:"casemagica_dir"`
-	DenovaDir         string `json:"denova_dir"`
+	DenovaDir       string `json:"denova_dir"`
+	NovaDir         string `json:"nova_dir"`
 	UserConfig      string `json:"user_config"`
 	WorkspaceConfig string `json:"workspace_config"`
 }
@@ -388,7 +382,7 @@ type SettingsRevisions struct {
 	Workspace string `json:"workspace"`
 }
 
-// SettingsAccess exposes the CaseMagica entry addresses users can open in browsers.
+// SettingsAccess exposes the Denova entry addresses users can open in browsers.
 type SettingsAccess struct {
 	LocalURL string `json:"local_url"`
 	LANURL   string `json:"lan_url"`
@@ -459,33 +453,34 @@ func SettingsFileRevision(path string) (string, error) {
 	return fmt.Sprintf("sha256:%x", sum), nil
 }
 
-// UserConfigPath 计算用户级配置路径。denovaDir 已经过 normalizePath 处理。
-func UserConfigPath(denovaDir string) string {
-	if denovaDir == "" {
-		denovaDir = normalizePath(defaultDenovaDir())
+// UserConfigPath 计算用户级配置路径。novaDir 已经过 normalizePath 处理。
+func UserConfigPath(novaDir string) string {
+	if novaDir == "" {
+		novaDir = normalizePath(defaultNovaDir())
 	}
-	return filepath.Join(denovaDir, UserConfigFilename)
+	return filepath.Join(novaDir, UserConfigFilename)
 }
 
-// WorkspaceConfigPath 计算工作区级配置路径。
+// WorkspaceConfigPath 计算工作区级 Agent 定制路径。
 func WorkspaceConfigPath(workspace string) string {
 	return workspacepath.Path(workspace, WorkspaceConfigFilename)
 }
 
-// LoadLayered 读取用户级 + 工作区级配置并与默认值合并。
-// denovaDir 为空时使用默认 ./.casemagica（后端运行目录下），已有 ./.denova 时兼容沿用。
-func LoadLayered(denovaDir, workspace string) (LayeredSettings, error) {
-	return LoadLayeredWithGlobal(denovaDir, workspace, Settings{})
+// LoadLayered 读取用户设置 + 工作区 Agent 定制并与默认值合并。
+// novaDir 为空时使用默认 ./.denova（后端运行目录下），已有 ./.nova 时兼容沿用。
+func LoadLayered(novaDir, workspace string) (LayeredSettings, error) {
+	return LoadLayeredWithGlobal(novaDir, workspace, Settings{})
 }
 
-// LoadLayeredWithGlobal 读取用户级 + 工作区级配置，并加入全局启动配置层。
-func LoadLayeredWithGlobal(denovaDir, workspace string, global Settings) (LayeredSettings, error) {
-	if strings.TrimSpace(denovaDir) == "" {
-		denovaDir = normalizePath(defaultDenovaDir())
+// LoadLayeredWithGlobal 读取用户设置 + 工作区 Agent 定制，并加入全局启动配置层。
+func LoadLayeredWithGlobal(novaDir, workspace string, global Settings) (LayeredSettings, error) {
+	if strings.TrimSpace(novaDir) == "" {
+		novaDir = normalizePath(defaultNovaDir())
 	} else {
-		denovaDir = normalizePath(denovaDir)
+		novaDir = normalizePath(novaDir)
 	}
-	user, err := ReadSettingsFile(UserConfigPath(denovaDir))
+	global.AgentToolResultLimitKB = normalizeAgentToolResultLimitKB(global.AgentToolResultLimitKB)
+	user, err := ReadSettingsFile(UserConfigPath(novaDir))
 	if err != nil {
 		return LayeredSettings{}, err
 	}
@@ -495,37 +490,24 @@ func LoadLayeredWithGlobal(denovaDir, workspace string, global Settings) (Layere
 		if err != nil {
 			return LayeredSettings{}, err
 		}
-		// Startup ports are decided before a workspace is opened, so workspace-level
-		// files must not override them. Remote access is also a process-level
-		// boundary and must stay user/global scoped.
-		ws.BackendPort = nil
-		ws.FrontendPort = nil
-		ws.AllowLANAccess = nil
-		ws.RemoteAccessUsername = ""
-		ws.RemoteAccessPasswordHash = ""
-		ws.RemoteAccessPassword = ""
-		ws.RemoteAccessPasswordSet = false
-		ws.LLMInputLogEnabled = nil
-		ws.TraceCaptureLevel = ""
-		ws.TraceExporter = ""
-		ws.TraceRetentionRuns = nil
+		ws = workspaceAgentSettings(ws)
 	}
 	def := DefaultSettings()
-	def.CaseMagicaDir = denovaDir
-	def.DenovaDir = denovaDir
-	globalDir := firstNonEmpty(global.CaseMagicaDir, global.DenovaDir)
+	def.DenovaDir = novaDir
+	def.NovaDir = novaDir
+	globalDir := firstNonEmpty(global.DenovaDir, global.NovaDir)
 	if globalDir == "" {
-		global.CaseMagicaDir = denovaDir
-		global.DenovaDir = denovaDir
+		global.DenovaDir = novaDir
+		global.NovaDir = novaDir
 	} else {
 		globalDir = normalizePath(globalDir)
-		global.CaseMagicaDir = globalDir
 		global.DenovaDir = globalDir
+		global.NovaDir = globalDir
 	}
 	eff := Merge(Merge(Merge(def, global), user), ws)
 	backendPort := settingsInt(eff.BackendPort, 8080)
 	revisions := SettingsRevisions{}
-	userConfigPath := UserConfigPath(denovaDir)
+	userConfigPath := UserConfigPath(novaDir)
 	workspaceConfigPath := WorkspaceConfigPath(workspace)
 	if rev, err := SettingsFileRevision(userConfigPath); err == nil {
 		revisions.User = rev
@@ -546,8 +528,8 @@ func LoadLayeredWithGlobal(denovaDir, workspace string, global Settings) (Layere
 		Workspace: ws,
 		Effective: eff,
 		Paths: SettingsPaths{
-			CaseMagicaDir:       denovaDir,
-			DenovaDir:         denovaDir,
+			DenovaDir:       novaDir,
+			NovaDir:         novaDir,
 			UserConfig:      userConfigPath,
 			WorkspaceConfig: workspaceConfigPath,
 		},
@@ -560,10 +542,37 @@ func LoadLayeredWithGlobal(denovaDir, workspace string, global Settings) (Layere
 	}, nil
 }
 
+// PrepareWorkspaceAgentSettingsForWrite replaces only the Agent overrides that
+// are intentionally workspace-scoped. Legacy general settings remain on disk so
+// the transition is reversible, but LoadLayered no longer applies them.
+func PrepareWorkspaceAgentSettingsForWrite(existing, incoming Settings) Settings {
+	scoped := workspaceAgentSettings(incoming)
+	existing.AgentTools = scoped.AgentTools
+	existing.AgentPrompts = scoped.AgentPrompts
+	existing.AgentSkills = scoped.AgentSkills
+	existing.AgentContexts = scoped.AgentContexts
+	existing.GeneralSubAgents = scoped.GeneralSubAgents
+	existing.SubAgents = scoped.SubAgents
+	return existing
+}
+
+// workspaceAgentSettings defines the narrow workspace configuration boundary.
+// Model selection and every setting shown on the Settings page are user-scoped.
+func workspaceAgentSettings(settings Settings) Settings {
+	return Settings{
+		AgentTools:       settings.AgentTools,
+		AgentPrompts:     settings.AgentPrompts,
+		AgentSkills:      settings.AgentSkills,
+		AgentContexts:    settings.AgentContexts,
+		GeneralSubAgents: settings.GeneralSubAgents,
+		SubAgents:        settings.SubAgents,
+	}
+}
+
 func sanitizeEditableSettings(s Settings) Settings {
-	// casemagica_dir/denova_dir 是启动级定位参数，不能由用户级/工作区级配置反向修改自身位置。
-	s.CaseMagicaDir = ""
+	// denova_dir/nova_dir 是启动级定位参数，不能由用户级/工作区级配置反向修改自身位置。
 	s.DenovaDir = ""
+	s.NovaDir = ""
 	s.BackendPort = normalizePort(s.BackendPort)
 	s.FrontendPort = normalizePort(s.FrontendPort)
 	s.RemoteAccessUsername = strings.TrimSpace(s.RemoteAccessUsername)
@@ -618,6 +627,9 @@ func normalizeAgentToolResultLimitKB(limit *int) *int {
 	}
 	if *limit < 0 {
 		return nil
+	}
+	if *limit == 0 {
+		return intPtr(DefaultAgentToolResultLimitKB)
 	}
 	return limit
 }

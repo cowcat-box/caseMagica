@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"casemagica/internal/imagepreset"
-	"casemagica/internal/interactive"
-	"casemagica/internal/interactiveimage"
+	"denova/internal/imagepreset"
+	"denova/internal/interactive"
+	"denova/internal/interactiveimage"
 )
 
 const (
@@ -36,9 +36,9 @@ func (s *InteractiveAppService) GenerateInteractiveImage(ctx context.Context, st
 	a.mu.RLock()
 	store := a.interactive
 	workspace := a.workspace
-	denovaDir := ""
+	novaDir := ""
 	if a.cfg != nil {
-		denovaDir = a.cfg.DenovaDir
+		novaDir = a.cfg.DataDir()
 	}
 	a.mu.RUnlock()
 	if store == nil || strings.TrimSpace(workspace) == "" {
@@ -72,8 +72,8 @@ func (s *InteractiveAppService) GenerateInteractiveImage(ctx context.Context, st
 		return InteractiveImageGenerateResult{}, err
 	}
 
-	preset := loadImagePreset(denovaDir, storyCtx.Meta.ImageSettings.PresetID)
-	sourceContext := interactiveImageSourceContext(storyCtx.Meta, storyCtx.Snapshot.BranchID, storyCtx.Snapshot.Turns, turnIndex, store)
+	preset := loadImagePreset(novaDir, storyCtx.Meta.ImageSettings.PresetID)
+	sourceContext := interactiveImageSourceContext(storyCtx.Meta, storyCtx.Snapshot.Turns, turnIndex)
 	systemPrompt := interactiveImageSystemPrompt(preset)
 	toolPrompt := preset.PromptForTargets(imagepreset.TargetToolRequest)
 	result, err := a.GenerateImageWithAgent(ctx, ImageAgentGenerateRequest{
@@ -229,15 +229,15 @@ func interactiveImageErrorResult(err error) string {
 	return string(data)
 }
 
-func loadImagePreset(denovaDir, id string) imagepreset.Preset {
+func loadImagePreset(novaDir, id string) imagepreset.Preset {
 	presetID := imagepreset.NormalizeID(id)
 	if presetID == "" {
 		presetID = imagepreset.DefaultID
 	}
-	if strings.TrimSpace(denovaDir) == "" {
+	if strings.TrimSpace(novaDir) == "" {
 		return imagepreset.DefaultPreset()
 	}
-	preset, err := imagepreset.NewLibrary(denovaDir).Get(presetID)
+	preset, err := imagepreset.NewLibrary(novaDir).Get(presetID)
 	if err != nil {
 		log.Printf("[interactive-image] load image preset failed id=%s err=%v; fallback=%s", presetID, err, imagepreset.DefaultID)
 		return imagepreset.DefaultPreset()
@@ -262,7 +262,7 @@ func interactiveImageSystemPrompt(preset imagepreset.Preset) string {
 	return sb.String()
 }
 
-func interactiveImageSourceContext(meta interactive.StoryMeta, branchID string, turns []interactive.TurnEvent, turnIndex int, store *interactive.Store) string {
+func interactiveImageSourceContext(meta interactive.StoryMeta, turns []interactive.TurnEvent, turnIndex int) string {
 	var sb strings.Builder
 	writeContextLine(&sb, "故事标题", meta.Title)
 	writeContextLine(&sb, "故事来源", meta.Origin)
@@ -281,19 +281,6 @@ func interactiveImageSourceContext(meta interactive.StoryMeta, branchID string, 
 		turn := turns[turnIndex]
 		sb.WriteString("\n## 当前回合\n\n")
 		fmt.Fprintf(&sb, "用户：%s\n\n叙事：%s\n", limitInteractiveImageRunes(turn.User, 800), limitInteractiveImageRunes(turn.Narrative, 2400))
-		if store != nil {
-			memoryBranchID := strings.TrimSpace(branchID)
-			if memoryBranchID == "" {
-				memoryBranchID = turn.BranchID
-			}
-			if memory, err := store.StoryMemoryContextSummary(meta.StoryID, memoryBranchID, 4*1024); err == nil && strings.TrimSpace(memory) != "" {
-				sb.WriteString("\n## 故事记忆摘要\n\n")
-				sb.WriteString(limitInteractiveImageRunes(memory, 2000))
-				sb.WriteString("\n")
-			} else if err != nil {
-				log.Printf("[interactive-image] load story memory failed story_id=%s branch_id=%s err=%v", meta.StoryID, memoryBranchID, err)
-			}
-		}
 	}
 	return strings.TrimSpace(sb.String())
 }

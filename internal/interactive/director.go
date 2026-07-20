@@ -49,8 +49,6 @@ func directorEventTemplate(id, name, category, summary string) DirectorEvent {
 		PublicSummary:     summary,
 		Template:          summary,
 		NormalizedTrigger: category,
-		Weight:            1,
-		CooldownTurns:     2,
 		Intensity:         "medium",
 	}
 }
@@ -67,7 +65,7 @@ func upsertDirectorEvent(events []DirectorEvent, next DirectorEvent) []DirectorE
 			return events
 		}
 	}
-	if len(events) >= maxTurnBriefListItems {
+	if len(events) >= maxInteractiveListItems {
 		return events
 	}
 	return append(events, next)
@@ -91,7 +89,7 @@ func appendDirectorEventIfMissing(events []DirectorEvent, next DirectorEvent) []
 			return events
 		}
 	}
-	if len(events) >= maxTurnBriefListItems {
+	if len(events) >= maxInteractiveListItems {
 		return events
 	}
 	return append(events, next)

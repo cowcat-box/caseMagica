@@ -1,23 +1,31 @@
-import type { DirectorPlanDocs } from '../../types'
+import type { DirectorPlanningTemplates } from '../../types'
 
 export const STORY_DIRECTOR_STRATEGY_PROMPT_LIMIT = 64 * 1024
 export const STORY_DIRECTOR_PLANNING_TEMPLATE_LIMIT = 64 * 1024
 export const STORY_DIRECTOR_BRANCH_PLANNING_TURNS_FALLBACK = 5
-export const EMPTY_DIRECTOR_PLANNING_TEMPLATES: DirectorPlanDocs = { plan: '' }
-export const DIRECTOR_PLAN_REQUIRED_HEADINGS = [
-  '## 正文Agent可读',
-  '## 后台导演私密',
-  '### 阶段钩子与阅读欲望',
-  '### 资料库锚点',
-  '### 核心角色与关系张力',
-  '### 重要势力与阶段阻力',
-  '### 当前场景与行动空间',
-  '### 信息揭示与线索密度',
-  '### 遭遇、检定与代价',
-  '### 爽点、危机与反转',
-  '### 状态连续性',
-  '### 最近分支安排',
-  '### 伏笔与回收',
+export const EMPTY_DIRECTOR_PLANNING_TEMPLATES: DirectorPlanningTemplates = { plan: '', agent_brief: '' }
+export const DIRECTOR_PRIVATE_PLAN_REQUIRED_HEADINGS = [
+  '## 阶段目标与隐藏钩子',
+  '## 资料库锚点',
+  '## 选角覆盖',
+  '## 核心角色与关系张力',
+  '## 重要势力与阶段阻力',
+  '## 当前场景幕后信息',
+  '## 信息揭示与线索密度',
+  '## 遭遇、检定与代价',
+  '## 爽点、危机与反转',
+  '## 状态连续性',
+  '## 最近分支安排',
+  '## 伏笔与回收',
+] as const
+export const DIRECTOR_AGENT_BRIEF_REQUIRED_HEADINGS = [
+  '## 当前目标与可见钩子',
+  '## 当前场景与行动空间',
+  '## 当前角色与可见关系',
+  '## 已公开信息与可发现线索',
+  '## 遭遇、检定与可见代价',
+  '## 状态连续性',
+  '## 最近分支承接',
 ] as const
 export const STORY_DIRECTOR_MAINLINE_OPTIONS = [
   { value: 'soft_guidance', labelKey: 'settingPanel.storyDirector.strategy.mainline.softGuidance', descriptionKey: 'settingPanel.storyDirector.strategy.mainline.softGuidanceDesc' },
@@ -34,26 +42,33 @@ export const STORY_DIRECTOR_PACING_OPTIONS = [
   { value: 'wave', labelKey: 'settingPanel.storyDirector.strategy.pacing.wave', descriptionKey: 'settingPanel.storyDirector.strategy.pacing.waveDesc' },
   { value: 'goal-pressure-payoff', labelKey: 'settingPanel.storyDirector.strategy.pacing.goalPressurePayoff', descriptionKey: 'settingPanel.storyDirector.strategy.pacing.goalPressurePayoffDesc' },
 ] as const
-export const STORY_DIRECTOR_RANDOM_RATE_OPTIONS = [
-  { value: '0', rate: 0, labelKey: 'settingPanel.storyDirector.strategy.random.off', descriptionKey: 'settingPanel.storyDirector.strategy.random.offDesc' },
-  { value: '0.08', rate: 0.08, labelKey: 'settingPanel.storyDirector.strategy.random.low', descriptionKey: 'settingPanel.storyDirector.strategy.random.lowDesc' },
-  { value: '0.15', rate: 0.15, labelKey: 'settingPanel.storyDirector.strategy.random.medium', descriptionKey: 'settingPanel.storyDirector.strategy.random.mediumDesc' },
-  { value: '0.3', rate: 0.3, labelKey: 'settingPanel.storyDirector.strategy.random.high', descriptionKey: 'settingPanel.storyDirector.strategy.random.highDesc' },
+export const STORY_DIRECTOR_EVENT_FREQUENCY_OPTIONS = [
+	{ value: 'off', labelKey: 'settingPanel.storyDirector.strategy.eventFrequency.off', descriptionKey: 'settingPanel.storyDirector.strategy.eventFrequency.offDesc' },
+	{ value: 'sparse', labelKey: 'settingPanel.storyDirector.strategy.eventFrequency.sparse', descriptionKey: 'settingPanel.storyDirector.strategy.eventFrequency.sparseDesc' },
+	{ value: 'balanced', labelKey: 'settingPanel.storyDirector.strategy.eventFrequency.balanced', descriptionKey: 'settingPanel.storyDirector.strategy.eventFrequency.balancedDesc' },
+	{ value: 'frequent', labelKey: 'settingPanel.storyDirector.strategy.eventFrequency.frequent', descriptionKey: 'settingPanel.storyDirector.strategy.eventFrequency.frequentDesc' },
 ] as const
 export const STORY_DIRECTOR_AGENT_MODE_OPTIONS = [
   { value: 'triggered', labelKey: 'settingPanel.storyDirector.strategy.agentMode.triggered', descriptionKey: 'settingPanel.storyDirector.strategy.agentMode.triggeredDesc' },
   { value: 'every_turn', labelKey: 'settingPanel.storyDirector.strategy.agentMode.everyTurn', descriptionKey: 'settingPanel.storyDirector.strategy.agentMode.everyTurnDesc' },
   { value: 'off', labelKey: 'settingPanel.storyDirector.strategy.agentMode.off', descriptionKey: 'settingPanel.storyDirector.strategy.agentMode.offDesc' },
 ] as const
-export const EDITOR_TABS = ['trpg', 'opening', 'events'] as const
-
-export type StoryDirectorEditorTab = typeof EDITOR_TABS[number]
+export const STORY_DIRECTOR_STATE_SCHEMA_ADAPTATION_OPTIONS = [
+  { value: 'after_opening', labelKey: 'settingPanel.storyDirector.strategy.stateSchemaAdaptation.afterOpening', descriptionKey: 'settingPanel.storyDirector.strategy.stateSchemaAdaptation.afterOpeningDesc' },
+  { value: 'off', labelKey: 'settingPanel.storyDirector.strategy.stateSchemaAdaptation.off', descriptionKey: 'settingPanel.storyDirector.strategy.stateSchemaAdaptation.offDesc' },
+] as const
+export const STORY_DIRECTOR_RULE_STATE_CONSUMPTION_OPTIONS = [
+  { value: 'hybrid_auto', labelKey: 'settingPanel.storyDirector.strategy.ruleState.hybridAuto', descriptionKey: 'settingPanel.storyDirector.strategy.ruleState.hybridAutoDesc' },
+  { value: 'director_only', labelKey: 'settingPanel.storyDirector.strategy.ruleState.directorOnly', descriptionKey: 'settingPanel.storyDirector.strategy.ruleState.directorOnlyDesc' },
+] as const
+export const STORY_DIRECTOR_RULE_VISIBILITY_OPTIONS = [
+  { value: 'audit_only', labelKey: 'settingPanel.storyDirector.strategy.ruleVisibility.auditOnly', descriptionKey: 'settingPanel.storyDirector.strategy.ruleVisibility.auditOnlyDesc' },
+  { value: 'public_roll', labelKey: 'settingPanel.storyDirector.strategy.ruleVisibility.publicRoll', descriptionKey: 'settingPanel.storyDirector.strategy.ruleVisibility.publicRollDesc' },
+] as const
 export type StrategySelectOption = {
   value: string
   labelKey: string
   descriptionKey: string
 }
 
-export const inputClassName = 'nova-field h-8 text-xs focus-visible:ring-0'
-export const selectClassName = 'nova-field h-8 text-xs focus:ring-0'
-export const consoleSectionClassName = 'rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[color-mix(in_srgb,var(--nova-surface)_88%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] backdrop-blur'
+export const consoleSectionClassName = 'rounded-[14px] border border-[var(--preset-line)] bg-[color-mix(in_srgb,var(--preset-surface)_90%,transparent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] backdrop-blur'

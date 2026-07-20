@@ -15,7 +15,7 @@ func snapshotFromLines(storyID, branchID string, meta StoryMeta, lines []StoryEv
 		return Snapshot{}, fmt.Errorf("分支不存在: %s", branchID)
 	}
 	state := initialStoryState()
-	snapshot := Snapshot{StoryID: storyID, BranchID: branchID, State: state}
+	snapshot := Snapshot{StoryID: storyID, BranchID: branchID, State: state, ActorStateSchema: meta.ActorStateSchema, StateSchemaInitialization: meta.StateSchemaInitialization}
 	eventsByID := eventsByID(lines)
 	path, pathSet := eventPath(branch.Head, eventsByID)
 	turnVersions := buildTurnVersionIndex(lines)
@@ -46,6 +46,9 @@ func snapshotFromLines(storyID, branchID string, meta StoryMeta, lines []StoryEv
 				for _, op := range turn.StateDelta.Ops {
 					applyStateOp(state, op)
 				}
+				for _, op := range turn.StateDelta.ActorOps {
+					applyActorStateOp(state, op)
+				}
 			}
 		case StoryEventTypeStateDelta:
 			var delta StateDeltaEvent
@@ -54,6 +57,9 @@ func snapshotFromLines(storyID, branchID string, meta StoryMeta, lines []StoryEv
 			}
 			for _, op := range delta.Ops {
 				applyStateOp(state, op)
+			}
+			for _, op := range delta.ActorOps {
+				applyActorStateOp(state, op)
 			}
 		case StoryEventTypeCompaction:
 			var compaction ContextCompactionEvent
@@ -68,6 +74,19 @@ func snapshotFromLines(storyID, branchID string, meta StoryMeta, lines []StoryEv
 			}
 			snapshot.ContextCompaction = nil
 			snapshot.ContextCompactionRemoval = &removal
+		}
+	}
+	if err := applyFrozenMissingInitialActors(state, meta.ActorStateSchema); err != nil {
+		return Snapshot{}, fmt.Errorf("补全冻结初始 Actor 失败: %w", err)
+	}
+	applyLegacyActorStateAliases(state, meta.ActorStateSchema)
+	if snapshot.CurrentTurn != nil && (snapshot.CurrentTurn.TurnResult == nil || len(snapshot.CurrentTurn.TurnResult.Choices) == 0) && snapshot.CurrentTurn.HotState == nil {
+		if legacy, ok := latestHotChoicesForHead(lines, branchID, snapshot.CurrentTurn.ID); ok {
+			hotState := normalizeHotState(&HotState{Choices: legacy.Choices})
+			snapshot.CurrentTurn.HotState = hotState
+			if len(snapshot.Turns) > 0 {
+				snapshot.Turns[len(snapshot.Turns)-1].HotState = hotState
+			}
 		}
 	}
 	snapshot.Graph = buildStoryGraph(meta, lines, eventsByID, pathSet)
@@ -135,11 +154,12 @@ func normalizeChoiceListLimit(input []string, limit int) []string {
 	seen := map[string]bool{}
 	for _, choice := range input {
 		choice = strings.TrimSpace(choice)
-		if choice == "" || seen[choice] {
+		key := normalizedChoiceKey(choice)
+		if key == "" || seen[key] {
 			continue
 		}
 		choices = append(choices, choice)
-		seen[choice] = true
+		seen[key] = true
 		if len(choices) >= limit {
 			break
 		}

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"casemagica/internal/styleref"
+	"denova/internal/styleref"
 )
 
 func (a *App) StyleReferences() ([]styleref.Reference, error) {
@@ -10,10 +10,10 @@ func (a *App) StyleReferences() ([]styleref.Reference, error) {
 
 func (s *InteractiveAppService) StyleReferences() ([]styleref.Reference, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.DenovaDir == "" {
+	if cfg == nil || cfg.DataDir() == "" {
 		return nil, ErrNoWorkspace
 	}
-	return styleref.NewLibrary(cfg.DenovaDir).List()
+	return styleref.NewLibrary(cfg.DataDir()).List()
 }
 
 func (a *App) SaveStyleReference(req styleref.WriteRequest) (styleref.Reference, error) {
@@ -22,10 +22,10 @@ func (a *App) SaveStyleReference(req styleref.WriteRequest) (styleref.Reference,
 
 func (s *InteractiveAppService) SaveStyleReference(req styleref.WriteRequest) (styleref.Reference, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.DenovaDir == "" {
+	if cfg == nil || cfg.DataDir() == "" {
 		return styleref.Reference{}, ErrNoWorkspace
 	}
-	return styleref.NewLibrary(cfg.DenovaDir).Write(req)
+	return styleref.NewLibrary(cfg.DataDir()).Write(req)
 }
 
 func (a *App) StyleReferenceFile(path string) (styleref.FileDocument, error) {
@@ -34,10 +34,10 @@ func (a *App) StyleReferenceFile(path string) (styleref.FileDocument, error) {
 
 func (s *InteractiveAppService) StyleReferenceFile(path string) (styleref.FileDocument, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.DenovaDir == "" {
+	if cfg == nil || cfg.DataDir() == "" {
 		return styleref.FileDocument{}, ErrNoWorkspace
 	}
-	return styleref.NewLibrary(cfg.DenovaDir).Read(path)
+	return styleref.NewLibrary(cfg.DataDir()).Read(path)
 }
 
 func (a *App) UpdateStyleReferenceFile(req styleref.UpdateRequest) (styleref.FileDocument, error) {
@@ -46,10 +46,10 @@ func (a *App) UpdateStyleReferenceFile(req styleref.UpdateRequest) (styleref.Fil
 
 func (s *InteractiveAppService) UpdateStyleReferenceFile(req styleref.UpdateRequest) (styleref.FileDocument, error) {
 	cfg := s.cfg()
-	if cfg == nil || cfg.DenovaDir == "" {
+	if cfg == nil || cfg.DataDir() == "" {
 		return styleref.FileDocument{}, ErrNoWorkspace
 	}
-	return styleref.NewLibrary(cfg.DenovaDir).Update(req)
+	return styleref.NewLibrary(cfg.DataDir()).Update(req)
 }
 
 func (a *App) DeleteStyleReference(path string) error {
@@ -58,8 +58,8 @@ func (a *App) DeleteStyleReference(path string) error {
 
 func (s *InteractiveAppService) DeleteStyleReference(path string) error {
 	cfg := s.cfg()
-	if cfg == nil || cfg.DenovaDir == "" {
+	if cfg == nil || cfg.DataDir() == "" {
 		return ErrNoWorkspace
 	}
-	return styleref.NewLibrary(cfg.DenovaDir).Delete(path)
+	return styleref.NewLibrary(cfg.DataDir()).Delete(path)
 }

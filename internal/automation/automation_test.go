@@ -1,9 +1,12 @@
 package automation
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -36,11 +39,8 @@ func TestStoreSeparatesUserAndWorkspaceTasks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list tasks: %v", err)
 	}
-	if len(tasks) != 4 {
-		t.Fatalf("task count = %d, want 4", len(tasks))
-	}
-	if !hasTask(tasks, "workspace-auto-continue-writing") || !hasTask(tasks, "workspace-auto-review") {
-		t.Fatalf("default workspace automations missing: %#v", tasks)
+	if len(tasks) != 2 {
+		t.Fatalf("task count = %d, want 2 user-created tasks", len(tasks))
 	}
 
 	userOnly, err := NewStore(userDir, "").List()
@@ -55,32 +55,59 @@ func TestStoreSeparatesUserAndWorkspaceTasks(t *testing.T) {
 	}
 }
 
-func TestStoreSeedsDefaultWorkspaceAutomationsDisabled(t *testing.T) {
+func TestStoreListDoesNotCreateWorkspaceAutomationFile(t *testing.T) {
 	root := t.TempDir()
-	store := NewStore(filepath.Join(root, "user"), filepath.Join(root, "workspace"))
+	workspace := filepath.Join(root, "workspace")
+	store := NewStore(filepath.Join(root, "user"), workspace)
 	tasks, err := store.List()
 	if err != nil {
 		t.Fatalf("List failed: %v", err)
 	}
-	if len(tasks) != 2 {
-		t.Fatalf("task count = %d, want seeded defaults only", len(tasks))
+	if len(tasks) != 0 {
+		t.Fatalf("task count = %d, want no implicit tasks", len(tasks))
 	}
-	continueTask := taskByID(tasks, "workspace-auto-continue-writing")
-	if continueTask == nil || continueTask.Enabled || continueTask.Template != TemplateContinueWriting || continueTask.WriteMode != WriteModeConfirmWrite || continueTask.WriteScope != WriteScopeFile {
-		t.Fatalf("unexpected continue writing seed: %#v", continueTask)
+	path := filepath.Join(workspace, ".denova", "automations", "tasks.json")
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("read-only List should not create %s: %v", path, err)
 	}
-	if !strings.Contains(continueTask.Prompt, "续写下一章") || !strings.Contains(continueTask.Prompt, "CREATOR.md") {
-		t.Fatalf("continue writing seed prompt should be editable task config, got %q", continueTask.Prompt)
+}
+
+func TestStoreGetRunByIDResolvesRunAcrossScopes(t *testing.T) {
+	root := t.TempDir()
+	userDir := filepath.Join(root, "user")
+	workspace := filepath.Join(root, "workspace")
+	store := NewStore(userDir, workspace)
+
+	userTask, err := store.Create(Task{Scope: ScopeUser, Name: "User task", Template: TemplateCustomPrompt})
+	if err != nil {
+		t.Fatalf("Create user task failed: %v", err)
 	}
-	reviewTask := taskByID(tasks, "workspace-auto-review")
-	if reviewTask == nil || reviewTask.Enabled || reviewTask.Template != TemplateReview || reviewTask.WriteMode != WriteModeReadOnly {
-		t.Fatalf("unexpected review seed: %#v", reviewTask)
+	userRun := RunRecord{ID: "run-user", TaskID: userTask.ID, Scope: ScopeUser, Trigger: TriggerManual, Status: RunStatusSuccess}
+	if _, err := store.AppendRun(userTask.ID, userRun); err != nil {
+		t.Fatalf("AppendRun user failed: %v", err)
 	}
-	if !strings.Contains(reviewTask.Prompt, "新增章节") || !strings.Contains(reviewTask.Prompt, "不要把全书当作被评审正文") {
-		t.Fatalf("review seed prompt should target new chapters, got %q", reviewTask.Prompt)
+
+	workspaceTask, err := store.Create(Task{Scope: ScopeWorkspace, Name: "Workspace task", Template: TemplateReview})
+	if err != nil {
+		t.Fatalf("Create workspace task failed: %v", err)
 	}
-	if len(reviewTask.Triggers) != 1 || reviewTask.Triggers[0].Type != TriggerTypeChapterBatch || reviewTask.Triggers[0].ChapterBatchSize != 5 {
-		t.Fatalf("unexpected review seed trigger: %#v", reviewTask.Triggers)
+	workspaceRun := RunRecord{ID: "run-workspace", TaskID: workspaceTask.ID, Scope: ScopeWorkspace, Trigger: TriggerManual, Status: RunStatusSuccess}
+	if _, err := store.AppendRun(workspaceTask.ID, workspaceRun); err != nil {
+		t.Fatalf("AppendRun workspace failed: %v", err)
+	}
+
+	for _, runID := range []string{"run-user", "run-workspace"} {
+		if _, run, err := store.GetRunByID(runID); err != nil {
+			t.Fatalf("GetRunByID(%q) failed: %v", runID, err)
+		} else if run.ID != runID {
+			t.Fatalf("GetRunByID(%q) returned run %q", runID, run.ID)
+		}
+	}
+	if _, _, err := store.GetRunByID("run-missing"); err == nil {
+		t.Fatal("GetRunByID for unknown run returned nil error")
+	}
+	if _, _, err := store.GetRunByID("  "); err == nil {
+		t.Fatal("GetRunByID for empty run id returned nil error")
 	}
 }
 
@@ -111,22 +138,167 @@ func TestStoreAppendRunUpdatesExistingRun(t *testing.T) {
 	}
 }
 
-func TestStoreMigratesSeededDefaultAutomationPrompts(t *testing.T) {
+func TestStoreConcurrentUserScopeCreatesDoNotLoseTasks(t *testing.T) {
+	root := t.TempDir()
+	userDir := filepath.Join(root, "user")
+	workspaces := []string{filepath.Join(root, "one"), filepath.Join(root, "two")}
+	const count = 24
+	var wg sync.WaitGroup
+	errs := make(chan error, count)
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			_, err := NewStore(userDir, workspaces[index%len(workspaces)]).Create(Task{
+				Scope:    ScopeUser,
+				Name:     "Concurrent user task",
+				Template: TemplateCustomPrompt,
+			})
+			errs <- err
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent Create failed: %v", err)
+		}
+	}
+	tasks, err := NewStore(userDir, "").List()
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if len(tasks) != count {
+		t.Fatalf("task count = %d, want %d", len(tasks), count)
+	}
+	data, err := os.ReadFile(filepath.Join(userDir, "automations", "tasks.json"))
+	if err != nil {
+		t.Fatalf("read tasks JSON: %v", err)
+	}
+	var persisted storeFile
+	if err := json.Unmarshal(data, &persisted); err != nil {
+		t.Fatalf("tasks JSON is invalid after concurrent writes: %v", err)
+	}
+	if len(persisted.Tasks) != count {
+		t.Fatalf("persisted task count = %d, want %d", len(persisted.Tasks), count)
+	}
+}
+
+func TestStoreConcurrentAppendRunPreservesEveryRun(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	userDir := filepath.Join(root, "user")
+	store := NewStore(userDir, workspace)
+	task, err := store.Create(Task{Scope: ScopeWorkspace, Name: "Review", Template: TemplateReview})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	const count = 12
+	var wg sync.WaitGroup
+	errs := make(chan error, count)
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			_, err := NewStore(userDir, workspace).AppendRun(task.ID, RunRecord{
+				ID:      fmt.Sprintf("run-%02d", index),
+				TaskID:  task.ID,
+				Scope:   ScopeWorkspace,
+				Trigger: TriggerManual,
+				Status:  RunStatusSuccess,
+			})
+			errs <- err
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent AppendRun failed: %v", err)
+		}
+	}
+	updated, err := store.Get(task.ID)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if len(updated.RecentRuns) != count {
+		t.Fatalf("recent run count = %d, want %d", len(updated.RecentRuns), count)
+	}
+	seen := make(map[string]bool, count)
+	for _, run := range updated.RecentRuns {
+		seen[run.ID] = true
+	}
+	for i := 0; i < count; i++ {
+		if !seen[fmt.Sprintf("run-%02d", i)] {
+			t.Fatalf("run-%02d was lost: %#v", i, updated.RecentRuns)
+		}
+	}
+}
+
+func TestStoreConcurrentUserInboxWritesRemainWorkspaceScoped(t *testing.T) {
+	root := t.TempDir()
+	userDir := filepath.Join(root, "user")
+	workspaces := []string{filepath.Join(root, "one"), filepath.Join(root, "two")}
+	const count = 20
+	var wg sync.WaitGroup
+	errs := make(chan error, count)
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			_, err := NewStore(userDir, workspaces[index%2]).CreateInboxItem(TriggerInboxItem{
+				TaskID:       "shared-user-task",
+				TriggerID:    "batch",
+				Scope:        ScopeUser,
+				ActionPolicy: ActionPolicyConfirm,
+				NotifyPolicy: NotifyPolicyInbox,
+				Title:        fmt.Sprintf("Item %d", index),
+				Fingerprint:  fmt.Sprintf("fp-%d", index),
+			})
+			errs <- err
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent CreateInboxItem failed: %v", err)
+		}
+	}
+	for _, workspace := range workspaces {
+		items, err := NewStore(userDir, workspace).ListInbox()
+		if err != nil {
+			t.Fatalf("ListInbox(%s) failed: %v", workspace, err)
+		}
+		if len(items) != count/2 {
+			t.Fatalf("workspace %s inbox count = %d, want %d", workspace, len(items), count/2)
+		}
+		for _, item := range items {
+			if canonicalStoreRoot(item.Workspace) != canonicalStoreRoot(workspace) {
+				t.Fatalf("workspace %s received foreign inbox item: %#v", workspace, item)
+			}
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(userDir, "automations", "inbox.json"))
+	if err != nil {
+		t.Fatalf("read inbox JSON: %v", err)
+	}
+	var persisted inboxFile
+	if err := json.Unmarshal(data, &persisted); err != nil {
+		t.Fatalf("inbox JSON is invalid after concurrent writes: %v", err)
+	}
+	if len(persisted.Items) != count {
+		t.Fatalf("persisted inbox count = %d, want %d", len(persisted.Items), count)
+	}
+}
+
+func TestStoreRemovesPristineLegacyWorkspaceSeeds(t *testing.T) {
 	root := t.TempDir()
 	workspace := filepath.Join(root, "workspace")
 	store := NewStore(filepath.Join(root, "user"), workspace)
-	if _, err := store.List(); err != nil {
-		t.Fatalf("initial List failed: %v", err)
-	}
-	tasks, err := store.readScope(ScopeWorkspace)
-	if err != nil {
-		t.Fatalf("read workspace tasks failed: %v", err)
-	}
-	for i := range tasks {
-		if tasks[i].ID == "workspace-auto-review" || tasks[i].ID == "workspace-auto-continue-writing" {
-			tasks[i].Prompt = ""
-		}
-	}
+	now := time.Now().UTC()
+	tasks := legacyDefaultWorkspaceAutomations(now)
+	tasks[0].Prompt = "" // Version 1 seeds did not persist editable prompts.
 	if err := store.writeScopeFile(ScopeWorkspace, storeFile{SeedVersion: 1, Tasks: tasks}); err != nil {
 		t.Fatalf("write legacy seed file failed: %v", err)
 	}
@@ -135,32 +307,54 @@ func TestStoreMigratesSeededDefaultAutomationPrompts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List after legacy seed failed: %v", err)
 	}
-	if prompt := taskByID(migrated, "workspace-auto-review").Prompt; !strings.Contains(prompt, "新增章节") {
-		t.Fatalf("review prompt was not migrated: %q", prompt)
-	}
-	if prompt := taskByID(migrated, "workspace-auto-continue-writing").Prompt; !strings.Contains(prompt, "续写下一章") {
-		t.Fatalf("continue prompt was not migrated: %q", prompt)
+	if len(migrated) != 0 {
+		t.Fatalf("pristine legacy seeds should be removed: %#v", migrated)
 	}
 }
 
-func TestStoreDoesNotReseedDeletedDefaultWorkspaceAutomation(t *testing.T) {
+func TestStorePreservesEditedOrUsedLegacyWorkspaceSeeds(t *testing.T) {
 	root := t.TempDir()
-	store := NewStore(filepath.Join(root, "user"), filepath.Join(root, "workspace"))
-	if _, err := store.List(); err != nil {
-		t.Fatalf("initial List failed: %v", err)
+	workspace := filepath.Join(root, "workspace")
+	store := NewStore(filepath.Join(root, "user"), workspace)
+	now := time.Now().UTC()
+	tasks := legacyDefaultWorkspaceAutomations(now)
+	tasks[0].Prompt = "用户修改后的续写规则"
+	tasks[0].UpdatedAt = now.Add(time.Minute)
+	tasks[1].RecentRuns = []RunRecord{{ID: "run-1", TaskID: tasks[1].ID, Status: RunStatusSuccess}}
+	if err := store.writeScopeFile(ScopeWorkspace, storeFile{SeedVersion: 2, Tasks: tasks}); err != nil {
+		t.Fatalf("write legacy seed file failed: %v", err)
 	}
-	if err := store.Delete("workspace-auto-review"); err != nil {
-		t.Fatalf("Delete default review failed: %v", err)
-	}
-	tasks, err := store.List()
+
+	migrated, err := store.List()
 	if err != nil {
-		t.Fatalf("second List failed: %v", err)
+		t.Fatalf("List after legacy seed failed: %v", err)
 	}
-	if hasTask(tasks, "workspace-auto-review") {
-		t.Fatalf("deleted default review should not be reseeded: %#v", tasks)
+	if len(migrated) != 2 {
+		t.Fatalf("edited and used legacy tasks must be preserved: %#v", migrated)
 	}
-	if !hasTask(tasks, "workspace-auto-continue-writing") {
-		t.Fatalf("unrelated default should remain: %#v", tasks)
+	if got := taskByID(migrated, legacyContinueWritingTaskID); got == nil || got.Prompt != "用户修改后的续写规则" {
+		t.Fatalf("edited continue-writing task changed during migration: %#v", got)
+	}
+	if got := taskByID(migrated, legacyReviewTaskID); got == nil || len(got.RecentRuns) != 1 {
+		t.Fatalf("used review task changed during migration: %#v", got)
+	}
+}
+
+func TestStorePreservesSeedLikeTaskWithoutLegacyFileMarker(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	store := NewStore(filepath.Join(root, "user"), workspace)
+	tasks := legacyDefaultWorkspaceAutomations(time.Now().UTC())[:1]
+	if err := store.writeScopeFile(ScopeWorkspace, storeFile{Tasks: tasks}); err != nil {
+		t.Fatalf("write unversioned task file failed: %v", err)
+	}
+
+	listed, err := store.List()
+	if err != nil {
+		t.Fatalf("List unversioned task file failed: %v", err)
+	}
+	if len(listed) != 1 || listed[0].ID != legacyContinueWritingTaskID {
+		t.Fatalf("unversioned user-owned task must be preserved: %#v", listed)
 	}
 }
 
@@ -230,32 +424,57 @@ func TestNormalizeTaskTrimsModelProfileID(t *testing.T) {
 	}
 }
 
-func TestNormalizeTaskMigratesLegacyWritePolicy(t *testing.T) {
+func TestTaskUnmarshalMigratesLegacyWritePolicy(t *testing.T) {
 	tests := []struct {
-		name       string
-		policy     string
-		wantMode   string
-		wantScope  string
-		wantPolicy string
+		name      string
+		policy    string
+		wantMode  string
+		wantScope string
 	}{
-		{"read-only", WritePolicyReadOnly, WriteModeReadOnly, WriteScopeNone, WritePolicyReadOnly},
-		{"file", WritePolicyAllowFileWrite, WriteModeAutoWrite, WriteScopeFile, WritePolicyAllowFileWrite},
-		{"lore", WritePolicyAllowLoreWrite, WriteModeAutoWrite, WriteScopeLore, WritePolicyAllowLoreWrite},
-		{"both", WritePolicyAllowLoreAndFileWrite, WriteModeAutoWrite, WriteScopeLoreAndFile, WritePolicyAllowLoreAndFileWrite},
+		{"read-only", WritePolicyReadOnly, WriteModeReadOnly, WriteScopeNone},
+		{"file", WritePolicyAllowFileWrite, WriteModeAutoWrite, WriteScopeFile},
+		{"lore", WritePolicyAllowLoreWrite, WriteModeAutoWrite, WriteScopeLore},
+		{"both", WritePolicyAllowLoreAndFileWrite, WriteModeAutoWrite, WriteScopeLoreAndFile},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			task, err := NormalizeTask(Task{Scope: ScopeWorkspace, Name: "Write", Template: TemplateReview, WritePolicy: tt.policy})
+			raw := fmt.Sprintf(`{"id":"task-1","scope":"workspace","name":"Write","template":"review","write_policy":%q}`, tt.policy)
+			var task Task
+			if err := json.Unmarshal([]byte(raw), &task); err != nil {
+				t.Fatalf("Unmarshal failed: %v", err)
+			}
+			if task.WriteMode != tt.wantMode || task.WriteScope != tt.wantScope {
+				t.Fatalf("write config = %s/%s, want %s/%s", task.WriteMode, task.WriteScope, tt.wantMode, tt.wantScope)
+			}
+			normalized, err := NormalizeTask(task)
 			if err != nil {
 				t.Fatalf("NormalizeTask failed: %v", err)
 			}
-			if task.WriteMode != tt.wantMode || task.WriteScope != tt.wantScope || task.WritePolicy != tt.wantPolicy {
-				t.Fatalf("write config = %s/%s/%s, want %s/%s/%s", task.WriteMode, task.WriteScope, task.WritePolicy, tt.wantMode, tt.wantScope, tt.wantPolicy)
+			if normalized.WriteMode != tt.wantMode || normalized.WriteScope != tt.wantScope {
+				t.Fatalf("normalized write config = %s/%s, want %s/%s", normalized.WriteMode, normalized.WriteScope, tt.wantMode, tt.wantScope)
 			}
-			if task.DefaultActionPolicy != ActionPolicyAutoRun {
-				t.Fatalf("default action = %q, want auto_run derived from execution mode", task.DefaultActionPolicy)
+			if normalized.DefaultActionPolicy != ActionPolicyAutoRun {
+				t.Fatalf("default action = %q, want auto_run derived from execution mode", normalized.DefaultActionPolicy)
 			}
 		})
+	}
+}
+
+func TestTaskMarshalOmitsLegacyWritePolicy(t *testing.T) {
+	task, err := NormalizeTask(Task{Scope: ScopeWorkspace, Name: "Write", Template: TemplateReview, WriteMode: WriteModeAutoWrite, WriteScope: WriteScopeFile})
+	if err != nil {
+		t.Fatalf("NormalizeTask failed: %v", err)
+	}
+	data, err := json.Marshal(task)
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatalf("re-decode failed: %v", err)
+	}
+	if _, exists := fields["write_policy"]; exists {
+		t.Fatalf("serialized task still contains the retired write_policy field: %s", data)
 	}
 }
 

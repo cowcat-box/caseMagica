@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { Activity, Archive, BarChart3, BookOpen, Check, ChevronDown, ChevronUp, Command as CommandIcon, Compass, ImagePlus, List, Loader2, PanelRight, Pencil, Plus, RefreshCw, ScrollText, Send, SlidersHorizontal, Sparkles, Square, X } from 'lucide-react'
+import { Activity, Archive, BarChart3, Check, ChevronDown, ChevronUp, Command as CommandIcon, Compass, ImagePlus, List, Loader2, PanelRight, Pencil, Plus, RefreshCw, ScrollText, Send, SlidersHorizontal, Sparkles, Square, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -16,23 +14,35 @@ import { AgentComposerShell } from '@/components/Chat/AgentComposerShell'
 import { ModelProfileSwitcher } from '@/components/Chat/ModelProfileSwitcher'
 import { TokenUsageDialog } from '@/components/Chat/TokenUsagePanel'
 import { AgentTracePanel } from '@/components/Chat/AgentTracePanel'
-import { SubAgentSessionPanel } from '@/components/Chat/SubAgentSessionPanel'
+import { AgentSubAgentSessionPanel } from '@/components/Chat/AgentSubAgentSessionPanel'
 import { ComposerTokenInput, type ComposerTokenInputHandle, type ComposerTokenSpec, type ComposerTrigger } from '@/components/Chat/composer-token-input'
 import { buildContextCompactionMessage, createContextCompactionMessageId, upsertContextCompactionMessage } from '@/components/Chat/context-compaction-message'
-import { subAgentSessionKey } from '@/components/Chat/subagent-session'
 import { MOBILE_NAVIGATION_OPEN_EVENT } from '@/components/layout/workspace-mobile-layout'
-import type { ChatMessage, ContextAnalysis, InteractiveImage, InteractiveImageError } from '@/lib/api'
+import type { ChatMessage, ContextAnalysis, InteractiveImage, InteractiveImageError, PublicRuleRoll } from '@/lib/api'
+import { chatMessagesToAgentUIMessages } from '@/lib/agent-legacy-message'
+import { agentSubAgentSessionKey, agentViewToRenderMessage, type AgentMessageView } from '@/lib/agent-message-view'
 import { fetchSettings } from '@/features/settings/api'
 import { useSkillCommands } from '@/hooks/useSkillCommands'
-import { abortInteractiveChat, analyzeInteractiveContext, compactInteractiveContext, generateInteractiveHotChoices, generateInteractiveImage, removeInteractiveContextCompaction, runInteractiveDirector, sendInteractiveMessage, switchInteractiveTurnVersion } from '../api'
+import { abortInteractiveChat, analyzeInteractiveContext, compactInteractiveContext, generateInteractiveImage, removeInteractiveContextCompaction, runInteractiveDirector, sendInteractiveMessage, streamActiveInteractiveChat, switchInteractiveTurnVersion, updateInteractiveTurnNarrative } from '../api'
+import type { ActiveInteractiveChat } from '../api'
 import { createInteractiveNarrativeFilter, sanitizeStoredNarrative } from '../stream-parser'
 import { emptyStoryStageRun, useInteractiveStore } from '../stores/interactive-store'
 import type { StoryStageRunState } from '../stores/interactive-store'
-import { DEFAULT_INTERACTIVE_REPLY_TARGET_CHARS, buildOpeningPrompt, truncateStoryOpeningText, type BookOpeningPreset, type StoryCreateInput } from '../opening'
-import type { ImagePreset, InteractiveTurnPersistedEvent, Snapshot, StoryDirector, StoryImageSettings, StorySummary, Teller, TokenUsageEvent } from '../types'
+import { buildOpeningPrompt, truncateStoryOpeningText, type BookOpeningPreset, type StoryCreateInput } from '../opening'
+import type { ImagePreset, InteractiveSSEEvent, InteractiveTurnPersistedEvent, RuleResolution, Snapshot, StoryDirector, StoryImageSettings, StorySummary, Teller, TokenUsageEvent, TurnEvent } from '../types'
+import { abortStoryRunStream, clearStoryRunAbortController, registerStoryRunAbortController, useActiveStoryRunRecovery } from '../use-active-story-run'
 import { StoryPicker } from './StoryPicker'
+import { NewStorySetupPanel } from './NewStorySetupPanel'
+import { StoryOpeningPanel } from './StoryOpeningPanel'
 import { StoryDirectorPicker } from './StoryDirectorPicker'
+import { ReplyTargetCharsControl } from './ReplyTargetCharsControl'
 import { TurnNavigator, type TurnNavigationItem } from './TurnNavigator'
+import { isDirectorDisplayEvent } from './director-console/utils'
+import { DEFAULT_STORY_STATE_DISPLAY, type StoryStateDisplayPreference } from './story-state/display-preference'
+import { StoryStateLedger } from './story-state/StoryStateLedger'
+import { buildStoryStateModel } from './story-state/model'
+import { EditInteractiveReplyDialog } from './EditInteractiveReplyDialog'
+import { appendBufferedLiveMessage, bindLiveToolEventKeys, findMappedLiveToolId, findToolMessageIndexForPayload, liveToolEventKeys, promoteMessageTarget, promoteMessageTargets, streamMetadataFromPayload, type BufferedLiveMessage } from './story-stage/live-stream-messages'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useKeyboardInset } from '@/hooks/useKeyboardInset'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -51,16 +61,20 @@ interface StoryStageProps {
   snapshotLoading?: boolean
   loreEmpty?: boolean
   bookOpeningPresets?: BookOpeningPreset[]
-  sceneMemoryVisible?: boolean
+  directorPanelVisible?: boolean
+  stateDisplayPreference?: StoryStateDisplayPreference
   onStorySelect?: (storyId: string) => void
-  onStoryCreate?: (input: StoryCreateInput) => void
+  onStoryCreate?: (input: StoryCreateInput) => void | Promise<void>
+  onStorySetupUpdate?: (input: StoryCreateInput) => void | Promise<void>
   onStoryDelete?: (storyId: string) => void
   onDirectorChange?: (directorId: string) => void
   onReplyTargetCharsChange?: (replyTargetChars: number) => void | Promise<void>
   onImageSettingsChange?: (settings: StoryImageSettings) => void | Promise<void>
   onRequestLoreInit?: () => void
   onOpenDirectorConfig?: () => void
-  onToggleSceneMemory?: () => void
+  onToggleDirectorPanel?: () => void
+  onOpenDirectorState?: () => void
+  onStateDisplayPreferenceChange?: (value: StoryStateDisplayPreference) => void
   onTurnPersisted?: (event: InteractiveTurnPersistedEvent) => Snapshot | void
   onDone: (options?: { silent?: boolean }) => void | Promise<Snapshot | void>
 }
@@ -69,30 +83,23 @@ const DEFAULT_READING_FONT_SIZE = 18
 const DEFAULT_STAGE_LINE_HEIGHT = 1.78
 const EMPTY_STAGE_RUN = emptyStoryStageRun()
 const DEFAULT_IMAGE_INTERVAL_TURNS = 3
-const HOT_CHOICES_MODE_STORAGE_KEY = 'nova.interactive.hotChoicesMode.v1'
-const stageAbortControllers = new Map<string, AbortController>()
-
-type HotChoicesMode = 'auto' | 'manual'
-
-interface HotChoicesRequestOptions {
-  append?: boolean
-}
-
-type BufferedLiveMessage = {
-  role: 'assistant' | 'thinking'
-  content: string
-  metadata: Partial<ChatMessage>
-}
 
 type LiveTurnRenderKeys = {
   user: string
   assistant: string
 }
 
-export function StoryStage({ workspace, styleSceneSuggestions = [], stories = [], story, tellers = [], storyDirectors = [], imagePresets = [], storyId, branchId, snapshot, snapshotLoading = false, loreEmpty = false, bookOpeningPresets = [], sceneMemoryVisible = true, onStorySelect = noop, onStoryCreate = noop, onStoryDelete = noop, onDirectorChange = noop, onReplyTargetCharsChange, onImageSettingsChange, onRequestLoreInit, onOpenDirectorConfig, onToggleSceneMemory, onTurnPersisted = noopTurnPersisted, onDone }: StoryStageProps) {
+type InteractiveStreamOutcome = {
+  finishedNormally: boolean
+  receivedPersistedTurn: boolean
+  persistedSnapshot?: Snapshot
+}
+
+export function StoryStage({ workspace, styleSceneSuggestions = [], stories = [], story, tellers = [], storyDirectors = [], imagePresets = [], storyId, branchId, snapshot, snapshotLoading = false, loreEmpty = false, bookOpeningPresets = [], directorPanelVisible = true, stateDisplayPreference = DEFAULT_STORY_STATE_DISPLAY, onStorySelect = noop, onStoryCreate = noop, onStorySetupUpdate = noop, onStoryDelete = noop, onDirectorChange = noop, onReplyTargetCharsChange, onImageSettingsChange, onRequestLoreInit, onOpenDirectorConfig, onToggleDirectorPanel, onOpenDirectorState, onStateDisplayPreferenceChange = noopStateDisplayPreferenceChange, onTurnPersisted = noopTurnPersisted, onDone }: StoryStageProps) {
   const { t } = useTranslation()
   const isMobile = useIsMobile()
   const keyboardInset = useKeyboardInset()
+  const storyStateModel = useMemo(() => buildStoryStateModel(snapshot), [snapshot])
   const [input, setInput] = useState('')
   const [stageControlsOpen, setStageControlsOpen] = useState(false)
   const [styleScenes, setStyleScenes] = useState<string[]>([])
@@ -123,18 +130,23 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
   useEffect(() => {
     setOptimisticInteractiveImages({})
   }, [stageKey])
+  const [replyEditTarget, setReplyEditTarget] = useState<{
+    turnId: string
+    branchId: string
+    initialContent: string
+    expectedNarrative: string
+  } | null>(null)
   const [editingTurn, setEditingTurn] = useState<{
     id: string
     content: string
   } | null>(null)
   const [switchingVersionTurnId, setSwitchingVersionTurnId] = useState<string | null>(null)
-  const [generatedHotChoices, setGeneratedHotChoices] = useState<string[]>([])
   const [hotChoicesExpanded, setHotChoicesExpanded] = useState(false)
-  const [hotChoicesLoading, setHotChoicesLoading] = useState(false)
-  const [hotChoicesMode, setHotChoicesMode] = useState<HotChoicesMode>(readStoredHotChoicesMode)
   const [generatingImageTurnId, setGeneratingImageTurnId] = useState<string | null>(null)
   const [customOpeningText, setCustomOpeningText] = useState('')
   const [selectedBookOpeningPresetId, setSelectedBookOpeningPresetId] = useState('')
+  const [creatingStory, setCreatingStory] = useState(false)
+  const [editingStorySetup, setEditingStorySetup] = useState(false)
   const [directorRetrying, setDirectorRetrying] = useState(false)
   const [directorRetryError, setDirectorRetryError] = useState('')
   const [contextAnalysisOpen, setContextAnalysisOpen] = useState(false)
@@ -147,10 +159,12 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
   const [activeSubAgentSessionKey, setActiveSubAgentSessionKey] = useState('')
   const [activeTurnAnchorId, setActiveTurnAnchorId] = useState('')
   const [turnScrollRequest, setTurnScrollRequest] = useState<TurnScrollRequest>()
-  const hotChoicesAbortRef = useRef<AbortController | null>(null)
-  const pendingAutoHotChoicesKeyRef = useRef('')
   const currentCompactionMessageIdRef = useRef<string | null>(null)
   const compactionIdCounterRef = useRef(0)
+
+  useEffect(() => {
+    setReplyEditTarget(null)
+  }, [stageKey])
   const liveMessageBufferRef = useRef<BufferedLiveMessage[]>([])
   const liveMessageRafRef = useRef<number | null>(null)
   const liveMessagePromoteRafRef = useRef<number | null>(null)
@@ -296,10 +310,6 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
   }, [activeSkillCommandIndex, filteredSkillCommands.length])
 
   useEffect(() => {
-    writeStoredHotChoicesMode(hotChoicesMode)
-  }, [hotChoicesMode])
-
-  useEffect(() => {
     if (!showSkillCommands || filteredSkillCommands.length === 0) return
     skillCommandRefs.current[activeSkillCommandIndex]?.scrollIntoView({
       block: 'nearest',
@@ -311,6 +321,10 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
     const rewindIndex = rewindTurnId ? turns.findIndex((turn) => turn.id === rewindTurnId) : -1
     return rewindIndex >= 0 ? turns.slice(0, rewindIndex) : turns
   }, [rewindTurnId, snapshot?.turns])
+  const publicRuleRollVisible = useMemo(
+    () => storyRuleVisibilityMode(story, storyDirectors) === 'public_roll',
+    [story, storyDirectors],
+  )
 
   const historyMessages = useMemo<ChatMessage[]>(() => {
     return storyPathTurns.flatMap((turn) => {
@@ -324,7 +338,7 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
           content: turn.user,
         },
       ]
-      const displayEvents = turn.display_events || []
+      const displayEvents = (turn.display_events || []).filter((event) => !isDirectorDisplayEvent(event))
       const hasDisplayTimelineThinking = displayEvents.some((event) => event.role === 'thinking')
       if (!hasDisplayTimelineThinking && turn.thinking?.trim()) {
         messages.push({
@@ -335,9 +349,19 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
         })
       }
       const deferredImageMessages: ChatMessage[] = []
+      // narrative 锚点标记正文在事件流中的真实位置：锚点前的思考/工具留在正文之前，
+      // 提交结果等锚点后事件渲染在正文之后；旧回合没有锚点，正文兜底排在最后。
+      const preNarrativeMessages: ChatMessage[] = []
+      const postNarrativeMessages: ChatMessage[] = []
+      let narrativeAnchored = false
       for (const [index, event] of displayEvents.entries()) {
+        if (event.role === 'narrative') {
+          narrativeAnchored = true
+          continue
+        }
+        const timeline = narrativeAnchored ? postNarrativeMessages : preNarrativeMessages
         if (event.role === 'thinking') {
-          messages.push({
+          timeline.push({
             id: event.id || `${turn.id}-thinking-${index}`,
             role: 'thinking',
             content: event.content || '',
@@ -384,12 +408,12 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
           if (event.name === 'generate_interactive_image') {
             deferredImageMessages.push(toolMessage)
           } else {
-            messages.push(toolMessage)
+            timeline.push(toolMessage)
           }
           continue
         }
         if (event.role === 'assistant') {
-          messages.push({
+          timeline.push({
             id: event.id || `${turn.id}-subagent-${index}`,
             role: 'assistant',
             content: event.content || '',
@@ -406,6 +430,17 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
           })
         }
       }
+      messages.push(...preNarrativeMessages)
+      const ruleRoll = publicRuleRollVisible ? publicRuleRollFromResolution(turn.rule_resolution) : null
+      if (ruleRoll) {
+        messages.push({
+          id: `${turn.id}-rule-roll`,
+          turn_id: turn.id,
+          navigation_turn_id: turn.id,
+          role: 'rule_roll',
+          rule_roll: ruleRoll,
+        })
+      }
       const mergedImages = mergeInteractiveImages(interactiveImages(deferredImageMessages), optimisticInteractiveImages[turn.id])
       messages.push({
         id: `${turn.id}-assistant`,
@@ -414,6 +449,8 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
         navigation_turn_id: turn.id,
         role: 'assistant',
         content: sanitizeStoredNarrative(turn.narrative),
+        run_id: turn.run_id,
+        agent_kind: turn.agent_kind,
         turn_versions: turn.versions,
         turn_version_index: turn.version_idx,
         interactive_image: latestMergedInteractiveImage(mergedImages),
@@ -421,12 +458,14 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
         interactive_image_error: latestInteractiveImageError(deferredImageMessages),
         interactive_image_status: mergedImages?.length ? 'success' : latestInteractiveImageStatus(deferredImageMessages),
       })
+      messages.push(...postNarrativeMessages)
       return messages
     })
-  }, [optimisticInteractiveImages, storyPathTurns])
+  }, [optimisticInteractiveImages, publicRuleRollVisible, storyPathTurns])
 
   const displayLiveMessages = hasPersistedLiveTurn ? [] : liveMessages.filter((message) => message.role !== 'token_usage')
   const messages = useMemo(() => [...historyMessages, ...displayLiveMessages], [displayLiveMessages, historyMessages])
+  const agentMessages = useMemo(() => chatMessagesToAgentUIMessages(messages), [messages])
   const turnNavigationItems = useMemo<TurnNavigationItem[]>(() => {
     const items: TurnNavigationItem[] = storyPathTurns.map((turn) => ({
       anchorId: turn.id,
@@ -460,8 +499,8 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
       return turnNavigationItems.some((item) => item.anchorId === current) ? current : fallbackAnchorId
     })
   }, [turnNavigationItems])
-  const openSubAgentSession = useCallback((message: ChatMessage) => {
-    const key = subAgentSessionKey(message)
+  const openSubAgentSession = useCallback((view: AgentMessageView) => {
+    const key = agentSubAgentSessionKey(view)
     if (key) setActiveSubAgentSessionKey(key)
   }, [])
   const persistedTokenUsageMessages = useMemo(
@@ -479,16 +518,15 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
   const scrollResetKey = `${storyId || 'none'}:${branchId || snapshot?.branch_id || 'main'}`
   const hotChoices = useMemo(
     () =>
-      generatedHotChoices
+      (snapshot?.current_turn?.turn_result?.choices || snapshot?.current_turn?.hot_state?.choices || [])
         .map((choice) => choice.trim())
-        .filter(Boolean)
-        .slice(0, 10),
-    [generatedHotChoices],
+        .filter(Boolean),
+    [snapshot?.current_turn?.hot_state?.choices, snapshot?.current_turn?.turn_result?.choices],
   )
   const directorPlanStatus = snapshot?.director_plan_status
   const directorBlocking = false
   const directorStatusVisible = Boolean(directorPlanStatus && directorBlocking)
-  const canUseHotChoices = !branchTerminal && !streaming && !editingTurn && !directorBlocking && stagePreferences.hotChoicesEnabled && Boolean(storyId)
+  const canUseHotChoices = hotChoices.length > 0 && !branchTerminal && !streaming && !editingTurn && !directorBlocking && Boolean(storyId)
   const showHotChoices = canUseHotChoices && hotChoicesExpanded
   const messageListBottomPadding = inputFloatHeight > 0 ? inputFloatHeight + keyboardInset + 20 : undefined
   const availableBookOpeningPresets = useMemo(() => bookOpeningPresets.filter((preset) => preset.content.trim()), [bookOpeningPresets])
@@ -497,9 +535,9 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
     [availableBookOpeningPresets, selectedBookOpeningPresetId],
   )
   const turnsById = useMemo(() => {
-    const result = new Map<string, { user: string }>()
+    const result = new Map<string, TurnEvent>()
     for (const turn of snapshot?.turns || []) {
-      result.set(turn.id, { user: turn.user })
+      result.set(turn.id, turn)
     }
     return result
   }, [snapshot?.turns])
@@ -513,7 +551,7 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
 
   useLayoutEffect(() => {
     syncInputFloatHeight()
-  }, [directorRetryError, directorRetrying, directorStatusVisible, editingTurn, hotChoices.length, hotChoicesLoading, input, showHotChoices, syncInputFloatHeight])
+  }, [directorRetryError, directorRetrying, directorStatusVisible, editingTurn, hotChoices.length, input, showHotChoices, syncInputFloatHeight])
 
   useEffect(() => {
     setSelectedBookOpeningPresetId((current) => {
@@ -534,68 +572,23 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
     return () => observer.disconnect()
   }, [syncInputFloatHeight])
 
-  const requestHotChoices = useCallback(
-    async (options: boolean | HotChoicesRequestOptions = false) => {
-      const append = typeof options === 'boolean' ? options : options.append === true
-      if (branchTerminal || directorBlocking || !stagePreferences.hotChoicesEnabled || streaming || editingTurn || !storyId || hotChoicesLoading) return false
-      const abortController = new AbortController()
-      hotChoicesAbortRef.current?.abort()
-      hotChoicesAbortRef.current = abortController
-      setHotChoicesLoading(true)
-      try {
-        const result = await generateInteractiveHotChoices(storyId, {
-          branch: branchId || snapshot?.branch_id,
-          exclude_choices: append ? hotChoices : [],
-          signal: abortController.signal,
-        })
-        if (abortController.signal.aborted) return false
-        const nextChoices = result.enabled ? result.choices || [] : []
-        setGeneratedHotChoices((current) => (append ? mergeHotChoices(current, nextChoices) : nextChoices))
-        return nextChoices.length > 0
-      } catch (error) {
-        if (!isAbortError(error)) {
-          console.warn('[interactive-stage] 生成快捷选择失败', error)
-        }
-        if (!abortController.signal.aborted && !append) setGeneratedHotChoices([])
-        return false
-      } finally {
-        if (!abortController.signal.aborted) setHotChoicesLoading(false)
-      }
-    },
-    [branchId, branchTerminal, directorBlocking, editingTurn, hotChoices, hotChoicesLoading, snapshot?.branch_id, stagePreferences.hotChoicesEnabled, storyId, streaming],
-  )
-
   const toggleHotChoices = () => {
     if (!canUseHotChoices) return
-    const nextExpanded = !hotChoicesExpanded
-    setHotChoicesExpanded(nextExpanded)
-    if (nextExpanded && hotChoices.length === 0 && !hotChoicesLoading) {
-      void requestHotChoices(false)
-    }
+    setHotChoicesExpanded((value) => !value)
   }
 
   useEffect(() => {
-    hotChoicesAbortRef.current?.abort()
-    setGeneratedHotChoices([])
     setHotChoicesExpanded(false)
-    setHotChoicesLoading(false)
   }, [snapshotKey])
 
-  useEffect(() => {
-    if (!stagePreferences.hotChoicesEnabled) {
-      hotChoicesAbortRef.current?.abort()
-      setGeneratedHotChoices([])
-      setHotChoicesExpanded(false)
-      setHotChoicesLoading(false)
-    }
-  }, [stagePreferences.hotChoicesEnabled])
-
-  useEffect(() => {
-    if (streaming || hotChoicesMode !== 'auto') return
-    if (pendingAutoHotChoicesKeyRef.current !== snapshotKey) return
-    pendingAutoHotChoicesKeyRef.current = ''
-    void requestHotChoices()
-  }, [hotChoicesMode, requestHotChoices, snapshotKey, streaming])
+  useActiveStoryRunRecovery({
+    stageKey,
+    storyId,
+    branchId,
+    isStreaming: () => Boolean(useInteractiveStore.getState().storyStageRuns[stageKey]?.streaming),
+    onResume: resumeActiveStoryRun,
+    onDetach: () => updateStageRun({ streaming: false, activityContent: '' }),
+  })
 
   const send = async (override?: { message?: string; rewindTurnId?: string }) => {
     const sourceMessage = override?.message ?? input
@@ -615,23 +608,9 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
     setShowSkillCommands(false)
     setSkillCommandQuery(null)
     setActiveSkillCommandIndex(0)
-    setStageActivityContent(t('storyStage.activity.connecting'))
-    flushLiveMessageBuffer()
-    liveToolKeyToMessageIdRef.current = {}
-    nonNarrativeLiveMessageStreamingRef.current = false
-    const liveTurnRenderKeys = createLiveTurnRenderKeys()
-    currentLiveTurnRenderKeysRef.current = liveTurnRenderKeys
-    setStageLiveMessages([{ role: 'user', content: message, render_key: liveTurnRenderKeys.user, navigation_turn_id: liveTurnNavigationAnchorId }])
-    currentCompactionMessageIdRef.current = null
-    updateStageRun({ rewindTurnId: nextRewindTurnId || undefined })
-    liveStageKeyRef.current = stageKey
-    setStageStreaming(true)
+    prepareLiveStoryRun(message, nextRewindTurnId)
     const abortController = new AbortController()
-    stageAbortControllers.set(stageKey, abortController)
-    const narrativeFilter = createInteractiveNarrativeFilter()
-    let finishedNormally = false
-    let receivedPersistedTurn = false
-    let persistedSnapshot: Snapshot | undefined = undefined
+    registerStoryRunAbortController(stageKey, abortController)
     try {
       const stream = await sendInteractiveMessage({
         mode: 'story',
@@ -642,152 +621,215 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
         regenerate_from_turn_id: nextRewindTurnId || undefined,
         signal: abortController.signal,
       })
-      const reader = stream.getReader()
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        switch (value.event) {
-          case 'chunk': {
-            const data = JSON.parse(value.data)
-            if (data.subagent) {
-              appendAssistantMessage(data.content || '', streamMetadataFromPayload(data))
-              setStageActivityContent('')
-              break
-            }
-            const { text, reset } = narrativeFilter.push(data.content || '')
-            if (reset) resetAssistantMessage()
-            if (text) {
-              collapseNonNarrativeMessages()
-              appendAssistantMessage(text)
-            }
-            setStageActivityContent('')
-            break
-          }
-          case 'thinking': {
-            const data = JSON.parse(value.data)
-            appendThinkingMessage(data.content || '', streamMetadataFromPayload(data))
-            setStageActivityContent(t('storyStage.activity.thinking'))
-            break
-          }
-          case 'tool_call': {
-            const data = JSON.parse(value.data)
-            flushLiveMessageBuffer()
-            appendToolCallMessage(data)
-            setStageActivityContent(
-              t('storyStage.activity.processingTool', {
-                name: data.name || t('storyStage.activity.toolCall'),
-              }),
-            )
-            break
-          }
-          case 'tool_args_delta': {
-            const data = JSON.parse(value.data)
-            flushLiveMessageBuffer()
-            appendToolArgsDelta(data)
-            break
-          }
-          case 'tool_result': {
-            const data = JSON.parse(value.data)
-            flushLiveMessageBuffer()
-            updateToolCallMessage(data, 'success', data.content || '')
-            setStageActivityContent('')
-            break
-          }
-          case 'context_compaction': {
-            const data = JSON.parse(value.data)
-            flushLiveMessageBuffer()
-            appendContextCompactionMessage(data)
-            setStageActivityContent('')
-            if (data.status === 'completed' || data.status === 'failed') {
-              currentCompactionMessageIdRef.current = null
-            }
-            break
-          }
-          case 'token_usage': {
-            const data = JSON.parse(value.data)
-            flushLiveMessageBuffer()
-            setStageLiveMessages((prev) => upsertTokenUsageMessage(prev, buildTokenUsageMessage(data)))
-            break
-          }
-          case 'interactive_turn_persisted': {
-            const data = JSON.parse(value.data) as InteractiveTurnPersistedEvent
-            flushLiveMessageBuffer()
-            receivedPersistedTurn = true
-            if (data.turn?.id && currentLiveTurnRenderKeysRef.current) {
-              turnRenderKeysRef.current[data.turn.id] = currentLiveTurnRenderKeysRef.current
-            }
-            persistedSnapshot = onTurnPersisted(data) || persistedSnapshot
-            setStageActivityContent('')
-            break
-          }
-          case 'error': {
-            const data = JSON.parse(value.data)
-            flushLiveMessageBuffer()
-            setStageActivityContent('')
-            setStageLiveMessages((prev) => [
-              ...prev,
-              {
-                role: 'error',
-                content: data.message || data.error || t('storyStage.activity.unknownError'),
-              },
-            ])
-            break
-          }
-          case 'done': {
-            const { text, reset } = narrativeFilter.flush()
-            if (reset) resetAssistantMessage()
-            collapseNonNarrativeMessages()
-            if (text) appendAssistantMessage(text)
-            finishLiveMessages()
-            finishedNormally = true
-            setStageActivityContent('')
-            break
-          }
-          case 'aborted': {
-            const { text, reset } = narrativeFilter.flush()
-            if (reset) resetAssistantMessage()
-            collapseNonNarrativeMessages()
-            if (text) appendAssistantMessage(text)
-            finishLiveMessages()
-            setStageActivityContent(t('storyStage.activity.aborted'))
-            break
-          }
-        }
-      }
-      let nextSnapshot: Snapshot | void = persistedSnapshot
-      if (persistedSnapshot) {
-        void Promise.resolve(onDone({ silent: true })).catch((error) => {
-          console.warn('[interactive-stage] 静默刷新互动快照失败', error)
-        })
-      } else {
-        nextSnapshot = await onDone(receivedPersistedTurn ? { silent: true } : undefined)
-      }
-      if (finishedNormally) {
-        if (hotChoicesMode === 'auto' && stagePreferences.hotChoicesEnabled) {
-          pendingAutoHotChoicesKeyRef.current = autoHotChoicesSnapshotKey(storyId, branchId, nextSnapshot || snapshot)
-        }
-        await maybeGenerateAutoImage(nextSnapshot)
-      }
+      await completeInteractiveStream(await consumeInteractiveStream(stream))
     } catch (error) {
-      if (!isAbortError(error)) {
-        flushLiveMessageBuffer()
-        setStageActivityContent('')
-        setStageLiveMessages((prev) => [
-          ...prev,
-          {
-            role: 'error',
-            content: error instanceof Error ? error.message : t('storyStage.activity.runFailed'),
-          },
-        ])
-      }
+      handleInteractiveStreamError(error)
     } finally {
-      setStageStreaming(false)
-      stageAbortControllers.delete(stageKey)
-      liveToolKeyToMessageIdRef.current = {}
-      currentCompactionMessageIdRef.current = null
-      currentLiveTurnRenderKeysRef.current = null
-      setStageActivityContent('')
+      finishLiveStoryRun(abortController)
     }
+  }
+
+  async function resumeActiveStoryRun(active: ActiveInteractiveChat, abortController: AbortController, isDisposed: () => boolean) {
+    const message = active.message?.trim() || ''
+    if (!message) return
+    prepareLiveStoryRun(message, active.regenerate_from_turn_id)
+    try {
+      const stream = await streamActiveInteractiveChat({
+        storyId,
+        branchId,
+        taskId: active.task_id,
+        signal: abortController.signal,
+      })
+      if (isDisposed()) return
+      await completeInteractiveStream(await consumeInteractiveStream(stream))
+    } catch (error) {
+      if (!isDisposed()) handleInteractiveStreamError(error)
+    } finally {
+      finishLiveStoryRun(abortController)
+    }
+  }
+
+  function prepareLiveStoryRun(message: string, nextRewindTurnId?: string) {
+    setStageActivityContent(t('storyStage.activity.thinking'))
+    flushLiveMessageBuffer()
+    liveToolKeyToMessageIdRef.current = {}
+    nonNarrativeLiveMessageStreamingRef.current = false
+    const liveTurnRenderKeys = createLiveTurnRenderKeys()
+    currentLiveTurnRenderKeysRef.current = liveTurnRenderKeys
+    setStageLiveMessages([{ role: 'user', content: message, render_key: liveTurnRenderKeys.user, navigation_turn_id: liveTurnNavigationAnchorId }])
+    currentCompactionMessageIdRef.current = null
+    updateStageRun({ rewindTurnId: nextRewindTurnId || undefined, retryMessage: message })
+    liveStageKeyRef.current = stageKey
+    setStageStreaming(true)
+  }
+
+  async function consumeInteractiveStream(stream: ReadableStream<InteractiveSSEEvent>): Promise<InteractiveStreamOutcome> {
+    const narrativeFilter = createInteractiveNarrativeFilter()
+    let finishedNormally = false
+    let streamFailed = false
+    let receivedPersistedTurn = false
+    let persistedSnapshot: Snapshot | undefined
+    const reader = stream.getReader()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      switch (value.event) {
+        case 'chunk': {
+          const data = JSON.parse(value.data)
+          if (data.subagent) {
+            appendAssistantMessage(data.content || '', streamMetadataFromPayload(data))
+            setStageActivityContent('')
+            break
+          }
+          const { text, reset } = narrativeFilter.push(data.content || '')
+          if (reset) resetAssistantMessage()
+          if (text) {
+            collapseNonNarrativeMessages()
+            appendAssistantMessage(text)
+          }
+          setStageActivityContent('')
+          break
+        }
+        case 'thinking': {
+          const data = JSON.parse(value.data)
+          appendThinkingMessage(data.content || '', streamMetadataFromPayload(data))
+          setStageActivityContent(t('storyStage.activity.thinking'))
+          break
+        }
+        case 'interactive_content_reclassified': {
+          const data = JSON.parse(value.data)
+          resetAssistantMessage()
+          appendThinkingMessage(data.content || '', streamMetadataFromPayload(data))
+          setStageActivityContent(t('storyStage.activity.thinking'))
+          break
+        }
+        case 'tool_call': {
+          const data = JSON.parse(value.data)
+          flushLiveMessageBuffer()
+          appendToolCallMessage(data)
+          setStageActivityContent(t('storyStage.activity.processingTool', {
+            name: data.name || t('storyStage.activity.toolCall'),
+          }))
+          break
+        }
+        case 'tool_args_delta': {
+          const data = JSON.parse(value.data)
+          flushLiveMessageBuffer()
+          appendToolArgsDelta(data)
+          break
+        }
+        case 'tool_result': {
+          const data = JSON.parse(value.data)
+          flushLiveMessageBuffer()
+          updateToolCallMessage(data, 'success', data.content || '')
+          appendLiveRuleRollMessage(data)
+          setStageActivityContent('')
+          break
+        }
+        case 'context_compaction': {
+          const data = JSON.parse(value.data)
+          flushLiveMessageBuffer()
+          appendContextCompactionMessage(data)
+          setStageActivityContent('')
+          if (data.status === 'completed' || data.status === 'failed') currentCompactionMessageIdRef.current = null
+          break
+        }
+        case 'token_usage': {
+          const data = JSON.parse(value.data)
+          flushLiveMessageBuffer()
+          setStageLiveMessages((prev) => upsertTokenUsageMessage(prev, buildTokenUsageMessage(data)))
+          break
+        }
+        case 'interactive_turn_persisted': {
+          const data = JSON.parse(value.data) as InteractiveTurnPersistedEvent
+          flushLiveMessageBuffer()
+          receivedPersistedTurn = true
+          if (data.turn?.id && currentLiveTurnRenderKeysRef.current) {
+            turnRenderKeysRef.current[data.turn.id] = currentLiveTurnRenderKeysRef.current
+          }
+          persistedSnapshot = onTurnPersisted(data) || persistedSnapshot
+          setStageActivityContent('')
+          break
+        }
+        case 'error': {
+          const data = JSON.parse(value.data)
+          flushLiveMessageBuffer()
+          finishLiveMessages()
+          setStageActivityContent('')
+          streamFailed = true
+          setStageLiveMessages((prev) => [
+            ...prev,
+            { role: 'error', content: data.message || data.error || t('storyStage.activity.unknownError') },
+          ])
+          break
+        }
+        case 'done': {
+          const { text, reset } = narrativeFilter.flush()
+          if (reset) resetAssistantMessage()
+          collapseNonNarrativeMessages()
+          if (text) appendAssistantMessage(text)
+          finishLiveMessages()
+          if (!receivedPersistedTurn && !streamFailed) {
+            streamFailed = true
+            setStageLiveMessages([{ role: 'error', content: t('storyStage.activity.persistenceMissing') }])
+          } else if (!streamFailed) {
+            finishedNormally = true
+          }
+          setStageActivityContent('')
+          break
+        }
+        case 'aborted': {
+          const { text, reset } = narrativeFilter.flush()
+          if (reset) resetAssistantMessage()
+          collapseNonNarrativeMessages()
+          if (text) appendAssistantMessage(text)
+          finishLiveMessages()
+          setStageLiveMessages((prev) => [
+            ...prev,
+            { role: 'error', content: t('storyStage.activity.aborted') },
+          ])
+          setStageActivityContent('')
+          break
+        }
+      }
+    }
+    return { finishedNormally, receivedPersistedTurn, persistedSnapshot }
+  }
+
+  async function completeInteractiveStream({ finishedNormally, receivedPersistedTurn, persistedSnapshot }: InteractiveStreamOutcome) {
+    let nextSnapshot: Snapshot | void = persistedSnapshot
+    if (persistedSnapshot) {
+      void Promise.resolve(onDone({ silent: true })).catch((error) => {
+        console.warn('[interactive-stage] 静默刷新互动快照失败', error)
+      })
+    } else {
+      nextSnapshot = await onDone(receivedPersistedTurn ? { silent: true } : undefined)
+    }
+    if (finishedNormally) await maybeGenerateAutoImage(nextSnapshot)
+  }
+
+  function handleInteractiveStreamError(error: unknown) {
+    flushLiveMessageBuffer()
+    finishLiveMessages()
+    setStageActivityContent('')
+    setStageLiveMessages((prev) => [
+      ...prev,
+      {
+        role: 'error',
+        content: isAbortError(error)
+          ? t('storyStage.activity.aborted')
+          : error instanceof Error ? error.message : t('storyStage.activity.runFailed'),
+      },
+    ])
+  }
+
+  function finishLiveStoryRun(abortController: AbortController) {
+    if (!clearStoryRunAbortController(stageKey, abortController)) return
+    setStageStreaming(false)
+    liveToolKeyToMessageIdRef.current = {}
+    currentCompactionMessageIdRef.current = null
+    currentLiveTurnRenderKeysRef.current = null
+    setStageActivityContent('')
   }
 
   const compactCurrentContext = async () => {
@@ -865,7 +907,7 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
 
   const stop = () => {
     void abortInteractiveChat()
-    stageAbortControllers.get(stageKey)?.abort()
+    abortStoryRunStream(stageKey)
     setStageActivityContent(t('storyStage.activity.aborting'))
   }
 
@@ -883,7 +925,12 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
   }
 
   const regenerateMessage = (message: ChatMessage) => {
-    if (!message.turn_id || streaming) return
+    if (streaming) return
+    if (!message.turn_id) {
+      const source = stageRun.retryMessage || [...liveMessages].reverse().find((item) => item.role === 'user')?.content || ''
+      if (source.trim()) void send({ message: source })
+      return
+    }
     const source = turnsById.get(message.turn_id)?.user || message.content || ''
     void send({ message: source, rewindTurnId: message.turn_id })
   }
@@ -1026,6 +1073,40 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
     }
   }
 
+  const startEditingView = (view: AgentMessageView) => {
+    const message = agentViewToRenderMessage(view)
+    if (message) startEditingMessage(message)
+  }
+
+  const startEditingAssistantReply = (view: AgentMessageView) => {
+    if (streaming || generatingImageTurnId || switchingVersionTurnId) return
+    const message = agentViewToRenderMessage(view)
+    if (!message?.turn_id) return
+    const turn = turnsById.get(message.turn_id)
+    if (!turn) return
+    setReplyEditTarget({
+      turnId: turn.id,
+      branchId: turn.branch_id || branchId,
+      initialContent: sanitizeStoredNarrative(turn.narrative),
+      expectedNarrative: turn.narrative,
+    })
+  }
+
+  const regenerateView = (view: AgentMessageView) => {
+    const message = agentViewToRenderMessage(view)
+    if (message) regenerateMessage(message)
+  }
+
+  const switchViewVersion = (view: AgentMessageView, direction: -1 | 1) => {
+    const message = agentViewToRenderMessage(view)
+    if (message) void switchMessageVersion(message, direction)
+  }
+
+  const generateImageForView = (view: AgentMessageView) => {
+    const message = agentViewToRenderMessage(view)
+    if (message) void generateImageForMessage(message, 'manual', true)
+  }
+
   const cancelEditing = () => {
     setEditingTurn(null)
     setInput('')
@@ -1082,13 +1163,13 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
 
   const stageControls = (
     <>
-      <StoryPicker stories={stories} currentStoryId={storyId} tellers={tellers} storyDirectors={storyDirectors} onSelect={onStorySelect} onCreate={onStoryCreate} onDelete={onStoryDelete} />
-      <StoryDirectorPicker story={story} storyDirectors={storyDirectors} onChange={onDirectorChange} />
-      <ReplyTargetCharsControl story={story} onChange={onReplyTargetCharsChange} />
-      {onToggleSceneMemory && (
-        <Button type="button" variant="outline" size="sm" className={`h-7 gap-1.5 border-[var(--nova-border)] bg-[var(--nova-surface)] px-2 text-[11px] hover:bg-[var(--nova-hover)] ${sceneMemoryVisible ? 'text-[var(--nova-text)]' : 'text-[var(--nova-text-muted)]'}`} onClick={onToggleSceneMemory} aria-label={sceneMemoryVisible ? t('storyStage.hideSceneMemory') : t('storyStage.showSceneMemory')} title={sceneMemoryVisible ? t('storyStage.hideSceneMemory') : t('storyStage.showSceneMemory')}>
+      <StoryPicker stories={stories} currentStoryId={storyId} onSelect={(id) => { setCreatingStory(false); setEditingStorySetup(false); onStorySelect(id) }} onCreate={() => { setEditingStorySetup(false); setCreatingStory(true) }} onDelete={onStoryDelete} />
+      {isMobile ? <StoryDirectorPicker story={story} storyDirectors={storyDirectors} onChange={onDirectorChange} /> : null}
+      {isMobile ? <ReplyTargetCharsControl story={story} onChange={onReplyTargetCharsChange} /> : null}
+      {onToggleDirectorPanel && (
+        <Button type="button" variant="outline" size="sm" className={`h-7 gap-1.5 border-[var(--nova-border)] bg-[var(--nova-surface)] px-2 text-[11px] hover:bg-[var(--nova-hover)] ${directorPanelVisible ? 'text-[var(--nova-text)]' : 'text-[var(--nova-text-muted)]'}`} onClick={onToggleDirectorPanel} aria-label={directorPanelVisible ? t('storyStage.hideDirectorPanel') : t('storyStage.showDirectorPanel')} title={directorPanelVisible ? t('storyStage.hideDirectorPanel') : t('storyStage.showDirectorPanel')}>
           <PanelRight className="h-3.5 w-3.5" />
-          {t('storyStage.sceneMemory')}
+          {t('storyStage.directorPanel')}
         </Button>
       )}
     </>
@@ -1130,7 +1211,22 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
         <div className="nova-story-stage-content flex min-h-0 flex-1 overflow-hidden bg-[var(--nova-surface-2)]">
           <TurnNavigator items={turnNavigationItems} activeAnchorId={activeTurnAnchorId} onSelect={handleTurnNavigationSelect} />
           <section className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[var(--nova-surface-2)]">
-            {snapshotLoading && messages.length === 0 && !streaming ? (
+            {creatingStory ? (
+              <NewStorySetupPanel
+                stories={stories}
+                tellers={tellers}
+                directors={storyDirectors}
+                imagePresets={imagePresets}
+                story={editingStorySetup ? story : undefined}
+                onCancel={() => { setCreatingStory(false); setEditingStorySetup(false) }}
+                onCreate={async (input) => {
+                  if (editingStorySetup) await onStorySetupUpdate(input)
+                  else await onStoryCreate(input)
+                  setCreatingStory(false)
+                  setEditingStorySetup(false)
+                }}
+              />
+            ) : snapshotLoading && messages.length === 0 && !streaming ? (
               <div className="m-5 flex min-h-0 flex-1 items-center justify-center rounded-[var(--nova-radius)] border border-dashed border-[var(--nova-border)] bg-[var(--nova-surface)] px-6 text-center text-sm text-[var(--nova-text-faint)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                 <div className="flex max-w-md flex-col items-center gap-3">
                   <RefreshCw className="h-4 w-4 animate-spin text-[var(--nova-text-muted)]" />
@@ -1138,80 +1234,51 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
                 </div>
               </div>
             ) : messages.length === 0 && !streaming ? (
-              <div className="m-5 flex min-h-0 flex-1 items-center justify-center rounded-[var(--nova-radius)] border border-dashed border-[var(--nova-border)] bg-[var(--nova-surface)] px-6 text-center text-sm text-[var(--nova-text-faint)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                <div className="flex w-full max-w-xl flex-col items-center gap-3">
-                  <Sparkles className="h-4 w-4 text-[var(--nova-text-muted)]" />
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-[var(--nova-text)]">{t('storyStage.opening.emptyTitle')}</div>
-                    <div className="text-xs leading-5 text-[var(--nova-text-faint)]">{t('storyStage.opening.emptyDescription')}</div>
-                  </div>
-                  {loreEmpty && onRequestLoreInit ? (
-                    <div className="rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-3 py-2 text-center">
-                      <div className="text-xs font-medium text-[var(--nova-text)]">{t('loreInit.interactiveTitle')}</div>
-                      <div className="mt-1 text-[11px] leading-5 text-[var(--nova-text-faint)]">{t('loreInit.interactiveDescription')}</div>
-                      <button type="button" className="nova-nav-item mt-2 rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-1.5 text-xs text-[var(--nova-text-muted)] hover:text-[var(--nova-text)]" onClick={onRequestLoreInit}>
-                        {t('loreInit.openAgent')}
-                      </button>
-                    </div>
-                  ) : null}
-                  <div className="w-full space-y-2">
-                    <Textarea autoResize className="nova-field min-h-24 resize-none text-xs" placeholder={t('storyStage.opening.customPlaceholder')} value={customOpeningText} onChange={(event) => setCustomOpeningText(event.target.value)} />
-                    <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-2">
-                      <Button type="button" size="sm" className="gap-1.5" disabled={!storyId || streaming} onClick={startAIOpening}>
-                        <Sparkles data-icon="inline-start" />
-                        {t('storyStage.opening.startAI')}
-                      </Button>
-                      {onOpenDirectorConfig ? (
-                        <Button type="button" variant="outline" size="sm" className="gap-1.5 border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]" onClick={onOpenDirectorConfig}>
-                          <SlidersHorizontal data-icon="inline-start" />
-                          {t('storyStage.opening.configureDirector')}
-                        </Button>
-                      ) : null}
-                      <Button type="button" variant="outline" size="sm" className="gap-1.5 border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]" disabled={!storyId || streaming || !customOpeningText.trim()} onClick={startOpening}>
-                        <Pencil data-icon="inline-start" />
-                        {t('storyStage.opening.startCustom')}
-                      </Button>
-                      <div className="flex min-w-0 max-w-full flex-wrap items-center justify-center gap-1 rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] p-1">
-                        <Select disabled={!storyId || streaming || availableBookOpeningPresets.length === 0} value={selectedBookOpeningPreset?.id || ''} onValueChange={setSelectedBookOpeningPresetId}>
-                          <SelectTrigger size="sm" aria-label={t('storyStage.opening.bookPresetSelect')} className="min-w-0 max-w-full border-[var(--nova-border)] bg-[var(--nova-surface)] text-xs text-[var(--nova-text)] hover:bg-[var(--nova-hover)] sm:w-48">
-                            <SelectValue placeholder={t('storyStage.opening.noBookPreset')} />
-                          </SelectTrigger>
-                          <SelectContent className="border-[var(--nova-border)] bg-[var(--nova-surface)] text-[var(--nova-text)]">
-                            <SelectGroup>
-                              {availableBookOpeningPresets.map((preset) => (
-                                <SelectItem key={preset.id} value={preset.id} className="text-xs focus:bg-[var(--nova-hover)] focus:text-[var(--nova-text)]">
-                                  {preset.title || t('storyStage.opening.bookPresetUntitled')}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                        <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]" disabled={!storyId || streaming || !selectedBookOpeningPreset} onClick={startBookPresetOpening} title={selectedBookOpeningPreset ? selectedBookOpeningPreset.title || t('storyStage.opening.bookPresetUntitled') : t('storyStage.opening.bookPresetMissing')}>
-                          <BookOpen data-icon="inline-start" />
-                          {selectedBookOpeningPreset ? t('storyStage.opening.startBookPreset') : t('storyStage.opening.noBookPreset')}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <StoryOpeningPanel
+                story={story}
+                storyId={storyId}
+                streaming={streaming}
+                presets={availableBookOpeningPresets}
+                selectedPreset={selectedBookOpeningPreset}
+                customText={customOpeningText}
+                bottomInset={inputFloatHeight}
+                loreEmpty={loreEmpty}
+                onSelectPreset={setSelectedBookOpeningPresetId}
+                onCustomTextChange={setCustomOpeningText}
+                onStartAI={startAIOpening}
+                onStartPreset={startBookPresetOpening}
+                onStartCustom={startOpening}
+                onConfigureDirector={onOpenDirectorConfig}
+                onRequestLoreInit={onRequestLoreInit}
+                onBackToSetup={() => { setEditingStorySetup(true); setCreatingStory(true) }}
+              />
             ) : (
               <MessageList
-                messages={messages}
+                messages={agentMessages}
                 isStreaming={streaming}
                 activityContent={activityContent}
                 highlightDialogue
-                collapseTraceBeforeAssistant
                 scrollResetKey={scrollResetKey}
                 bottomPaddingClassName="pb-36"
                 bottomPaddingPx={messageListBottomPadding}
+                afterContent={!streaming && storyStateModel.hasState && stateDisplayPreference !== 'director-only' ? (
+                  <StoryStateLedger
+                    snapshot={snapshot}
+                    displayPreference={stateDisplayPreference}
+                    onDisplayPreferenceChange={onStateDisplayPreferenceChange}
+                    onOpenDirectorState={onOpenDirectorState}
+                  />
+                ) : undefined}
+                afterContentKey={`${snapshot?.current_turn?.id || ''}:${snapshot?.current_turn?.state_status || ''}:${stateDisplayPreference}`}
                 messageStyle={stageTextStyle}
+                collapseTraceGroups
                 turnScrollRequest={turnScrollRequest}
                 onVisibleTurnAnchorChange={handleVisibleTurnAnchorChange}
-                onEditMessage={startEditingMessage}
-                onRegenerateMessage={regenerateMessage}
-                onSwitchMessageVersion={switchMessageVersion}
-                onGenerateInteractiveImage={(message) => void generateImageForMessage(message, 'manual', true)}
+                onEditMessage={startEditingView}
+                onEditAssistantReply={generatingImageTurnId || switchingVersionTurnId ? undefined : startEditingAssistantReply}
+                onRegenerateMessage={regenerateView}
+                onSwitchMessageVersion={switchViewVersion}
+                onGenerateInteractiveImage={generateImageForView}
                 generatingInteractiveImageTurnId={generatingImageTurnId || undefined}
                 onOpenSubAgentSession={openSubAgentSession}
                 activeSubAgentSessionKey={activeSubAgentSessionKey}
@@ -1220,8 +1287,8 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
             )}
             {activeSubAgentSessionKey && (
               <div className="absolute inset-y-0 right-0 z-30 w-[min(420px,92vw)] border-l border-[var(--nova-border)] shadow-[var(--nova-shadow)]">
-                <SubAgentSessionPanel
-                  messages={messages}
+                <AgentSubAgentSessionPanel
+                  messages={agentMessages}
                   sessionKey={activeSubAgentSessionKey}
                   onClose={() => setActiveSubAgentSessionKey('')}
                   highlightDialogue
@@ -1232,7 +1299,7 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
           </section>
         </div>
       </div>
-      <div ref={inputFloatRef} style={{ bottom: keyboardInset }} className="nova-story-input-float pointer-events-none absolute inset-x-0 bottom-0 z-20 p-3">
+      {!creatingStory ? <div ref={inputFloatRef} style={{ bottom: keyboardInset }} className="nova-story-input-float pointer-events-none absolute inset-x-0 bottom-0 z-20 p-3">
         <div className="pointer-events-auto mx-auto max-w-5xl">
           {editingTurn && !streaming ? (
             <div className="mb-3 flex min-w-0 items-center gap-2 rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-3 py-2 text-xs text-[var(--nova-text-muted)]">
@@ -1269,55 +1336,35 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
                 <button type="button" className="nova-nav-item flex min-w-0 flex-1 items-center gap-1.5 rounded-[var(--nova-radius)] px-1.5 py-1 text-left hover:bg-[var(--nova-hover)]" onMouseDown={(event) => event.preventDefault()} onClick={() => setHotChoicesExpanded((value) => !value)} aria-expanded={hotChoicesExpanded}>
                   <Compass className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" />
                   <span className="shrink-0 font-medium text-[var(--nova-text-muted)]">{t('storyStage.hotChoices.title')}</span>
-                  <span className="min-w-0 flex-1 truncate text-[var(--nova-text-faint)]">
-                    {hotChoicesLoading && hotChoices.length === 0
-                      ? t('storyStage.hotChoices.generating')
-                      : hotChoices.length > 0
-                        ? t('storyStage.hotChoices.count', {
-                            count: hotChoices.length,
-                          })
-                        : t('storyStage.hotChoices.emptyShort')}
-                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[var(--nova-text-faint)]">{t('storyStage.hotChoices.count', { count: hotChoices.length })}</span>
                   {hotChoicesExpanded ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" /> : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" />}
                 </button>
-                {!hotChoicesLoading && (hotChoices.length === 0 || hotChoices.length < 10) ? (
-                  <button type="button" className="nova-nav-item inline-flex h-7 shrink-0 items-center gap-1 rounded-[var(--nova-radius)] px-2 text-[11px] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)] disabled:opacity-50" onMouseDown={(event) => event.preventDefault()} onClick={() => requestHotChoices(hotChoices.length > 0)}>
-                    <RefreshCw className="h-3 w-3" />
-                    {hotChoices.length > 0 ? t('storyStage.hotChoices.more') : t('storyStage.hotChoices.generate')}
-                  </button>
-                ) : null}
               </div>
               {hotChoicesExpanded ? (
                 <div className="border-t border-[var(--nova-border)] px-2 py-2">
-                  {hotChoicesLoading && hotChoices.length === 0 ? (
-                    <div className="px-1 py-1 text-xs text-[var(--nova-text-faint)]">{t('storyStage.hotChoices.generatingLong')}</div>
-                  ) : hotChoices.length === 0 ? (
-                    <div className="px-1 py-1 text-xs text-[var(--nova-text-faint)]">{t('storyStage.hotChoices.emptyLong')}</div>
-                  ) : (
-                    <div data-testid="story-stage-hot-choices-list" className="flex max-h-48 flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain pr-1">
-                      {hotChoices.map((choice, index) => (
-                        <button
-                          key={`${index}-${choice}`}
-                          type="button"
-                          className="min-w-0 max-w-full flex-none rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface)] px-2.5 py-1.5 text-left text-xs leading-5 text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => {
-                            setInput(choice)
-                            setShowSkillCommands(false)
-                            setSkillCommandQuery(null)
-                            setActiveSkillCommandIndex(0)
-                            setHotChoicesExpanded(false)
-                            window.requestAnimationFrame(() => {
-                              inputRef.current?.focus()
-                              inputRef.current?.setSelectionRange(choice.length, choice.length)
-                            })
-                          }}
-                        >
-                          <span className="block max-w-full break-words">{choice}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div data-testid="story-stage-hot-choices-list" className="flex max-h-48 flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain pr-1">
+                    {hotChoices.map((choice, index) => (
+                      <button
+                        key={`${index}-${choice}`}
+                        type="button"
+                        className="min-w-0 max-w-full flex-none rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface)] px-2.5 py-1.5 text-left text-xs leading-5 text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setInput(choice)
+                          setShowSkillCommands(false)
+                          setSkillCommandQuery(null)
+                          setActiveSkillCommandIndex(0)
+                          setHotChoicesExpanded(false)
+                          window.requestAnimationFrame(() => {
+                            inputRef.current?.focus()
+                            inputRef.current?.setSelectionRange(choice.length, choice.length)
+                          })
+                        }}
+                      >
+                        <span className="block max-w-full break-words">{choice}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -1474,7 +1521,7 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
                         variant="outline"
                         size="icon-sm"
                         className="nova-agent-composer-icon h-8 w-8 shrink-0 rounded-[10px] border border-[var(--nova-border)] bg-[var(--nova-surface)] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)] disabled:opacity-45"
-                        disabled={streaming || branchTerminal || directorBlocking || (!storyId && tokenUsageMessages.length === 0 && !workspace)}
+                        disabled={streaming || branchTerminal || directorBlocking || (!storyId && tokenUsageMessages.length === 0)}
                         aria-label={t('chat.input.actions')}
                         title={t('chat.input.actions')}
                       >
@@ -1482,8 +1529,6 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" side="top" className="w-80 border-[var(--nova-border)] bg-[var(--nova-surface-2)] p-2 text-[var(--nova-text)]">
-                      <ModelProfileSwitcher agentKey="interactive_story" workspace={workspace} disabled={streaming || directorBlocking} />
-                      <HotChoicesModeMenu value={hotChoicesMode} disabled={!stagePreferences.hotChoicesEnabled || streaming || branchTerminal || directorBlocking} onChange={setHotChoicesMode} />
                       <InteractiveImageSettingsMenu story={story} disabled={!storyId || streaming || directorBlocking || !onImageSettingsChange} onChange={onImageSettingsChange} />
                       <StoryImagePresetMenu story={story} presets={imagePresets} disabled={!storyId || streaming || directorBlocking || !onImageSettingsChange} onChange={onImageSettingsChange} />
                       <DropdownMenuItem
@@ -1509,17 +1554,16 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
               }
               toolbarEnd={
                 <>
-                  {stagePreferences.hotChoicesEnabled ? (
-                    <Button type="button" variant="outline" className={`nova-agent-composer-pill h-8 shrink-0 rounded-[10px] border-[var(--nova-border)] bg-[var(--nova-surface)] px-2.5 text-[11px] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)] ${hotChoicesExpanded ? 'text-[var(--nova-text)]' : ''}`} disabled={!storyId || streaming || branchTerminal || directorBlocking || Boolean(editingTurn)} onMouseDown={(event) => event.preventDefault()} onClick={toggleHotChoices} aria-label={hotChoicesExpanded ? t('storyStage.hotChoices.collapse') : t('storyStage.hotChoices.get')} title={hotChoicesExpanded ? t('storyStage.hotChoices.collapse') : t('storyStage.hotChoices.get')}>
-                      <Compass className={`h-3.5 w-3.5 ${hotChoicesLoading ? 'animate-pulse' : ''}`} />
-                      {!isMobile ? t('storyStage.hotChoices.button') : null}
-                    </Button>
-                  ) : null}
+                  <Button type="button" variant="outline" className={`nova-agent-composer-pill h-8 shrink-0 rounded-[10px] border-[var(--nova-border)] bg-[var(--nova-surface)] px-2.5 text-[11px] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)] ${hotChoicesExpanded ? 'text-[var(--nova-text)]' : ''}`} disabled={!canUseHotChoices} onMouseDown={(event) => event.preventDefault()} onClick={toggleHotChoices} aria-label={hotChoicesExpanded ? t('storyStage.hotChoices.collapse') : t('storyStage.hotChoices.get')} title={hotChoicesExpanded ? t('storyStage.hotChoices.collapse') : t('storyStage.hotChoices.get')}>
+                    <Compass className="h-3.5 w-3.5" />
+                    {!isMobile ? t('storyStage.hotChoices.button') : null}
+                  </Button>
                   {isMobile ? (
                     <Button type="button" variant="outline" className="nova-agent-composer-icon h-8 w-8 shrink-0 rounded-[10px] border-[var(--nova-border)] bg-[var(--nova-surface)] px-0 text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]" onMouseDown={(event) => event.preventDefault()} onClick={openMobileNavigation} aria-label={t('workbench.mobile.navigationMenu')} title={t('workbench.mobile.navigationMenu')}>
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
                   ) : null}
+                  <ModelProfileSwitcher agentKey="interactive_story" workspace={workspace} disabled={streaming || directorBlocking} />
                 </>
               }
               submitControl={
@@ -1558,8 +1602,24 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
               </div>
             </DialogContent>
           </Dialog>
+          {replyEditTarget ? (
+            <EditInteractiveReplyDialog
+              key={replyEditTarget.turnId}
+              turnId={replyEditTarget.turnId}
+              initialContent={replyEditTarget.initialContent}
+              onClose={() => setReplyEditTarget(null)}
+              onSave={async (narrative) => {
+                await updateInteractiveTurnNarrative(storyId, replyEditTarget.turnId, {
+                  branch_id: replyEditTarget.branchId,
+                  narrative,
+                  expected_narrative: replyEditTarget.expectedNarrative,
+                })
+                await onDone({ silent: true })
+              }}
+            />
+          ) : null}
         </div>
-      </div>
+      </div> : null}
     </main>
   )
 
@@ -1682,40 +1742,23 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
     })
   }
 
-  function findToolMessageIndex(messages: ChatMessage[], id?: string, name?: string) {
-    if (id) {
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const message = messages[i]
-        if (message.role === 'tool_call' && message.id === id) return i
-      }
-      return -1
-    }
-    if (name) {
-      let match = -1
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const message = messages[i]
-        if (message.role === 'tool_call' && message.name === name) {
-          if (match >= 0) return -1
-          match = i
-        }
-      }
-      return match
-    }
-    if (!id && !name) {
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === 'tool_call') return i
-      }
-    }
-    return -1
-  }
-
-  function findToolMessageIndexForPayload(messages: ChatMessage[], payload: Record<string, unknown> & { id?: string; name?: string }, keyToMessageId: Record<string, string>) {
-    const toolKeys = liveToolEventKeys(payload)
-    const mappedId = findMappedLiveToolId(toolKeys, keyToMessageId)
-    if (mappedId) return findToolMessageIndex(messages, mappedId, undefined)
-    if (payload.id) return findToolMessageIndex(messages, payload.id, undefined)
-    if (toolKeys.length > 0) return -1
-    return findToolMessageIndex(messages, undefined, payload.name)
+  function appendLiveRuleRollMessage(payload: Record<string, unknown> & { id?: string; name?: string; content?: string }) {
+    if (!publicRuleRollVisible || payload.name !== 'prepare_interactive_turn') return
+    const ruleRoll = publicRuleRollFromToolOutput(payload.content || '')
+    if (!ruleRoll) return
+    setStageLiveMessages((prev) => {
+      const id = ruleRoll.resolution_id ? `live-rule-roll-${ruleRoll.resolution_id}` : `live-rule-roll-${Date.now()}`
+      if (prev.some((message) => message.role === 'rule_roll' && message.id === id)) return prev
+      return [
+        ...prev,
+        {
+          id,
+          role: 'rule_roll',
+          rule_roll: ruleRoll,
+          streaming: false,
+        },
+      ]
+    })
   }
 
   function appendContextCompactionMessage(data: Record<string, unknown>) {
@@ -1731,11 +1774,10 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
     nonNarrativeLiveMessageStreamingRef.current = false
     setStageLiveMessages((prev) =>
       prev.map((msg) =>
-        msg.role === 'thinking' || msg.role === 'tool_call' || msg.role === 'context_compaction'
+        msg.role === 'tool_call' || msg.role === 'context_compaction'
           ? {
               ...msg,
-              streaming: false,
-              status: msg.role === 'tool_call' || msg.role === 'context_compaction' ? (msg.status === 'running' ? 'success' : msg.status) : msg.status,
+              status: msg.status === 'running' ? 'success' : msg.status,
             }
           : msg,
       ),
@@ -1761,179 +1803,6 @@ export function StoryStage({ workspace, styleSceneSuggestions = [], stories = []
       ),
     )
   }
-}
-
-function appendBufferedLiveMessage(messages: ChatMessage[], { role, content, metadata }: BufferedLiveMessage) {
-  if (!content) return messages
-  const last = messages[messages.length - 1]
-  if (role === 'assistant' && last?.role === 'assistant' && last.streaming && sameLiveMessageSource(last, metadata)) {
-    return [...messages.slice(0, -1), { ...last, streaming_target_content: `${last.streaming_target_content || last.content || ''}${content}` }]
-  }
-  if (role === 'thinking' && last?.role === 'thinking' && sameLiveMessageSource(last, metadata)) {
-    return [
-      ...messages.slice(0, -1),
-      {
-        ...last,
-        content: `${last.content || ''}${content}`,
-        streaming: true,
-      },
-    ]
-  }
-  if (role === 'assistant') {
-    return [...messages, { role, content: '', streaming_target_content: content, streaming: true, ...metadata }]
-  }
-  return [...messages, { role, content, streaming: true, ...metadata }]
-}
-
-function promoteMessageTargets(messages: ChatMessage[]) {
-  let changed = false
-  const nextMessages = messages.map((message) => {
-    if (message.streaming_target_content === undefined) return message
-    changed = true
-    return promoteMessageTarget(message)
-  })
-  return changed ? nextMessages : messages
-}
-
-function promoteMessageTarget(message: ChatMessage): ChatMessage {
-  if (message.streaming_target_content === undefined) return message
-  const { streaming_target_content, ...rest } = message
-  return { ...rest, content: streaming_target_content }
-}
-
-function streamMetadataFromPayload(payload: Record<string, unknown>): Partial<ChatMessage> {
-  const runPath = Array.isArray(payload.run_path) ? payload.run_path.filter((item): item is string => typeof item === 'string') : undefined
-  return {
-    run_id: typeof payload.run_id === 'string' ? payload.run_id : undefined,
-    agent_name: typeof payload.agent_name === 'string' ? payload.agent_name : undefined,
-    root_agent_name: typeof payload.root_agent_name === 'string' ? payload.root_agent_name : undefined,
-    run_path: runPath,
-    subagent: readStreamBool(payload.subagent),
-    subagent_session_id: typeof payload.subagent_session_id === 'string' ? payload.subagent_session_id : undefined,
-    subagent_type: typeof payload.subagent_type === 'string' ? payload.subagent_type : undefined,
-  }
-}
-
-function sameLiveMessageSource(message: ChatMessage, metadata: Partial<ChatMessage>) {
-  if (Boolean(message.subagent) !== Boolean(metadata.subagent)) return false
-  if (message.subagent || metadata.subagent) {
-    return subAgentSessionKey(message) === subAgentSessionKey(metadata)
-  }
-  return true
-}
-
-function liveToolEventKeys(payload: Record<string, unknown>) {
-  const metadata = streamMetadataFromPayload(payload)
-  const path = metadata.run_path?.join('/') || ''
-  const source = `${metadata.subagent ? 'sub' : 'root'}:${metadata.subagent_session_id || ''}:${metadata.agent_name || ''}:${path}`
-  const keys: string[] = []
-  if (typeof payload.id === 'string' && payload.id) keys.push(`${source}:id:${payload.id}`)
-  if (typeof payload.index === 'number') keys.push(`${source}:index:${payload.index}`)
-  if (typeof payload.index === 'string' && payload.index) keys.push(`${source}:index:${payload.index}`)
-  return keys
-}
-
-function findMappedLiveToolId(keys: string[], keyToMessageId: Record<string, string>) {
-  for (const key of keys) {
-    if (keyToMessageId[key]) return keyToMessageId[key]
-  }
-  return undefined
-}
-
-function bindLiveToolEventKeys(keys: string[], keyToMessageId: Record<string, string>, toolId: string) {
-  if (keys.length === 0) return keyToMessageId
-  let changed = false
-  const next = { ...keyToMessageId }
-  for (const key of keys) {
-    if (next[key] === toolId) continue
-    next[key] = toolId
-    changed = true
-  }
-  return changed ? next : keyToMessageId
-}
-
-function readStreamBool(value: unknown) {
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'string') return value === 'true'
-  return false
-}
-
-function ReplyTargetCharsControl({ story, onChange }: { story?: StorySummary; onChange?: (replyTargetChars: number) => void | Promise<void> }) {
-  const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState(String(normalizeReplyTargetChars(story?.reply_target_chars)))
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const currentValue = normalizeReplyTargetChars(story?.reply_target_chars)
-
-  useEffect(() => {
-    if (!open) {
-      setDraft(String(currentValue))
-      setError('')
-    }
-  }, [currentValue, open])
-
-  const save = async () => {
-    const nextValue = Number(draft)
-    if (!Number.isFinite(nextValue) || nextValue <= 0) {
-      setError(t('storyStage.replyTarget.invalid'))
-      return
-    }
-    setSaving(true)
-    setError('')
-    try {
-      await onChange?.(Math.floor(nextValue))
-      setOpen(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('storyStage.replyTarget.saveFailed'))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" disabled={!story || !onChange} className="h-7 gap-1.5 border-[var(--nova-border)] bg-[var(--nova-surface)] px-2 text-[11px] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]" aria-label={t('storyStage.replyTarget.open')}>
-          <Pencil className="h-3.5 w-3.5 text-[var(--nova-text-faint)]" />
-          {t('storyStage.replyTarget.compact', { count: currentValue })}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={6} className="nova-panel w-64 border border-[var(--nova-border)] p-3 text-[var(--nova-text)] shadow-[var(--nova-shadow)]">
-        <div className="mb-2 text-xs font-medium">{t('storyStage.replyTarget.title')}</div>
-        <Input
-          className="nova-field text-xs"
-          type="number"
-          min={1}
-          value={draft}
-          onChange={(event) => {
-            setDraft(event.target.value)
-            setError('')
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault()
-              void save()
-            }
-          }}
-        />
-        {error && <div className="mt-2 text-[11px] leading-4 text-[var(--nova-danger)]">{error}</div>}
-        <div className="mt-3 flex justify-end gap-2">
-          <Button variant="ghost" size="xs" onClick={() => setOpen(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button size="xs" disabled={saving} onClick={() => void save()}>
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {t('common.save')}
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
-function normalizeReplyTargetChars(value?: number) {
-  return value && value > 0 ? value : DEFAULT_INTERACTIVE_REPLY_TARGET_CHARS
 }
 
 function InteractiveImageSettingsMenu({ story, disabled, onChange }: { story?: StorySummary; disabled?: boolean; onChange?: (settings: StoryImageSettings) => void | Promise<void> }) {
@@ -2049,7 +1918,7 @@ function StoryImagePresetMenu({ story, presets, disabled, onChange }: { story?: 
   const [saving, setSaving] = useState(false)
   const normalizedPresets = useMemo(() => {
     if (presets.some((preset) => preset.id === current.preset_id)) return presets
-    return [{ id: current.preset_id || 'game-cg', name: current.preset_id || 'game-cg', description: '', prompt: '', tags: [], custom: true, version: 1 }, ...presets]
+    return [{ id: current.preset_id || 'game-cg', name: current.preset_id || 'game-cg', description: '', prompt: '', custom: true, version: 1 }, ...presets]
   }, [current.preset_id, presets])
   const selected = normalizedPresets.find((preset) => preset.id === current.preset_id) || normalizedPresets.find((preset) => preset.id === 'game-cg') || normalizedPresets[0]
 
@@ -2126,8 +1995,96 @@ function imageSettingsSummary(settings: StoryImageSettings, t: (key: string, opt
 
 function noop() {}
 
+function noopStateDisplayPreferenceChange(_value: StoryStateDisplayPreference) {}
+
 function noopTurnPersisted() {
   return undefined
+}
+
+function storyRuleVisibilityMode(story: StorySummary | undefined, directors: StoryDirector[]) {
+  const directorID = story?.story_director_id || 'default'
+  const director = directors.find((item) => item.id === directorID) || directors.find((item) => item.id === 'default')
+  return director?.strategy?.rule_visibility_mode || 'audit_only'
+}
+
+function publicRuleRollFromResolution(resolution?: RuleResolution): PublicRuleRoll | null {
+  if (!resolution?.result) return null
+  const result = resolution.result
+  return {
+    resolution_id: resolution.id,
+    label: result.label || resolution.request?.rule?.label || resolution.request?.challenge || resolution.request?.action,
+    difficulty: resolution.request?.difficulty,
+    dice: result.dice,
+    roll_mode: result.roll_mode || resolution.request?.rule?.roll_mode,
+    rolls: result.rolls,
+    kept_roll: result.kept_roll,
+    base_target: result.base_target,
+    target: result.target,
+    bonus_total: result.bonus_total,
+    total: result.total,
+    outcome: result.outcome,
+    result: result.result,
+    cost: resolution.request?.cost,
+    stakes: resolution.request?.adjudication?.stakes,
+    state_changes: result.state_changes,
+  }
+}
+
+function publicRuleRollFromToolOutput(content: string): PublicRuleRoll | null {
+  const parsed = parseJSONRecord(content)
+  if (!parsed) return null
+  const rolls = Array.isArray(parsed.rolls) ? parsed.rolls.map(Number).filter(Number.isFinite) : undefined
+  const stateChanges = Array.isArray(parsed.state_changes)
+    ? parsed.state_changes
+      .map((item) => isPlainRecord(item) ? {
+        actor_id: String(item.actor_id || '').trim(),
+        field_id: String(item.field_id || '').trim(),
+        change: Number(item.change),
+        reason: typeof item.reason === 'string' ? item.reason : undefined,
+      } : null)
+      .filter((item): item is NonNullable<typeof item> => Boolean(item && item.actor_id && item.field_id && Number.isFinite(item.change)))
+    : undefined
+  return {
+    resolution_id: stringFromRecord(parsed, 'resolution_id'),
+    label: stringFromRecord(parsed, 'label') || stringFromRecord(parsed, 'challenge'),
+    difficulty: stringFromRecord(parsed, 'difficulty'),
+    dice: stringFromRecord(parsed, 'dice'),
+    roll_mode: stringFromRecord(parsed, 'roll_mode'),
+    rolls,
+    kept_roll: numberFromRecord(parsed, 'kept_roll'),
+    base_target: numberFromRecord(parsed, 'base_target'),
+    target: numberFromRecord(parsed, 'target'),
+    bonus_total: numberFromRecord(parsed, 'bonus_total'),
+    total: numberFromRecord(parsed, 'total'),
+    outcome: stringFromRecord(parsed, 'outcome'),
+    result: stringFromRecord(parsed, 'result'),
+    cost: stringFromRecord(parsed, 'cost'),
+    stakes: stringFromRecord(parsed, 'stakes'),
+    state_changes: stateChanges,
+  }
+}
+
+function parseJSONRecord(content: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(content)
+    return isPlainRecord(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function stringFromRecord(record: Record<string, unknown>, key: string) {
+  const value = record[key]
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function numberFromRecord(record: Record<string, unknown>, key: string) {
+  const value = Number(record[key])
+  return Number.isFinite(value) ? value : undefined
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
 function createLiveTurnRenderKeys(): LiveTurnRenderKeys {
@@ -2143,87 +2100,9 @@ function storyStageSnapshotKey(storyId: string, branchId: string, snapshot?: Sna
   return `${storyId || snapshot?.story_id || 'none'}:${snapshot?.branch_id || branchId || 'main'}:${turns[turns.length - 1]?.id || 'empty'}`
 }
 
-function autoHotChoicesSnapshotKey(storyId: string, branchId: string, snapshot?: Snapshot | null) {
-  if (!snapshot?.turns?.length) return ''
-  return storyStageSnapshotKey(storyId, branchId, snapshot)
-}
-
-function readStoredHotChoicesMode(): HotChoicesMode {
-  if (typeof window === 'undefined') return 'auto'
-  try {
-    return window.localStorage.getItem(HOT_CHOICES_MODE_STORAGE_KEY) === 'manual' ? 'manual' : 'auto'
-  } catch {
-    return 'auto'
-  }
-}
-
-function writeStoredHotChoicesMode(value: HotChoicesMode) {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(HOT_CHOICES_MODE_STORAGE_KEY, value)
-  } catch {
-    // Ignore storage failures; the default auto mode still works for this session.
-  }
-}
-
-function hotChoicesModeSummary(value: HotChoicesMode, t: (key: string, options?: Record<string, unknown>) => string) {
-  return value === 'manual' ? t('storyStage.hotChoices.currentManual') : t('storyStage.hotChoices.currentAuto')
-}
-
-function HotChoicesModeMenu({ value, disabled, onChange }: { value: HotChoicesMode; disabled?: boolean; onChange: (value: HotChoicesMode) => void }) {
-  const { t } = useTranslation()
-  const save = (nextValue: HotChoicesMode) => {
-    if (disabled) return
-    onChange(nextValue)
-  }
-
-  return (
-    <>
-      <DropdownMenuSeparator className="bg-[var(--nova-border-soft)]" />
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger
-          disabled={disabled}
-          className="flex cursor-pointer items-center gap-2 text-xs focus:bg-[var(--nova-active)] focus:text-[var(--nova-text)]"
-        >
-          <Compass className="h-3.5 w-3.5" />
-          <span className="min-w-0 flex-1 truncate">{t('storyStage.hotChoices.menuTitle')}</span>
-          <span className="max-w-36 shrink-0 truncate text-right text-[10px] text-[var(--nova-text-faint)]">{hotChoicesModeSummary(value, t)}</span>
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent className="w-64 border-[var(--nova-border)] bg-[var(--nova-surface-2)] p-2 text-[var(--nova-text)]">
-          <DropdownMenuItem
-            disabled={disabled}
-            onSelect={(event) => {
-              event.preventDefault()
-              save('auto')
-            }}
-            onClick={() => save('auto')}
-            className="grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)] items-center gap-2 text-xs focus:bg-[var(--nova-active)] focus:text-[var(--nova-text)]"
-          >
-            <Check className={`h-3.5 w-3.5 ${value === 'auto' ? 'opacity-100' : 'opacity-0'}`} />
-            <span className="min-w-0 flex-1 truncate">{t('storyStage.hotChoices.modeAuto')}</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={disabled}
-            onSelect={(event) => {
-              event.preventDefault()
-              save('manual')
-            }}
-            onClick={() => save('manual')}
-            className="grid cursor-pointer grid-cols-[1rem_minmax(0,1fr)] items-center gap-2 text-xs focus:bg-[var(--nova-active)] focus:text-[var(--nova-text)]"
-          >
-            <Check className={`h-3.5 w-3.5 ${value === 'manual' ? 'opacity-100' : 'opacity-0'}`} />
-            <span className="min-w-0 flex-1 truncate">{t('storyStage.hotChoices.modeManual')}</span>
-          </DropdownMenuItem>
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
-    </>
-  )
-}
-
 function useStagePreferences() {
   const [preferences, setPreferences] = useState({
     lineHeight: DEFAULT_STAGE_LINE_HEIGHT,
-    hotChoicesEnabled: true,
   })
 
   const load = useCallback(async () => {
@@ -2232,13 +2111,11 @@ function useStagePreferences() {
       const effective = settings.effective || {}
       setPreferences({
         lineHeight: clampNumber(effective.interactive_stage_line_height, 1.35, 2.4, DEFAULT_STAGE_LINE_HEIGHT),
-        hotChoicesEnabled: effective.interactive_hot_choices_enabled !== false,
       })
     } catch (error) {
       console.warn('[interactive-stage] 加载故事舞台显示设置失败', error)
       setPreferences({
         lineHeight: DEFAULT_STAGE_LINE_HEIGHT,
-        hotChoicesEnabled: true,
       })
     }
   }, [])
@@ -2403,19 +2280,6 @@ function latestInteractiveImageStatus(messages: ChatMessage[]): 'running' | 'suc
     if (status === 'running' || status === 'success' || status === 'error') return status
   }
   return undefined
-}
-
-function mergeHotChoices(current: string[], next: string[]) {
-  const merged: string[] = []
-  const seen = new Set<string>()
-  for (const choice of [...current, ...next]) {
-    const normalized = choice.trim()
-    if (!normalized || seen.has(normalized)) continue
-    merged.push(normalized)
-    seen.add(normalized)
-    if (merged.length >= 10) break
-  }
-  return merged
 }
 
 function parseInlineStyleScenes(input: string): string[] {

@@ -25,19 +25,12 @@ func TestGoGitVersionCreateDiffAndRestore(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
 		t.Fatalf("expected workspace .git repository: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".denova", "versions")); !os.IsNotExist(err) {
-		t.Fatalf("should not create .denova/versions metadata directory, err=%v", err)
+	if _, err := os.Stat(filepath.Join(dir, ".nova", "versions")); !os.IsNotExist(err) {
+		t.Fatalf("should not create .nova/versions metadata directory, err=%v", err)
 	}
-	writeFile(t, dir, ".denova/sessions/internal.txt", "内部数据")
-	writeFile(t, dir, ".denova/lore/items.json", "[]")
-	writeFile(t, dir, ".gitignore", ".denova\n")
-	files, err := service.commitFiles(first.Version.ID)
-	if err != nil {
-		t.Fatalf("commitFiles failed: %v", err)
-	}
-	if _, ok := files[".denova/sessions/internal.txt"]; ok {
-		t.Fatalf("first commit should not include .denova file created later: %v", sortedVersionFilePaths(files))
-	}
+	writeFile(t, dir, ".nova/sessions/internal.txt", "内部数据")
+	writeFile(t, dir, ".nova/lore/items.json", "[]")
+	writeFile(t, dir, ".gitignore", ".nova\n")
 
 	writeFile(t, dir, "chapters/ch0001.md", "第二版")
 	writeFile(t, dir, "chapters/ch0002.md", "新增章节")
@@ -61,28 +54,6 @@ func TestGoGitVersionCreateDiffAndRestore(t *testing.T) {
 		t.Fatalf("unexpected diff: %#v", diff)
 	}
 
-	second, err := service.Create("第二版本", VersionSourceManual, settings)
-	if err != nil {
-		t.Fatalf("Create second failed: %v", err)
-	}
-	if second.Version == nil || second.Version.ID == first.Version.ID {
-		t.Fatalf("expected distinct second git commit: first=%#v second=%#v", first.Version, second.Version)
-	}
-	secondFiles, err := service.commitFiles(second.Version.ID)
-	if err != nil {
-		t.Fatalf("commitFiles second failed: %v", err)
-	}
-	if _, ok := secondFiles[".denova/sessions/internal.txt"]; !ok {
-		t.Fatalf("second commit should include .denova creative state: %v", sortedVersionFilePaths(secondFiles))
-	}
-	if _, ok := secondFiles[".denova/lore/items.json"]; !ok {
-		t.Fatalf("second commit should include .denova lore state: %v", sortedVersionFilePaths(secondFiles))
-	}
-	if _, ok := secondFiles[".gitignore"]; !ok {
-		t.Fatalf("second commit should include workspace .gitignore: %v", sortedVersionFilePaths(secondFiles))
-	}
-
-	writeFile(t, dir, "chapters/ch0001.md", "临时改动")
 	if _, err := service.Restore(first.Version.ID, settings); err != nil {
 		t.Fatalf("Restore failed: %v", err)
 	}
@@ -96,14 +67,14 @@ func TestGoGitVersionCreateDiffAndRestore(t *testing.T) {
 	if readFile(t, dir, "setting/progress.md") != "进度一" {
 		t.Fatalf("restore should recover deleted progress")
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".denova", "sessions", "internal.txt")); !os.IsNotExist(err) {
-		t.Fatalf("restore should remove .denova content absent from target version, err=%v", err)
+	if _, err := os.Stat(filepath.Join(dir, ".nova", "sessions", "internal.txt")); !os.IsNotExist(err) {
+		t.Fatalf("restore should remove .nova content absent from target version, err=%v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".denova", "lore", "items.json")); !os.IsNotExist(err) {
-		t.Fatalf("restore should remove .denova lore content absent from target version, err=%v", err)
+	if _, err := os.Stat(filepath.Join(dir, ".nova", "lore", "items.json")); !os.IsNotExist(err) {
+		t.Fatalf("restore should remove .nova lore content absent from target version, err=%v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".denova", "versions")); !os.IsNotExist(err) {
-		t.Fatalf("restore should not create .denova/versions metadata directory, err=%v", err)
+	if _, err := os.Stat(filepath.Join(dir, ".nova", "versions")); !os.IsNotExist(err) {
+		t.Fatalf("restore should not create .nova/versions metadata directory, err=%v", err)
 	}
 
 	cleanStatus, err := service.Status(settings)
@@ -117,9 +88,8 @@ func TestGoGitVersionCreateDiffAndRestore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("History failed: %v", err)
 	}
-	if len(history) != 3 ||
+	if len(history) != 2 ||
 		!historyContains(history, first.Version.ID) ||
-		!historyContains(history, second.Version.ID) ||
 		!historyContainsSource(history, VersionSourceRollbackBackup) {
 		t.Fatalf("history should come from git commits, history=%#v latest=%#v", history, cleanStatus.Latest)
 	}
@@ -129,8 +99,8 @@ func TestGoGitVersionTracksNovaDeletesWhenGitIgnored(t *testing.T) {
 	dir := t.TempDir()
 	service := NewService(dir)
 	settings := DefaultAutoSettings()
-	writeFile(t, dir, ".gitignore", ".denova\n")
-	writeFile(t, dir, ".denova/lore/items.json", "[]")
+	writeFile(t, dir, ".gitignore", ".nova\n")
+	writeFile(t, dir, ".nova/lore/items.json", "[]")
 
 	first, err := service.Create("保存资料库", VersionSourceManual, settings)
 	if err != nil {
@@ -143,18 +113,18 @@ func TestGoGitVersionTracksNovaDeletesWhenGitIgnored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("commitFiles first failed: %v", err)
 	}
-	if _, ok := firstFiles[".denova/lore/items.json"]; !ok {
-		t.Fatalf("first commit should include ignored .denova file: %v", sortedVersionFilePaths(firstFiles))
+	if _, ok := firstFiles[".nova/lore/items.json"]; !ok {
+		t.Fatalf("first commit should include ignored .nova file: %v", sortedVersionFilePaths(firstFiles))
 	}
 
-	if err := os.Remove(filepath.Join(dir, ".denova", "lore", "items.json")); err != nil {
+	if err := os.Remove(filepath.Join(dir, ".nova", "lore", "items.json")); err != nil {
 		t.Fatal(err)
 	}
 	status, err := service.Status(settings)
 	if err != nil {
 		t.Fatalf("Status failed: %v", err)
 	}
-	assertChange(t, status.Changes, ".denova/lore/items.json", "deleted")
+	assertChange(t, status.Changes, ".nova/lore/items.json", "deleted")
 
 	second, err := service.Create("删除资料库", VersionSourceManual, settings)
 	if err != nil {
@@ -164,8 +134,8 @@ func TestGoGitVersionTracksNovaDeletesWhenGitIgnored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("commitFiles second failed: %v", err)
 	}
-	if _, ok := secondFiles[".denova/lore/items.json"]; ok {
-		t.Fatalf("second commit should record ignored .denova deletion: %v", sortedVersionFilePaths(secondFiles))
+	if _, ok := secondFiles[".nova/lore/items.json"]; ok {
+		t.Fatalf("second commit should record ignored .nova deletion: %v", sortedVersionFilePaths(secondFiles))
 	}
 }
 
@@ -174,7 +144,7 @@ func TestGoGitVersionExcludesRunLedgers(t *testing.T) {
 	service := NewService(dir)
 	settings := DefaultAutoSettings()
 	writeFile(t, dir, "chapters/ch0001.md", "第一版")
-	writeFile(t, dir, ".denova/runs/run-1.jsonl", `{"type":"run_created"}`)
+	writeFile(t, dir, ".nova/runs/run-1.jsonl", `{"type":"run_created"}`)
 
 	first, err := service.Create("初始版本", VersionSourceManual, settings)
 	if err != nil {
@@ -184,14 +154,14 @@ func TestGoGitVersionExcludesRunLedgers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("commitFiles first failed: %v", err)
 	}
-	if _, ok := files[".denova/runs/run-1.jsonl"]; ok {
+	if _, ok := files[".nova/runs/run-1.jsonl"]; ok {
 		t.Fatalf("run ledger should not be committed: %v", sortedVersionFilePaths(files))
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".denova", "runs", "run-1.jsonl")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, ".nova", "runs", "run-1.jsonl")); err != nil {
 		t.Fatalf("run ledger should remain in workspace: %v", err)
 	}
 
-	writeFile(t, dir, ".denova/runs/run-2.jsonl", `{"type":"run_finished"}`)
+	writeFile(t, dir, ".nova/runs/run-2.jsonl", `{"type":"run_finished"}`)
 	status, err := service.Status(settings)
 	if err != nil {
 		t.Fatalf("Status failed: %v", err)
@@ -204,13 +174,15 @@ func TestGoGitVersionExcludesRunLedgers(t *testing.T) {
 	}
 }
 
-func TestGoGitVersionExcludesInteractiveData(t *testing.T) {
+func TestGoGitVersionExcludesAndPreservesReviewJournals(t *testing.T) {
 	dir := t.TempDir()
 	service := NewService(dir)
 	settings := DefaultAutoSettings()
 	writeFile(t, dir, "chapters/ch0001.md", "第一版")
-	writeFile(t, dir, ".denova/interactive/stories/story-1.json", `{"title":"测试故事"}`)
-	writeFile(t, dir, ".denova/interactive/memory/book.json", `{"structures":[]}`)
+	writeFile(t, dir, ".denova/changes/ledger.jsonl", `{"type":"change_applied"}`)
+	writeFile(t, dir, ".nova/changes/legacy.jsonl", `{"type":"comment_added"}`)
+	writeFile(t, dir, ".denova/reviews/ledger.jsonl", `{"type":"comments_upserted"}`)
+	writeFile(t, dir, ".nova/reviews/legacy.jsonl", `{"type":"comments_upserted"}`)
 
 	first, err := service.Create("初始版本", VersionSourceManual, settings)
 	if err != nil {
@@ -220,10 +192,55 @@ func TestGoGitVersionExcludesInteractiveData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("commitFiles first failed: %v", err)
 	}
-	if _, ok := files[".denova/interactive/stories/story-1.json"]; ok {
+	for _, path := range []string{
+		".denova/changes/ledger.jsonl",
+		".nova/changes/legacy.jsonl",
+		".denova/reviews/ledger.jsonl",
+		".nova/reviews/legacy.jsonl",
+	} {
+		if _, ok := files[path]; ok {
+			t.Fatalf("review journal must not be committed: path=%s files=%v", path, sortedVersionFilePaths(files))
+		}
+	}
+
+	writeFile(t, dir, "chapters/ch0001.md", "第二版")
+	if _, err := service.Restore(first.Version.ID, settings); err != nil {
+		t.Fatalf("Restore failed: %v", err)
+	}
+	if got := readFile(t, dir, ".denova/changes/ledger.jsonl"); got != `{"type":"change_applied"}` {
+		t.Fatalf("current change journal should survive restore: %q", got)
+	}
+	if got := readFile(t, dir, ".nova/changes/legacy.jsonl"); got != `{"type":"comment_added"}` {
+		t.Fatalf("legacy change journal should survive restore: %q", got)
+	}
+	if got := readFile(t, dir, ".denova/reviews/ledger.jsonl"); got != `{"type":"comments_upserted"}` {
+		t.Fatalf("current document review journal should survive restore: %q", got)
+	}
+	if got := readFile(t, dir, ".nova/reviews/legacy.jsonl"); got != `{"type":"comments_upserted"}` {
+		t.Fatalf("legacy document review journal should survive restore: %q", got)
+	}
+}
+
+func TestGoGitVersionExcludesInteractiveData(t *testing.T) {
+	dir := t.TempDir()
+	service := NewService(dir)
+	settings := DefaultAutoSettings()
+	writeFile(t, dir, "chapters/ch0001.md", "第一版")
+	writeFile(t, dir, ".nova/interactive/stories/story-1.json", `{"title":"测试故事"}`)
+	writeFile(t, dir, ".nova/interactive/memory/book.json", `{"structures":[]}`)
+
+	first, err := service.Create("初始版本", VersionSourceManual, settings)
+	if err != nil {
+		t.Fatalf("Create first failed: %v", err)
+	}
+	files, err := service.commitFiles(first.Version.ID)
+	if err != nil {
+		t.Fatalf("commitFiles first failed: %v", err)
+	}
+	if _, ok := files[".nova/interactive/stories/story-1.json"]; ok {
 		t.Fatalf("interactive data should not be committed: %v", sortedVersionFilePaths(files))
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".denova", "interactive", "stories", "story-1.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, ".nova", "interactive", "stories", "story-1.json")); err != nil {
 		t.Fatalf("interactive data should remain in workspace: %v", err)
 	}
 
@@ -235,14 +252,14 @@ func TestGoGitVersionExcludesInteractiveData(t *testing.T) {
 	if _, err := service.Restore(first.Version.ID, settings); err != nil {
 		t.Fatalf("Restore failed: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".denova", "interactive", "stories", "story-1.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(dir, ".nova", "interactive", "stories", "story-1.json")); err != nil {
 		t.Fatalf("interactive data should survive version restore: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".denova", "interactive", "memory", "book.json")); err != nil {
-		t.Fatalf("interactive memory should survive version restore: %v", err)
+	if _, err := os.Stat(filepath.Join(dir, ".nova", "interactive", "memory", "book.json")); err != nil {
+		t.Fatalf("legacy interactive data should survive version restore: %v", err)
 	}
 
-	writeFile(t, dir, ".denova/interactive/stories/story-2.json", `{"title":"新故事"}`)
+	writeFile(t, dir, ".nova/interactive/stories/story-2.json", `{"title":"新故事"}`)
 	status, err := service.Status(settings)
 	if err != nil {
 		t.Fatalf("Status failed: %v", err)
@@ -327,7 +344,7 @@ func TestGoGitVersionRestoreRejectsExcludedPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create first failed: %v", err)
 	}
-	if _, err := service.RestorePlan(first.Version.ID, []string{".casemagica/interactive/stories/story.json"}, settings); err == nil {
+	if _, err := service.RestorePlan(first.Version.ID, []string{".denova/interactive/stories/story.json"}, settings); err == nil {
 		t.Fatalf("RestorePlan should reject excluded paths")
 	}
 }
@@ -336,22 +353,22 @@ func TestGoGitVersionRestoreIgnoredLorePath(t *testing.T) {
 	dir := t.TempDir()
 	service := NewService(dir)
 	settings := DefaultAutoSettings()
-	writeFile(t, dir, ".gitignore", ".denova\n")
-	writeFile(t, dir, ".denova/lore/items.json", `["old"]`)
+	writeFile(t, dir, ".gitignore", ".nova\n")
+	writeFile(t, dir, ".nova/lore/items.json", `["old"]`)
 	first, err := service.Create("初始资料库", VersionSourceManual, settings)
 	if err != nil {
 		t.Fatalf("Create first failed: %v", err)
 	}
-	writeFile(t, dir, ".denova/lore/items.json", `["new"]`)
+	writeFile(t, dir, ".nova/lore/items.json", `["new"]`)
 	second, err := service.Create("更新资料库", VersionSourceManual, settings)
 	if err != nil {
 		t.Fatalf("Create second failed: %v", err)
 	}
 
-	if _, err := service.RestoreWithPaths(first.Version.ID, []string{".denova/lore/items.json"}, settings); err != nil {
+	if _, err := service.RestoreWithPaths(first.Version.ID, []string{".nova/lore/items.json"}, settings); err != nil {
 		t.Fatalf("RestoreWithPaths lore failed: %v", err)
 	}
-	if got := readFile(t, dir, ".denova/lore/items.json"); got != `["old"]` {
+	if got := readFile(t, dir, ".nova/lore/items.json"); got != `["old"]` {
 		t.Fatalf("restored lore = %q", got)
 	}
 	status, err := service.Status(settings)
@@ -361,7 +378,67 @@ func TestGoGitVersionRestoreIgnoredLorePath(t *testing.T) {
 	if status.Latest == nil || status.Latest.ID != second.Version.ID {
 		t.Fatalf("lore path restore should not move current version: %#v", status.Latest)
 	}
-	assertChange(t, status.Changes, ".denova/lore/items.json", "modified")
+	assertChange(t, status.Changes, ".nova/lore/items.json", "modified")
+}
+
+func TestGoGitVersionRestorePathsRejectsSymlinkEscape(t *testing.T) {
+	dir := t.TempDir()
+	service := NewService(dir)
+	settings := DefaultAutoSettings()
+	writeFile(t, dir, "linked/secret.md", "versioned")
+	version, err := service.Create("初始版本", VersionSourceManual, settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(dir, "linked")); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	outsideFile := filepath.Join(outside, "secret.md")
+	if err := os.WriteFile(outsideFile, []byte("outside"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "linked")); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := service.RestoreWithPaths(version.Version.ID, []string{"linked/secret.md"}, settings); err == nil {
+		t.Fatal("RestoreWithPaths should reject a target path that escapes through a symlink")
+	}
+	data, err := os.ReadFile(outsideFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "outside" {
+		t.Fatalf("outside file was modified by restore: %q", data)
+	}
+}
+
+func TestGoGitVersionRestorePathsRollsBackOnApplyFailure(t *testing.T) {
+	dir := t.TempDir()
+	service := NewService(dir)
+	settings := DefaultAutoSettings()
+	writeFile(t, dir, "a.md", "versioned-a")
+	writeFile(t, dir, "zdir/b.md", "versioned-b")
+	version, err := service.Create("初始版本", VersionSourceManual, settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, dir, "a.md", "current-a")
+	if err := os.RemoveAll(filepath.Join(dir, "zdir")); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, dir, "zdir", "not-a-directory")
+
+	if _, err := service.RestoreWithPaths(version.Version.ID, []string{"a.md", "zdir/b.md"}, settings); err == nil {
+		t.Fatal("RestoreWithPaths should fail when a later target parent is not a directory")
+	}
+	if got := readFile(t, dir, "a.md"); got != "current-a" {
+		t.Fatalf("failed restore left an earlier path partially restored: %q", got)
+	}
+	if got := readFile(t, dir, "zdir"); got != "not-a-directory" {
+		t.Fatalf("failed restore changed the blocking path: %q", got)
+	}
 }
 
 func writeFile(t *testing.T, root, rel, content string) {

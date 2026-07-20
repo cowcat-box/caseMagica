@@ -1,5 +1,5 @@
 name: Bug Report / 缺陷反馈
-description: Report a reproducible bug or unexpected CaseMagica behavior. / 反馈可复现的缺陷或异常行为。
+description: Report a reproducible bug or unexpected Denova behavior. / 反馈可复现的缺陷或异常行为。
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -14,8 +14,8 @@ body:
     id: version
     attributes:
       label: Version / 版本
-      description: Which CaseMagica version are you using? / 你正在使用哪个 CaseMagica 版本？
-      placeholder: "Example: v0.1.18 or commit SHA"
+      description: Which Denova version are you using? / 你正在使用哪个 Denova 版本？
+      placeholder: "Example: v0.2.0 or commit SHA"
     validations:
       required: true
 
@@ -23,7 +23,7 @@ body:
     id: component
     attributes:
       label: Component / 影响模块
-      description: Which part of CaseMagica is affected? / 问题主要影响 CaseMagica 的哪个部分？
+      description: Which part of Denova is affected? / 问题主要影响 Denova 的哪个部分？
       options:
         - Writing Mode / 写作模式
         - Game Mode / 游戏模式
@@ -125,7 +125,7 @@ body:
       options:
         - label: I have searched existing issues and confirmed this is not a duplicate. / 我已搜索现有 issue，确认不是重复反馈。
           required: true
-        - label: I have provided the CaseMagica version and affected component. / 我已提供 CaseMagica 版本和受影响模块。
+        - label: I have provided the Denova version and affected component. / 我已提供 Denova 版本和受影响模块。
           required: true
         - label: I have removed secrets from logs, screenshots, and attachments. / 我已从日志、截图和附件中移除密钥等敏感信息。
           required: true

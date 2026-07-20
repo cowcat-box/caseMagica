@@ -3,16 +3,17 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/cloudwego/eino/adk"
 
-	"casemagica/config"
-	"casemagica/internal/agent"
-	"casemagica/internal/book"
-	"casemagica/internal/interactive"
-	"casemagica/internal/prompts"
-	"casemagica/internal/session"
+	"denova/config"
+	"denova/internal/agent"
+	"denova/internal/book"
+	"denova/internal/interactive"
+	"denova/internal/prompts"
+	"denova/internal/session"
 )
 
 type runtimeState struct {
@@ -32,6 +33,15 @@ func buildRuntime(ctx context.Context, cfg *config.Config, workspace string) (*r
 	if err != nil {
 		return nil, fmt.Errorf("解析工作目录失败: %w", err)
 	}
+	canonicalWorkspace, err := filepath.EvalSymlinks(absWorkspace)
+	if err != nil {
+		return nil, fmt.Errorf("解析工作目录真实路径失败: %w", err)
+	}
+	info, err := os.Stat(canonicalWorkspace)
+	if err != nil || !info.IsDir() {
+		return nil, fmt.Errorf("工作目录不存在: %s", canonicalWorkspace)
+	}
+	absWorkspace = filepath.Clean(canonicalWorkspace)
 
 	state := book.NewState(absWorkspace)
 	if err := state.InitWorkspace(); err != nil {
@@ -56,10 +66,7 @@ func buildRuntime(ctx context.Context, cfg *config.Config, workspace string) (*r
 	if err != nil {
 		return nil, err
 	}
-	interactiveStore := interactive.NewStoreWithDenovaDir(absWorkspace, runtimeCfg.DenovaDir)
-	if err := interactiveStore.MigrateStoryMemoryStructuresToDirectorModules(); err != nil {
-		return nil, fmt.Errorf("迁移故事记忆结构预设失败: %w", err)
-	}
+	interactiveStore := interactive.NewStoreWithNovaDir(absWorkspace, runtimeCfg.DataDir())
 
 	return &runtimeState{
 		workspace:              absWorkspace,
@@ -87,14 +94,14 @@ func buildAgentRunner(ctx context.Context, cfg *config.Config, state *book.State
 }
 
 func ideStoryTellerForConfig(cfg *config.Config) agent.IDEStoryTeller {
-	if cfg == nil || cfg.DenovaDir == "" {
+	if cfg == nil || cfg.DataDir() == "" {
 		return agent.IDEStoryTeller{}
 	}
 	tellerID := cfg.IDEStoryTellerID
 	if tellerID == "" {
 		tellerID = "classic"
 	}
-	teller := loadInteractiveTeller(cfg.DenovaDir, tellerID)
+	teller := loadInteractiveTeller(cfg.DataDir(), tellerID)
 	if teller.ID == "" {
 		return agent.IDEStoryTeller{}
 	}

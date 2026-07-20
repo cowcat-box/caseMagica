@@ -8,10 +8,11 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"casemagica/config"
+	"denova/config"
+	appsvc "denova/internal/app"
 )
 
-// handleSettingsGet GET /api/settings — 返回三层配置快照。
+// handleSettingsGet GET /api/settings — 返回用户设置、工作区 Agent 定制及生效快照。
 func (h *Handlers) HandleSettingsGet(ctx context.Context, c *app.RequestContext) {
 	layered, err := h.app.Settings()
 	if err != nil {
@@ -55,7 +56,7 @@ func settingsErrorKey(err error) string {
 	}
 }
 
-// handleSettingsWorkspaceUpdate PUT /api/settings/workspace — 持久化工作区级配置。
+// handleSettingsWorkspaceUpdate PUT /api/settings/workspace — 持久化工作区级 Agent 定制。
 func (h *Handlers) HandleSettingsWorkspaceUpdate(ctx context.Context, c *app.RequestContext) {
 	body, baseRevision, err := bindSettingsUpdate(c)
 	if err != nil {
@@ -68,7 +69,7 @@ func (h *Handlers) HandleSettingsWorkspaceUpdate(ctx context.Context, c *app.Req
 			writeErrorKey(c, consts.StatusConflict, "api.settings.revisionConflict")
 			return
 		}
-		if err.Error() == "当前没有打开的工作区" {
+		if errors.Is(err, appsvc.ErrNoWorkspaceOpen) {
 			writeErrorKey(c, consts.StatusBadRequest, "api.settings.workspaceMissing")
 			return
 		}

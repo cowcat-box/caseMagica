@@ -1,6 +1,6 @@
 import type { DirectorPlanRunStatus, DirectorPlanStatus } from '../../types'
 
-export type ConsoleTab = 'run' | 'state' | 'memory' | 'plan'
 export type DirectorStatusLike = Partial<DirectorPlanRunStatus & DirectorPlanStatus>
 
-export const allStructuresId = '__all__'
+// 右栏状态面板的分区 tab：本回合变化 / 角色 / 世界与场景。
+export type StatePanelTab = 'changes' | 'actors' | 'world'

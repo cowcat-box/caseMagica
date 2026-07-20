@@ -58,6 +58,7 @@ describe('AgentsView', () => {
   })
 
   it('reloads model profiles when settings are updated elsewhere', async () => {
+    const user = userEvent.setup()
     vi.mocked(fetchSettings)
       .mockResolvedValueOnce(settingsSnapshot({ effective: { openai_model: 'deepseek-chat' } }))
       .mockResolvedValueOnce(settingsSnapshot({
@@ -74,9 +75,9 @@ describe('AgentsView', () => {
 
     window.dispatchEvent(new CustomEvent('nova:settings-updated'))
 
-    await waitFor(() => {
-      expect(screen.getByText('deepseek（DeepSeek V3）')).toBeInTheDocument()
-    })
+    await waitFor(() => expect(vi.mocked(fetchSettings)).toHaveBeenCalledTimes(2))
+    await user.click(screen.getAllByRole('combobox')[0])
+    expect(await screen.findByText('deepseek（DeepSeek V3）')).toBeInTheDocument()
   })
 
   it('shows context compaction prompt and target ratio settings', async () => {
@@ -290,7 +291,7 @@ describe('AgentsView', () => {
     render(<AgentsView />)
 
     await screen.findByText('Reviewer')
-    await user.click(screen.getByRole('button', { name: '配置管理 Agent资料库、方案预设、Skills、自动化与故事记忆管理' }))
+    await user.click(screen.getByRole('button', { name: '配置管理 Agent资料库、方案预设、Skills 与自动化管理' }))
 
     await waitFor(() => {
       expect(screen.queryByText('Reviewer')).not.toBeInTheDocument()

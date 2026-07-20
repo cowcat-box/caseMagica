@@ -3,8 +3,8 @@ import type { LucideIcon } from 'lucide-react'
 import { Archive, BadgeHelp, BarChart3, ClipboardList, Command as CommandIcon, Eraser, Layers3, List, ListTree, PenLine, ScrollText, Send, Sparkles, Square, WandSparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { FileReferencePicker, type ReferencePickerItem } from './FileReferencePicker'
-import { TokenUsageDialog } from './TokenUsagePanel'
-import type { ChatMessage, TextSelection } from '@/lib/api'
+import { TokenUsageDialog, type TokenUsageRecord } from './TokenUsagePanel'
+import type { TextSelection } from '@/lib/api'
 import type { VisibleAgentKey } from '@/features/agents/agent-registry'
 import { Button } from '@/components/ui/button'
 import { AgentComposerShell } from './AgentComposerShell'
@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useKeyboardInset } from '@/hooks/useKeyboardInset'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { ReviewFeedbackTray, reviewFeedbackCommentCount, type ReviewFeedbackBatch, type ReviewFeedbackSelection } from '@/features/changes/agent/ReviewFeedbackTray'
 
 /** 可用命令列表 */
 const COMMANDS: Array<{ cmd: string; descKey: string; hintKey: string; icon: LucideIcon }> = [
@@ -61,7 +62,7 @@ const MAX_TOKEN_USAGE_MENU_COUNT = 10
 const inputDrafts = new Map<string, string>()
 
 interface InputAreaProps {
-  onSend: (message: string) => void
+  onSend: (message: string) => boolean | void | Promise<boolean | void>
   onStop?: () => void
   disabled: boolean
   planMode?: boolean
@@ -83,6 +84,8 @@ interface InputAreaProps {
   styleSceneSuggestions?: string[]
   textSelections?: TextSelection[]
   onTextSelectionRemove?: (index: number) => void
+  reviewFeedback?: ReviewFeedbackBatch | null
+  onReviewFeedbackRemove?: (selection: ReviewFeedbackSelection, commentID: string) => void
   skills?: SkillCommand[]
   commandsEnabled?: boolean
   commandScope?: CommandScope
@@ -90,7 +93,7 @@ interface InputAreaProps {
   placeholder?: string
   disabledPlaceholder?: string
   onContextAnalyze?: (message: string) => void | Promise<void>
-  tokenUsageMessages?: ChatMessage[]
+  tokenUsageMessages?: TokenUsageRecord[]
   onOpenTrace?: (runID: string) => void
   agentKey?: VisibleAgentKey
   workspace?: string
@@ -124,6 +127,8 @@ export function InputArea({
   styleSceneSuggestions = [],
   textSelections = [],
   onTextSelectionRemove,
+  reviewFeedback,
+  onReviewFeedbackRemove,
   skills = [],
   commandsEnabled = true,
   commandScope = 'all',
@@ -150,8 +155,10 @@ export function InputArea({
   const [activeCommandIndex, setActiveCommandIndex] = useState(0)
   const [referenceQuery, setReferenceQuery] = useState<string | null>(null)
   const [styleSceneQuery, setStyleSceneQuery] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const inputRef = useRef<ComposerTokenInputHandle>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const submittingRef = useRef(false)
   const commandItemRefs = useRef<Array<HTMLDivElement | null>>([])
   const effectiveCommandScope: CommandScope = commandsEnabled ? commandScope : 'none'
   const defaultPlaceholder = skills.length > 0 && effectiveCommandScope !== 'none'
@@ -199,7 +206,8 @@ export function InputArea({
   const filteredSkillCommands = useMemo(() => filteredCommands
     .map((command, index) => ({ command, index }))
     .filter(({ command }) => command.source === 'skill'), [filteredCommands])
-  const hasReferences = textSelections.length > 0
+  const hasReviewFeedback = Boolean(reviewFeedback && reviewFeedbackCommentCount(reviewFeedback) > 0)
+  const hasReferences = textSelections.length > 0 || hasReviewFeedback
   const knownFileTokens = useMemo(() => Array.from(new Set([...fileSuggestions, ...referencedFiles])), [fileSuggestions, referencedFiles])
   const knownLoreTokens = useMemo(() => {
     const byID = new Map<string, string>()
@@ -213,7 +221,7 @@ export function InputArea({
     ...styleScenes.map((scene) => ({ kind: 'style' as const, value: scene, label: scene })),
   ], [knownLoreTokens, loreReferenceLabels, loreReferences, referencedFiles, styleScenes])
   const tokenUsageCount = useMemo(
-    () => Math.min(MAX_TOKEN_USAGE_MENU_COUNT, tokenUsageMessages.filter((message) => message.role === 'token_usage' && Number(message.model_calls || 0) > 0).length),
+    () => Math.min(MAX_TOKEN_USAGE_MENU_COUNT, tokenUsageMessages.filter((message) => (!message.role || message.role === 'token_usage') && Number(message.model_calls || 0) > 0).length),
     [tokenUsageMessages],
   )
 
@@ -382,14 +390,41 @@ export function InputArea({
   /** 发送消息 */
   const handleSend = () => {
     const trimmed = value.trim()
-    if (!trimmed || disabled) return
-    onSend(trimmed)
+    if ((!trimmed && !hasReviewFeedback) || disabled || submittingRef.current) return
+    const submittedValue = value
+    submittingRef.current = true
+    setSubmitting(true)
+    let result: ReturnType<typeof onSend>
+    try {
+      result = onSend(trimmed)
+    } catch {
+      submittingRef.current = false
+      setSubmitting(false)
+      return
+    }
     setValue('')
     setShowCommands(false)
     setCommandQuery(null)
     setActiveCommandIndex(0)
     setReferenceQuery(null)
     setStyleSceneQuery(null)
+    if (result && typeof (result as PromiseLike<boolean | void>).then === 'function') {
+      void Promise.resolve(result).then((accepted) => {
+        if (accepted === false) setValue((current) => current || submittedValue)
+      }).catch(() => {
+        setValue((current) => current || submittedValue)
+      }).finally(() => {
+        submittingRef.current = false
+        setSubmitting(false)
+      })
+    } else if (result === false) {
+      setValue(submittedValue)
+      submittingRef.current = false
+      setSubmitting(false)
+    } else {
+      submittingRef.current = false
+      setSubmitting(false)
+    }
   }
 
   const handleContextAnalyze = () => {
@@ -513,6 +548,9 @@ export function InputArea({
       <AgentComposerShell
         references={hasReferences ? (
           <>
+            {reviewFeedback && onReviewFeedbackRemove ? (
+              <ReviewFeedbackTray feedback={reviewFeedback} onRemove={onReviewFeedbackRemove} />
+            ) : null}
             {textSelections.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {textSelections.map((sel, idx) => (
@@ -576,7 +614,7 @@ export function InputArea({
                   type="button"
                   size="icon-sm"
                   className="nova-agent-composer-icon h-8 w-8 shrink-0 rounded-[10px] border border-[var(--nova-border)] bg-[var(--nova-surface)] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)] disabled:opacity-45"
-                  disabled={!onTogglePlanMode && !writingSkillControl && !onContextAnalyze && tokenUsageMessages.length === 0 && !(agentKey && workspace)}
+                  disabled={!onTogglePlanMode && !writingSkillControl && !onContextAnalyze && tokenUsageMessages.length === 0}
                   aria-label={t('chat.input.actions')}
                   title={t('chat.input.actions')}
                 >
@@ -601,7 +639,6 @@ export function InputArea({
                   </>
                 ) : null}
                 {writingSkillControl}
-                <ModelProfileSwitcher agentKey={agentKey} workspace={workspace} disabled={disabled} />
                 <DropdownMenuItem
                   onSelect={() => setTokenUsageOpen(true)}
                   className="cursor-pointer text-xs focus:bg-[var(--nova-active)] focus:text-[var(--nova-text)]"
@@ -634,11 +671,12 @@ export function InputArea({
             <TokenUsageDialog open={tokenUsageOpen} messages={tokenUsageMessages} onOpenChange={setTokenUsageOpen} onOpenTrace={onOpenTrace} />
           </>
         }
+        toolbarEnd={<ModelProfileSwitcher agentKey={agentKey} workspace={workspace} disabled={disabled} />}
         submitControl={
           <Button
             type="button"
             onClick={disabled ? onStop : handleSend}
-            disabled={disabled ? !onStop : !value.trim()}
+            disabled={disabled ? !onStop : submitting || (!value.trim() && !hasReviewFeedback)}
             size="icon-sm"
             className={`nova-agent-composer-submit h-9 w-9 shrink-0 rounded-[10px] text-[var(--nova-text)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${
               disabled ? 'bg-[var(--nova-danger-bg)] hover:bg-[var(--nova-danger-bg)]' : 'bg-[var(--nova-active)] hover:bg-[var(--nova-hover)] disabled:bg-[var(--nova-active)]'

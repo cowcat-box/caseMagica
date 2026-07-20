@@ -2,11 +2,12 @@ import { ChevronDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import type { ActorStateModule, EventPackageModule, ImagePreset, OpeningSelectorModule, RuleSystemModule, StoryDirectorModuleRefs, StoryMemoryStructureModule, Teller } from '../../types'
-import { consoleSectionClassName, selectClassName } from './constants'
-import { SectionTitle } from './shared'
+import type { ActorStateModule, EventPackageModule, ImagePreset, RuleSystemModule, StoryDirectorModuleRefs, Teller } from '../../types'
+import { presetSelectClassName as selectClassName } from '../preset-config/editor-styles'
+import { PresetSectionHeader as SectionTitle } from '../preset-config/PresetSectionHeader'
+import { consoleSectionClassName } from './constants'
 import { normalizeIDList } from './utils'
 
 export function DirectorModuleConsole({
@@ -14,17 +15,12 @@ export function DirectorModuleConsole({
   selectedTellerName,
   selectedRuleName,
   selectedActorStateName,
-  selectedMemoryStructureCount,
-  selectedMemoryStructureTotal,
-  selectedOpeningName,
   selectedImageName,
   selectedEventCardCount,
   tellers,
   eventPackages,
   ruleSystems,
   actorStates,
-  memoryStructures,
-  openingSelectors,
   imagePresets,
   onModuleRefChange,
 }: {
@@ -32,17 +28,12 @@ export function DirectorModuleConsole({
   selectedTellerName: string
   selectedRuleName: string
   selectedActorStateName: string
-  selectedMemoryStructureCount: number
-  selectedMemoryStructureTotal: number
-  selectedOpeningName: string
   selectedImageName: string
   selectedEventCardCount: number
   tellers: Teller[]
   eventPackages: EventPackageModule[]
   ruleSystems: RuleSystemModule[]
   actorStates: ActorStateModule[]
-  memoryStructures: StoryMemoryStructureModule[]
-  openingSelectors: OpeningSelectorModule[]
   imagePresets: ImagePreset[]
   onModuleRefChange: <K extends keyof StoryDirectorModuleRefs>(key: K, value: StoryDirectorModuleRefs[K]) => void
 }) {
@@ -101,22 +92,6 @@ export function DirectorModuleConsole({
               onChange={(value) => onModuleRefChange('actor_state_id', value)}
             />
           </ModuleRefRow>
-          <ModuleRefRow
-            label={t('settingPanel.presetKind.memoryStructure')}
-            summary={refs.memory_structure_disabled
-              ? t('settingPanel.storyDirector.moduleDisabled')
-              : t('settingPanel.memoryStructure.summaryCount', { enabled: selectedMemoryStructureCount, total: selectedMemoryStructureTotal })}
-            enabled={!refs.memory_structure_disabled}
-            onEnabledChange={(enabled) => onModuleRefChange('memory_structure_disabled', !enabled)}
-          >
-            <ModuleSelect
-              value={refs.memory_structure_id || ''}
-              fallbackValue="default"
-              enabled={!refs.memory_structure_disabled}
-              items={memoryStructures}
-              onChange={(value) => onModuleRefChange('memory_structure_id', value)}
-            />
-          </ModuleRefRow>
         </ModuleGroup>
 
         {/* 内容生成 */}
@@ -133,20 +108,6 @@ export function DirectorModuleConsole({
               enabled={!refs.event_packages_disabled}
               items={eventPackages}
               onChange={(value) => onModuleRefChange('event_package_ids', value)}
-            />
-          </ModuleRefRow>
-          <ModuleRefRow
-            label={t('settingPanel.presetKind.opening')}
-            summary={selectedOpeningName}
-            enabled={!refs.opening_selector_disabled}
-            onEnabledChange={(enabled) => onModuleRefChange('opening_selector_disabled', !enabled)}
-          >
-            <ModuleSelect
-              value={refs.opening_selector_id || ''}
-              fallbackValue="default"
-              enabled={!refs.opening_selector_disabled}
-              items={openingSelectors}
-              onChange={(value) => onModuleRefChange('opening_selector_id', value)}
             />
           </ModuleRefRow>
           <ModuleRefRow
@@ -172,8 +133,8 @@ export function DirectorModuleConsole({
 function ModuleGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid content-start gap-1.5 self-start">
-      <div className="px-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--nova-text-faint)]">{label}</div>
-      <div className="grid content-start gap-1 rounded-[var(--nova-radius)] bg-[var(--nova-surface-2)]/60 p-1.5">
+      <div className="px-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--nova-text-muted)]">{label}</div>
+      <div className="grid content-start gap-1 rounded-[11px] border border-[var(--preset-line)] bg-[var(--preset-raised)]/70 p-1.5">
         {children}
       </div>
     </div>
@@ -198,8 +159,8 @@ function ModuleRefRow({
     ? t('settingPanel.storyDirector.disableModule', { module: label })
     : t('settingPanel.storyDirector.enableModule', { module: label })
   return (
-    <div className={`flex items-center gap-2 rounded px-1.5 py-1 ${enabled ? '' : 'opacity-60'}`}>
-      <span className="w-24 shrink-0 text-[11px] text-[var(--nova-text-faint)]">{label}</span>
+    <div className={`flex min-h-12 items-center gap-2 rounded-lg px-2 py-1.5 ${enabled ? '' : 'opacity-60'}`}>
+      <span className="w-24 shrink-0 text-[11px] text-[var(--nova-text-muted)]">{label}</span>
       <span className="min-w-0 flex-1">
         {children}
         {summary ? <span className="mt-0.5 block truncate text-[10px] text-[var(--nova-text-faint)]" title={summary}>{summary}</span> : null}
@@ -231,13 +192,15 @@ function ModuleSelect<T extends { id: string; name: string; invalid?: boolean }>
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="nova-panel border text-[var(--nova-text)]">
-        {items.length > 0 ? items.map((item) => (
-          <SelectItem key={item.id} value={item.id}>
-            {item.name}{item.invalid ? ` · ${t('settingPanel.invalid')}` : ''}
-          </SelectItem>
-        )) : (
-          <SelectItem value={fallbackValue}>{fallbackValue}</SelectItem>
-        )}
+        <SelectGroup>
+          {items.length > 0 ? items.map((item) => (
+            <SelectItem key={item.id} value={item.id}>
+              {item.name}{item.invalid ? ` · ${t('settingPanel.invalid')}` : ''}
+            </SelectItem>
+          )) : (
+            <SelectItem value={fallbackValue}>{fallbackValue}</SelectItem>
+          )}
+        </SelectGroup>
       </SelectContent>
     </Select>
   )
@@ -270,7 +233,7 @@ function EventPackagePopoverSelect<T extends { id: string; name: string; invalid
       <PopoverTrigger asChild>
         <Button type="button" className={`${selectClassName} w-full justify-between px-2 text-left text-[var(--nova-text)]`} variant="outline" size="sm" disabled={!enabled}>
           <span className="min-w-0 flex-1 truncate">{t('settingPanel.storyDirector.eventPackagePickerButton', { count: selectedValues.length })}</span>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" />
+          <ChevronDown data-icon="inline-end" className="shrink-0 text-[var(--nova-text-faint)]" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="nova-panel w-[min(360px,calc(100vw-2rem))] border border-[var(--nova-border)] p-2 text-[var(--nova-text)]">

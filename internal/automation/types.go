@@ -1,10 +1,17 @@
 package automation
 
-import "time"
+import (
+	"encoding/json"
+	"strings"
+	"time"
+)
 
 const (
 	ScopeUser      = "user"
 	ScopeWorkspace = "workspace"
+
+	TargetKindUser      = "user"
+	TargetKindWorkspace = "workspace"
 
 	TemplateMemoryConsolidation = "memory_consolidation"
 	TemplateReview              = "review"
@@ -60,6 +67,15 @@ const (
 	InboxPurposeWriteConfirmation = "write_confirmation"
 )
 
+// ExecutionTarget identifies the context in which an automation executes.
+// Every task is user-managed; workspace is an explicit target rather than an
+// implicit dependency on whichever book happens to be open.
+type ExecutionTarget struct {
+	Kind        string `json:"kind"`
+	WorkspaceID string `json:"workspace_id,omitempty"`
+	Workspace   string `json:"workspace,omitempty"`
+}
+
 const (
 	MaxRecentRuns = 20
 	MaxInboxItems = 100
@@ -68,7 +84,9 @@ const (
 // Task describes one bounded, permission-aware automation definition.
 type Task struct {
 	ID                  string                  `json:"id"`
+	CatalogID           string                  `json:"catalog_id,omitempty"`
 	Scope               string                  `json:"scope"`
+	Target              ExecutionTarget         `json:"target"`
 	Enabled             bool                    `json:"enabled"`
 	Name                string                  `json:"name"`
 	Template            string                  `json:"template"`
@@ -78,7 +96,6 @@ type Task struct {
 	Triggers            []TriggerDefinition     `json:"triggers"`
 	DefaultActionPolicy string                  `json:"default_action_policy"`
 	TriggerState        map[string]TriggerState `json:"trigger_state,omitempty"`
-	WritePolicy         string                  `json:"write_policy,omitempty"`
 	WriteMode           string                  `json:"write_mode"`
 	WriteScope          string                  `json:"write_scope"`
 	OutputPolicy        string                  `json:"output_policy"`
@@ -87,6 +104,59 @@ type Task struct {
 	RecentRuns          []RunRecord             `json:"recent_runs"`
 	CreatedAt           time.Time               `json:"created_at"`
 	UpdatedAt           time.Time               `json:"updated_at"`
+}
+
+// TaskTemplate is an immutable creation recipe. Selecting a template copies
+// Defaults into a new user-owned task; saved tasks never stay linked to it.
+type TaskTemplate struct {
+	ID          string               `json:"id"`
+	Version     int                  `json:"version"`
+	Description string               `json:"description"`
+	TargetKinds []string             `json:"target_kinds"`
+	Defaults    TaskTemplateDefaults `json:"defaults"`
+}
+
+// TaskTemplateDefaults contains only editable task-definition fields. Runtime
+// identity, execution history, target, and timestamps are created when the user
+// explicitly saves the draft.
+type TaskTemplateDefaults struct {
+	Enabled             bool                `json:"enabled"`
+	Name                string              `json:"name"`
+	Template            string              `json:"template"`
+	Prompt              string              `json:"prompt"`
+	ModelProfileID      string              `json:"model_profile_id,omitempty"`
+	Schedule            Schedule            `json:"schedule"`
+	Triggers            []TriggerDefinition `json:"triggers"`
+	DefaultActionPolicy string              `json:"default_action_policy"`
+	WriteMode           string              `json:"write_mode"`
+	WriteScope          string              `json:"write_scope"`
+	OutputPolicy        string              `json:"output_policy"`
+	OutputPath          string              `json:"output_path"`
+}
+
+// taskWithoutUnmarshal mirrors Task so UnmarshalJSON can decode without
+// recursing into itself. It exists purely to break the method-set loop that
+// defining UnmarshalJSON on Task otherwise creates.
+type taskWithoutUnmarshal Task
+
+// UnmarshalJSON decodes Task JSON and migrates the legacy write_policy field
+// into write_mode/write_scope. write_policy stopped being written, but persisted
+// tasks created before this change still carry it; decoding them here keeps the
+// single representation (write_mode + write_scope) authoritative without losing
+// older permissions.
+func (t *Task) UnmarshalJSON(data []byte) error {
+	aux := struct {
+		taskWithoutUnmarshal
+		LegacyWritePolicy string `json:"write_policy,omitempty"`
+	}{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*t = Task(aux.taskWithoutUnmarshal)
+	if strings.TrimSpace(t.WriteMode) == "" && strings.TrimSpace(t.WriteScope) == "" && strings.TrimSpace(aux.LegacyWritePolicy) != "" {
+		t.WriteMode, t.WriteScope = writeModeScopeFromLegacyPolicy(aux.LegacyWritePolicy)
+	}
+	return nil
 }
 
 // TriggerDefinition describes one condition that can cause an automation task to notify or run.
@@ -195,6 +265,10 @@ type ToolManifestItem struct {
 
 type ListResult struct {
 	Tasks []Task `json:"tasks"`
+}
+
+type TemplateListResult struct {
+	Templates []TaskTemplate `json:"templates"`
 }
 
 type RunResult struct {

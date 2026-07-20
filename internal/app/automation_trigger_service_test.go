@@ -6,19 +6,21 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"casemagica/config"
-	"casemagica/internal/agent"
-	"casemagica/internal/automation"
-	"casemagica/internal/book"
+	"denova/config"
+	"denova/internal/agent"
+	"denova/internal/automation"
+	"denova/internal/book"
+	"denova/internal/workspacechange"
 )
 
 func TestAutomationCheckCreatesRetryableInboxWhenAutoRunCannotStart(t *testing.T) {
 	root := t.TempDir()
 	workspace := filepath.Join(root, "workspace")
-	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 
 	now := time.Now()
@@ -63,7 +65,7 @@ func TestAutomationCheckCreatesRetryableInboxWhenAutoRunCannotStart(t *testing.T
 func TestAutomationCheckSkipsInboxForSilentScheduleTrigger(t *testing.T) {
 	root := t.TempDir()
 	workspace := filepath.Join(root, "workspace")
-	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 
 	now := time.Now()
@@ -112,8 +114,9 @@ func TestAutomationChapterBatchTriggerCreatesInboxAtBatchBoundaries(t *testing.T
 	for i := 1; i <= 4; i++ {
 		writeTestChapter(t, workspace, i)
 	}
-	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
+	t.Cleanup(app.Close)
 	app.bookService = book.NewService(workspace)
 
 	task, err := app.CreateAutomation(automation.Task{
@@ -175,10 +178,10 @@ func TestAutomationChapterBatchTriggerCreatesInboxAtBatchBoundaries(t *testing.T
 	if len(items) != 0 {
 		t.Fatalf("same batch should not retrigger after chapter metadata changes, got %#v", items)
 	}
-	if _, err := app.automation().store().DismissInboxItem(itemsFromFirstBatch(t, app, task.ID)); err != nil {
+	if _, err := app.automation().storeAllWorkspaces().DismissInboxItem(itemsFromFirstBatch(t, app, task.ID)); err != nil {
 		t.Fatalf("dismiss first batch inbox: %v", err)
 	}
-	savedTask, err := app.automation().store().Get(task.ID)
+	savedTask, err := app.automation().storeAllWorkspaces().Get(task.ID)
 	if err != nil {
 		t.Fatalf("load saved task: %v", err)
 	}
@@ -223,7 +226,7 @@ func TestAutomationMutationCheckRunsOnlyContentTriggersForChapterWrites(t *testi
 		t.Fatal(err)
 	}
 	writeTestChapter(t, workspace, 1)
-	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	app.bookService = book.NewService(workspace)
 
@@ -298,7 +301,7 @@ func TestAutomationMutationCallbackChecksAgentChapterWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeTestChapter(t, workspace, 1)
-	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	app.bookService = book.NewService(workspace)
 
@@ -333,6 +336,342 @@ func TestAutomationMutationCallbackChecksAgentChapterWrites(t *testing.T) {
 	}
 }
 
+func TestUserScheduleLastRunOnlySuppressesItsOwnWorkspace(t *testing.T) {
+	root := t.TempDir()
+	workspaceA := filepath.Join(root, "a")
+	workspaceB := filepath.Join(root, "b")
+	for _, workspace := range []string{workspaceA, workspaceB} {
+		if err := os.MkdirAll(workspace, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	now := time.Date(2026, 7, 16, 10, 0, 0, 0, time.UTC)
+	task := automation.Task{
+		ID:    "shared-user-task",
+		Scope: automation.ScopeUser,
+		LastRun: &automation.RunRecord{
+			Workspace: workspaceA,
+			StartedAt: now.Add(-10 * time.Minute),
+		},
+	}
+	trigger := automation.TriggerDefinition{
+		ID:   "hourly",
+		Type: automation.TriggerTypeSchedule,
+		Schedule: automation.Schedule{
+			Kind:       automation.ScheduleEveryHours,
+			EveryHours: 1,
+		},
+	}
+	serviceA := automationRegistryTestService(&App{})
+	snapA := automationRegistryTestSnapshot(workspaceA)
+	if _, _, matched, err := serviceA.evaluateScheduleTrigger(snapA, now, task, trigger, automation.TriggerState{}); err != nil || matched {
+		t.Fatalf("workspace A schedule matched=%v err=%v, want suppressed by its recent run", matched, err)
+	}
+	serviceB := automationRegistryTestService(&App{})
+	snapB := automationRegistryTestSnapshot(workspaceB)
+	if _, _, matched, err := serviceB.evaluateScheduleTrigger(snapB, now, task, trigger, automation.TriggerState{}); err != nil || !matched {
+		t.Fatalf("workspace B schedule matched=%v err=%v, want independent first run", matched, err)
+	}
+}
+
+func TestAutomationMutationChecksCoalesceRapidSavesWithoutDuplicateInbox(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	if err := os.MkdirAll(filepath.Join(workspace, "chapters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestChapter(t, workspace, 1)
+	application := &App{
+		cfg:         &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace},
+		workspace:   workspace,
+		bookService: book.NewService(workspace),
+	}
+	application.ensureServices()
+	defer application.Close()
+	task, err := application.CreateAutomation(automation.Task{
+		Scope:      automation.ScopeWorkspace,
+		Enabled:    true,
+		Name:       "Rapid-save review",
+		Template:   automation.TemplateReview,
+		WriteMode:  automation.WriteModeReadOnly,
+		WriteScope: automation.WriteScopeNone,
+		Triggers: []automation.TriggerDefinition{{
+			ID:               "chapter_batch_1",
+			Type:             automation.TriggerTypeChapterBatch,
+			Enabled:          true,
+			NotifyPolicy:     automation.NotifyPolicyInbox,
+			ChapterBatchSize: 1,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("CreateAutomation failed: %v", err)
+	}
+	for i := 0; i < 32; i++ {
+		application.CheckAutomationTriggersAfterWorkspaceMutation(context.Background(), "rapid_save", []string{"chapters/ch01.md"})
+	}
+	items := waitForAutomationInbox(t, application, 1)
+	if items[0].TaskID != task.ID {
+		t.Fatalf("unexpected inbox item: %#v", items[0])
+	}
+}
+
+func TestAutomationMutationEvaluatorIgnoresRequestCancelAndAppCloseDrains(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	if err := os.MkdirAll(filepath.Join(workspace, "chapters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestChapter(t, workspace, 1)
+	application := &App{
+		cfg:         &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace},
+		workspace:   workspace,
+		bookService: book.NewService(workspace),
+	}
+	application.ensureServices()
+	if _, err := application.CreateAutomation(automation.Task{
+		Scope:      automation.ScopeWorkspace,
+		Enabled:    true,
+		Name:       "Lifecycle semantic review",
+		Template:   automation.TemplateReview,
+		WriteMode:  automation.WriteModeReadOnly,
+		WriteScope: automation.WriteScopeNone,
+		Triggers: []automation.TriggerDefinition{{
+			ID:                "semantic_batch_1",
+			Type:              automation.TriggerTypeSemantic,
+			Enabled:           true,
+			NotifyPolicy:      automation.NotifyPolicyInbox,
+			SemanticCondition: "chapter is ready",
+			ChapterBatchSize:  1,
+		}},
+	}); err != nil {
+		t.Fatalf("CreateAutomation failed: %v", err)
+	}
+
+	started := make(chan struct{})
+	canceled := make(chan struct{})
+	previousEvaluator := semanticTriggerEvaluator
+	semanticTriggerEvaluator = func(ctx context.Context, _ *config.Config, _ string) (string, error) {
+		close(started)
+		<-ctx.Done()
+		close(canceled)
+		return "", ctx.Err()
+	}
+	defer func() { semanticTriggerEvaluator = previousEvaluator }()
+	requestCtx, cancelRequest := context.WithCancel(context.Background())
+	cancelRequest()
+	application.CheckAutomationTriggersAfterWorkspaceMutation(requestCtx, "canceled_request", []string{"chapters/ch01.md"})
+	select {
+	case <-started:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("request cancellation incorrectly prevented mutation evaluation")
+	}
+	closed := make(chan struct{})
+	go func() {
+		application.Close()
+		close(closed)
+	}()
+	select {
+	case <-canceled:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("App.Close did not cancel the mutation evaluator")
+	}
+	select {
+	case <-closed:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("App.Close did not drain the mutation evaluator")
+	}
+}
+
+func TestUserAutomationTriggerStateAndInboxAreWorkspaceScoped(t *testing.T) {
+	root := t.TempDir()
+	userDir := filepath.Join(root, "user")
+	workspaces := []string{filepath.Join(root, "one"), filepath.Join(root, "two")}
+	for _, workspace := range workspaces {
+		if err := os.MkdirAll(filepath.Join(workspace, "chapters"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		writeTestChapter(t, workspace, 1)
+	}
+	application := &App{cfg: &config.Config{NovaDir: userDir}}
+	application.ensureServices()
+	defer application.Close()
+	service := &AutomationAppService{app: application}
+	snapshots := make([]*automationWorkspaceSnapshot, 0, len(workspaces))
+	for _, workspace := range workspaces {
+		snapshots = append(snapshots, &automationWorkspaceSnapshot{
+			workspace:   workspace,
+			novaDir:     userDir,
+			cfg:         config.Config{NovaDir: userDir, Workspace: workspace},
+			bookService: book.NewService(workspace),
+		})
+	}
+	task, err := service.Create(automation.Task{
+		Scope:      automation.ScopeUser,
+		Enabled:    true,
+		Name:       "Shared user review",
+		Template:   automation.TemplateReview,
+		WriteMode:  automation.WriteModeReadOnly,
+		WriteScope: automation.WriteScopeNone,
+		Triggers: []automation.TriggerDefinition{{
+			ID:               "chapter_batch_1",
+			Type:             automation.TriggerTypeChapterBatch,
+			ActionPolicy:     automation.ActionPolicyNotifyOnly,
+			Enabled:          true,
+			NotifyPolicy:     automation.NotifyPolicyInbox,
+			ChapterBatchSize: 1,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create user automation: %v", err)
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, len(snapshots))
+	for _, snap := range snapshots {
+		wg.Add(1)
+		go func(snap *automationWorkspaceSnapshot) {
+			defer wg.Done()
+			_, _, err := service.processContentTriggers(context.Background(), snap, time.Now().UTC(), "test")
+			errs <- err
+		}(snap)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("workspace trigger check failed: %v", err)
+		}
+	}
+	fingerprints := map[string]bool{}
+	for index, snap := range snapshots {
+		items, err := storeForSnapshot(snap).ListInbox()
+		if err != nil {
+			t.Fatalf("workspace %d Inbox failed: %v", index, err)
+		}
+		if len(items) != 1 || items[0].TaskID != task.ID || items[0].Workspace != workspaces[index] {
+			t.Fatalf("workspace %d inbox = %#v", index, items)
+		}
+		fingerprints[items[0].Fingerprint] = true
+	}
+	if len(fingerprints) != len(workspaces) {
+		t.Fatalf("user-scope fingerprints collided across workspaces: %#v", fingerprints)
+	}
+	saved, err := automation.NewStore(userDir, "").Get(task.ID)
+	if err != nil {
+		t.Fatalf("load shared user task: %v", err)
+	}
+	if len(saved.TriggerState) != len(workspaces) {
+		t.Fatalf("trigger state count = %d, want %d: %#v", len(saved.TriggerState), len(workspaces), saved.TriggerState)
+	}
+}
+
+func TestWorkspaceChangeMutationAutomationUsesCapturedWorkspaceAfterSwitch(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace")
+	nextWorkspace := filepath.Join(root, "next-workspace")
+	for _, target := range []string{workspace, nextWorkspace} {
+		if err := os.MkdirAll(filepath.Join(target, "chapters"), 0o755); err != nil {
+			t.Fatalf("create chapter directory: %v", err)
+		}
+	}
+	writeTestChapter(t, workspace, 1)
+	novaDir := filepath.Join(root, "nova")
+	app := &App{
+		cfg:         &config.Config{NovaDir: novaDir, Workspace: workspace},
+		workspace:   workspace,
+		bookService: book.NewService(workspace),
+	}
+	app.ensureServices()
+	t.Cleanup(app.Close)
+
+	if _, err := app.CreateAutomation(automation.Task{
+		Scope:      automation.ScopeWorkspace,
+		Enabled:    true,
+		Name:       "Captured semantic review",
+		Template:   automation.TemplateReview,
+		WriteMode:  automation.WriteModeReadOnly,
+		WriteScope: automation.WriteScopeNone,
+		Triggers: []automation.TriggerDefinition{{
+			ID:                "semantic_batch_1",
+			Type:              automation.TriggerTypeSemantic,
+			Enabled:           true,
+			NotifyPolicy:      automation.NotifyPolicyInbox,
+			SemanticCondition: "chapter is ready",
+			ChapterBatchSize:  1,
+		}},
+	}); err != nil {
+		t.Fatalf("CreateAutomation failed: %v", err)
+	}
+
+	evaluationStarted := make(chan string, 1)
+	releaseEvaluation := make(chan struct{})
+	previousEvaluator := semanticTriggerEvaluator
+	semanticTriggerEvaluator = func(ctx context.Context, cfg *config.Config, _ string) (string, error) {
+		evaluationStarted <- cfg.Workspace
+		select {
+		case <-releaseEvaluation:
+			return `{"matched":true,"confidence":0.9,"reason":"ready","title":"Ready","evidence_refs":["chapters/ch01.md"]}`, nil
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+	defer func() { semanticTriggerEvaluator = previousEvaluator }()
+
+	if _, err := app.WithWorkspaceChangeMutation(
+		context.Background(),
+		workspace,
+		func(*workspacechange.Service) (WorkspaceChangeMutationHooks, error) {
+			return WorkspaceChangeMutationHooks{
+				AutomationSource: "editor_save",
+				Paths:            []string{"chapters/ch01.md"},
+			}, nil
+		},
+	); err != nil {
+		t.Fatalf("WithWorkspaceChangeMutation failed: %v", err)
+	}
+
+	select {
+	case evaluatedWorkspace := <-evaluationStarted:
+		if evaluatedWorkspace != workspace {
+			t.Fatalf("evaluator workspace=%q want captured %q", evaluatedWorkspace, workspace)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("automation evaluation did not start")
+	}
+
+	app.mu.Lock()
+	app.workspace = nextWorkspace
+	app.cfg.Workspace = nextWorkspace
+	app.bookService = book.NewService(nextWorkspace)
+	app.mu.Unlock()
+	close(releaseEvaluation)
+
+	oldStore := automation.NewStore(novaDir, workspace)
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for {
+		inbox, err := oldStore.ListInbox()
+		if err != nil {
+			t.Fatalf("list captured workspace inbox: %v", err)
+		}
+		if len(inbox) == 1 {
+			if inbox[0].Workspace != workspace {
+				t.Fatalf("inbox workspace=%q want=%q", inbox[0].Workspace, workspace)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("captured workspace inbox was not created: %#v", inbox)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	newInbox, err := automation.NewStore(novaDir, nextWorkspace).ListInbox()
+	if err != nil {
+		t.Fatalf("list next workspace inbox: %v", err)
+	}
+	if len(newInbox) != 0 {
+		t.Fatalf("next workspace received stale automation trigger: %#v", newInbox)
+	}
+}
+
 func TestAutomationSemanticTriggerChecksOnlyCompletedChapterBatches(t *testing.T) {
 	root := t.TempDir()
 	workspace := filepath.Join(root, "workspace")
@@ -342,7 +681,7 @@ func TestAutomationSemanticTriggerChecksOnlyCompletedChapterBatches(t *testing.T
 	for i := 1; i <= 2; i++ {
 		writeTestChapter(t, workspace, i)
 	}
-	app := &App{cfg: &config.Config{DenovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
+	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
 	app.bookService = book.NewService(workspace)
 
@@ -427,6 +766,15 @@ func TestAutomationWriteModeToolConstraints(t *testing.T) {
 		t.Fatalf("lore_and_file tools = %#v, want both write tools", loreAndFileTools)
 	}
 
+	global := constrainGlobalAutomationTools(config.Config{})
+	globalTools := config.ResolveAgentTools(&global, config.AgentKindAutomation)
+	if globalTools.FileRead || globalTools.FileWrite || globalTools.ShellExecute || globalTools.LoreRead || globalTools.LoreWrite {
+		t.Fatalf("global automation exposed workspace tools: %#v", globalTools)
+	}
+	if !globalTools.Skills || !globalTools.Todo || !globalTools.WebSearch {
+		t.Fatalf("global automation omitted user-level tools: %#v", globalTools)
+	}
+
 	firstRun := automation.RunRecord{Trigger: automation.TriggerCondition}
 	mode, scope := effectiveAutomationWriteModeScope(automation.Task{WriteMode: automation.WriteModeConfirmWrite, WriteScope: automation.WriteScopeFile}, firstRun)
 	if mode != automation.WriteModeReadOnly || scope != automation.WriteScopeNone {
@@ -444,7 +792,7 @@ func TestAutomationRuntimeConfigUsesTaskModelProfile(t *testing.T) {
 	workspace := filepath.Join(root, "workspace")
 	app := &App{
 		cfg: &config.Config{
-			DenovaDir:     filepath.Join(root, "nova"),
+			NovaDir:     filepath.Join(root, "nova"),
 			Workspace:   workspace,
 			OpenAIModel: "base-model",
 			ModelProfiles: []config.ModelProfileSettings{{
@@ -456,28 +804,36 @@ func TestAutomationRuntimeConfigUsesTaskModelProfile(t *testing.T) {
 		workspace: workspace,
 	}
 	app.ensureServices()
+	snap := app.automationSnapshot()
+	if snap == nil {
+		t.Fatal("automation snapshot is nil")
+	}
 
-	cfg := app.automation().runtimeConfigForTask(automation.Task{ModelProfileID: "fast"})
+	cfg := runtimeConfigForTask(snap, automation.Task{ModelProfileID: "fast"})
 	resolved := config.ResolveAgentModel(&cfg, config.AgentKindAutomation)
 	if resolved.ProfileID != "fast" || resolved.OpenAIModel != "fast-model" {
 		t.Fatalf("resolved model = %#v, want fast profile", resolved)
 	}
 
-	cfg = app.automation().runtimeConfigForTask(automation.Task{})
+	cfg = runtimeConfigForTask(snap, automation.Task{})
 	resolved = config.ResolveAgentModel(&cfg, config.AgentKindAutomation)
 	if resolved.ProfileID != "default" || resolved.OpenAIModel != "base-model" {
 		t.Fatalf("resolved inherited model = %#v, want default base model", resolved)
 	}
 
-	cfg = app.automation().runtimeConfigForTask(automation.Task{Template: automation.TemplateReview})
+	cfg = runtimeConfigForTask(snap, automation.Task{Template: automation.TemplateReview})
 	if cfg.MaxIteration != 0 {
 		t.Fatalf("review max iteration should stay unlimited by default, got %d", cfg.MaxIteration)
 	}
 	maxIteration := 20
-	if err := config.WriteSettingsFile(config.UserConfigPath(app.cfg.DenovaDir), config.Settings{MaxIteration: &maxIteration}); err != nil {
+	if err := config.WriteSettingsFile(config.UserConfigPath(app.cfg.NovaDir), config.Settings{MaxIteration: &maxIteration}); err != nil {
 		t.Fatal(err)
 	}
-	cfg = app.automation().runtimeConfigForTask(automation.Task{Template: automation.TemplateReview})
+	snap = app.automationSnapshot()
+	if snap == nil {
+		t.Fatal("automation snapshot is nil after settings write")
+	}
+	cfg = runtimeConfigForTask(snap, automation.Task{Template: automation.TemplateReview})
 	if cfg.MaxIteration != maxIteration {
 		t.Fatalf("review max iteration = %d, want explicit configured value %d", cfg.MaxIteration, maxIteration)
 	}
@@ -535,6 +891,26 @@ func TestAutomationMessageDoesNotFallbackToTemplatePrompt(t *testing.T) {
 	}
 	if !strings.Contains(message, automation.GenericTaskPrompt) {
 		t.Fatalf("empty task prompt should use generic fallback:\n%s", message)
+	}
+}
+
+func TestGlobalAutomationMessageDoesNotRequestWorkspaceContext(t *testing.T) {
+	service := &AutomationAppService{}
+	task := automation.Task{
+		Name:         "Global research",
+		Target:       automation.ExecutionTarget{Kind: automation.TargetKindUser},
+		Template:     automation.TemplateCustomPrompt,
+		Prompt:       "检索公开资料并整理摘要",
+		WriteMode:    automation.WriteModeReadOnly,
+		WriteScope:   automation.WriteScopeNone,
+		OutputPolicy: automation.OutputPolicyRunRecordOnly,
+	}
+	message := service.buildAutomationUserMessage(task, automation.RunRecord{Trigger: automation.TriggerManual}, automation.WriteModeReadOnly, automation.WriteScopeNone)
+	if strings.Contains(message, "读取完成任务所需的工作区文件") {
+		t.Fatalf("global task message requested workspace files:\n%s", message)
+	}
+	if !strings.Contains(message, "全局任务") || !strings.Contains(message, "用户级") {
+		t.Fatalf("global task message did not state its execution boundary:\n%s", message)
 	}
 }
 

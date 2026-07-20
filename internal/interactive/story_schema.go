@@ -15,7 +15,7 @@ const (
 	StoryEventTypeCompaction        = "context_compaction"
 	StoryEventTypeCompactionRemoved = "context_compaction_removed"
 
-	stateOpSchemaVersion = 1
+	stateOpSchemaVersion = 2
 )
 
 // StoryEventEnvelope is the stable schema envelope for every JSONL event row.
@@ -70,7 +70,7 @@ func mapToStoryEventRecord(raw map[string]any) (StoryEventRecord, error) {
 		if err := mapToStruct(raw, &delta); err != nil {
 			return StoryEventRecord{}, err
 		}
-		if err := validateStateDelta(StateDelta{SchemaVersion: delta.SchemaVersion, Ops: delta.Ops}); err != nil {
+		if err := validateStateDelta(StateDelta{SchemaVersion: delta.SchemaVersion, Ops: delta.Ops, ActorOps: delta.ActorOps}); err != nil {
 			return StoryEventRecord{}, fmt.Errorf("校验状态变化事件失败: %w", err)
 		}
 	}
@@ -82,7 +82,31 @@ func storyEventRecordForWrite(event any) (StoryEventRecord, error) {
 	if err != nil {
 		return StoryEventRecord{}, err
 	}
-	return decodeStoryEventRecord(data)
+	record, err := decodeStoryEventRecord(data)
+	if err != nil {
+		return StoryEventRecord{}, err
+	}
+	switch record.Envelope.Type {
+	case StoryEventTypeTurn:
+		var turn TurnEvent
+		if err := mapToStruct(record.Raw, &turn); err != nil {
+			return StoryEventRecord{}, err
+		}
+		if turn.StateDelta != nil {
+			if err := validateStateDeltaForWrite(*turn.StateDelta); err != nil {
+				return StoryEventRecord{}, fmt.Errorf("校验待写入回合状态变化失败: %w", err)
+			}
+		}
+	case StoryEventTypeStateDelta:
+		var delta StateDeltaEvent
+		if err := mapToStruct(record.Raw, &delta); err != nil {
+			return StoryEventRecord{}, err
+		}
+		if err := validateStateDeltaForWrite(StateDelta{SchemaVersion: delta.SchemaVersion, Ops: delta.Ops, ActorOps: delta.ActorOps}); err != nil {
+			return StoryEventRecord{}, fmt.Errorf("校验待写入状态变化事件失败: %w", err)
+		}
+	}
+	return record, nil
 }
 
 func validateStoryMeta(meta StoryMeta) error {
@@ -104,6 +128,9 @@ func validateStoryMeta(meta StoryMeta) error {
 	}
 	if meta.ReplyTargetChars <= 0 {
 		return fmt.Errorf("故事单轮目标字数无效: %d", meta.ReplyTargetChars)
+	}
+	if err := validateStoryChoiceCount(meta.ChoiceCount); err != nil {
+		return err
 	}
 	switch meta.ImageSettings.Mode {
 	case StoryImageModeManual, StoryImageModeInterval:
@@ -157,6 +184,10 @@ func newStateDelta(ops []StateOp) StateDelta {
 	return StateDelta{SchemaVersion: stateOpSchemaVersion, Ops: ops}
 }
 
+func newStateDeltaWithActorOps(ops []StateOp, actorOps []ActorStateOp) StateDelta {
+	return StateDelta{SchemaVersion: stateOpSchemaVersion, Ops: ops, ActorOps: actorOps}
+}
+
 func newStateDeltaEvent(id, parentID, branchID, ts string, ops []StateOp) StateDeltaEvent {
 	return StateDeltaEvent{
 		V:             schemaVersion,
@@ -170,17 +201,57 @@ func newStateDeltaEvent(id, parentID, branchID, ts string, ops []StateOp) StateD
 	}
 }
 
+func newStateDeltaEventWithActorOps(id, parentID, branchID, ts string, ops []StateOp, actorOps []ActorStateOp) StateDeltaEvent {
+	event := newStateDeltaEvent(id, parentID, branchID, ts, ops)
+	event.ActorOps = actorOps
+	return event
+}
+
 func validateStateDelta(delta StateDelta) error {
 	if delta.SchemaVersion < 0 || delta.SchemaVersion > stateOpSchemaVersion {
 		return fmt.Errorf("状态变化 schema 版本不支持: %d", delta.SchemaVersion)
-	}
-	if len(delta.Ops) == 0 {
-		return nil
 	}
 	for _, op := range delta.Ops {
 		if err := validateStateOp(op); err != nil {
 			return err
 		}
+	}
+	for _, op := range delta.ActorOps {
+		if err := validateActorStateOp(op); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateStateDeltaForWrite(delta StateDelta) error {
+	if err := validateStateDelta(delta); err != nil {
+		return err
+	}
+	for _, op := range delta.Ops {
+		if strings.TrimSpace(op.Op) == "set" && op.Value == nil {
+			return fmt.Errorf("set 状态操作缺少 value: path=%s", op.Path)
+		}
+	}
+	for _, op := range delta.ActorOps {
+		if strings.TrimSpace(op.Op) == "set" && op.Value == nil {
+			return fmt.Errorf("set Actor 状态操作缺少 value: actor_id=%s field_id=%s", op.ActorID, op.FieldID)
+		}
+	}
+	return nil
+}
+
+func validateActorStateOp(op ActorStateOp) error {
+	switch strings.TrimSpace(op.Op) {
+	case "set", "inc", "unset":
+	default:
+		return fmt.Errorf("未知 Actor 状态操作: %q", op.Op)
+	}
+	if normalizeActorStateID(op.ActorID) == "" {
+		return fmt.Errorf("Actor 状态操作缺少 actor_id")
+	}
+	if normalizeActorStateFieldName(op.FieldID) == "" {
+		return fmt.Errorf("Actor 状态操作缺少 field_id")
 	}
 	return nil
 }

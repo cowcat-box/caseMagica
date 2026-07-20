@@ -9,11 +9,11 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
-	"casemagica/config"
-	"casemagica/internal/agent"
-	"casemagica/internal/book"
-	"casemagica/internal/interactiveimage"
-	"casemagica/internal/session"
+	"denova/config"
+	"denova/internal/agent"
+	"denova/internal/book"
+	"denova/internal/interactiveimage"
+	"denova/internal/session"
 )
 
 type ImageAgentGenerateRequest struct {
@@ -107,11 +107,11 @@ func (s *ImageAppService) agentRuntimeSnapshot() (config.Config, *book.State, *b
 	state := app.bookState
 	bookService := app.bookService
 	workspace := app.workspace
-	denovaDir := cfg.DenovaDir
+	novaDir := cfg.DataDir()
 	app.mu.RUnlock()
 
 	cfg.Workspace = workspace
-	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&cfg, layered)
 	} else {
 		log.Printf("[image-agent] 加载分层配置失败 workspace=%s err=%v", workspace, err)

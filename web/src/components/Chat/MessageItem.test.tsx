@@ -47,6 +47,14 @@ describe('MessageItem', () => {
     expect(screen.getByText('cmd')).toBeInTheDocument()
   })
 
+  it('流式 assistant 尚无正文时以 Shimmer 显示思考状态', () => {
+    render(<MessageItem message={{ role: 'assistant', content: '', streaming: true }} />)
+
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent('思考中...')
+    expect(status.querySelector('.bg-clip-text')).toBeInTheDocument()
+  })
+
   it('流式 assistant 新增正文先预留目标高度，提升为 content 后才显示新文字', () => {
     const { container, rerender } = render(<MessageItem message={{ role: 'assistant', content: '第一行内容', streaming: true }} />)
 
@@ -76,6 +84,85 @@ describe('MessageItem', () => {
 
     expect(streamedTags).toEqual(['H1', 'P', 'UL', 'BLOCKQUOTE'])
     expect(persistedTags).toEqual(streamedTags)
+  })
+
+  it('流式 assistant 不展示操作按钮但预留底部操作区，完成后再展示复制', () => {
+    const { container, rerender } = render(
+      <MessageItem
+        message={{ role: 'assistant', content: '故事继续。', streaming: true }}
+      />,
+    )
+
+    expect(container.querySelector('.nova-message-meta-spacer')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '复制消息' })).not.toBeInTheDocument()
+
+    rerender(
+      <MessageItem
+        message={{ role: 'assistant', content: '故事继续。', turn_id: 'turn-1', streaming: false }}
+      />,
+    )
+
+    expect(container.querySelector('.nova-message-meta-spacer')).toBeNull()
+    expect(container.querySelector('.nova-message-meta')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '复制消息' })).toBeInTheDocument()
+  })
+
+  it('流式 assistant 即使存在完成后操作，也要等输出结束才显示按钮', () => {
+    render(
+      <MessageItem
+        message={{ role: 'assistant', content: '故事继续。', turn_id: 'turn-1', streaming: true }}
+        onEditAssistantReply={vi.fn()}
+        onGenerateInteractiveImage={vi.fn()}
+        onRegenerate={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: '复制消息' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '编辑 AI 回复' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '生成互动图像' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '重新生成这一轮' })).not.toBeInTheDocument()
+  })
+
+  it('游戏模式持久化 AI 回复把编辑按钮放在复制与图像生成同一操作行', async () => {
+    const user = userEvent.setup()
+    const handleEdit = vi.fn()
+    const { container } = render(
+      <MessageItem
+        message={{ role: 'assistant', content: '朋友住在 3 楼 403 室。', turn_id: 'turn-1' }}
+        onEditAssistantReply={handleEdit}
+        onGenerateInteractiveImage={vi.fn()}
+      />,
+    )
+
+    const actionRow = container.querySelector('.nova-message-meta') as HTMLElement
+    expect(within(actionRow).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+      '复制消息',
+      '编辑 AI 回复',
+      '生成互动图像',
+    ])
+
+    await user.click(screen.getByRole('button', { name: '编辑 AI 回复' }))
+    expect(handleEdit).toHaveBeenCalledWith(expect.objectContaining({ turn_id: 'turn-1' }))
+  })
+
+  it('错误消息结束后展示复制和重试操作', () => {
+    render(
+      <MessageItem
+        message={{ role: 'error', content: '[NodeRunError] 400 Bad Request', streaming: false }}
+        onRegenerate={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: '复制消息' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '重新生成这一轮' })).toBeInTheDocument()
+  })
+
+  it('流式 user 消息没有编辑权限时也能复制并保留与后续内容的间隔', () => {
+    const { container } = render(<MessageItem message={{ role: 'user', content: '继续', streaming: false }} />)
+
+    expect(container.querySelector('.nova-message-meta-spacer')).toBeNull()
+    expect(container.querySelector('.nova-message-meta')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '复制消息' })).toBeInTheDocument()
   })
 
   it('游戏模式 assistant 消息高亮常见对白引号', () => {
@@ -181,6 +268,32 @@ describe('MessageItem', () => {
     expect(screen.getByText('调用工具')).toBeInTheDocument()
     expect(screen.getByText('write_file')).toBeInTheDocument()
     expect(screen.getByText('写入完成')).toBeInTheDocument()
+  })
+
+  it('批量 edit_file 显示改动数量且不流式展开 new_string', () => {
+    const args = JSON.stringify({
+      file_path: 'chapters/ch01.md',
+      edits: [
+        { id: 'intro', old_string: '旧开场', new_string: '新的开场正文' },
+        { id: 'ending', old_string: '旧结尾', new_string: '新的结尾正文' },
+      ],
+    })
+    const { container } = render(
+      <MessageItem
+        message={{
+          id: 'tool-batch-edit',
+          role: 'tool_call',
+          content: 'edit_file',
+          name: 'edit_file',
+          args,
+          status: 'running',
+        }}
+      />,
+    )
+
+    expect(screen.getByText('chapters/ch01.md · 编辑 2 处')).toBeInTheDocument()
+    expect(container.querySelector('[data-nova-scroll-lock="tool-stream-preview"]')).not.toBeInTheDocument()
+    expect(screen.queryByText(/新的开场正文/)).not.toBeInTheDocument()
   })
 
   it('隐藏章节正文的工具卡片展示写入状态和说明详情', async () => {

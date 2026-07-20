@@ -15,9 +15,9 @@ import (
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 
-	"casemagica/config"
-	"casemagica/internal/observability"
-	"casemagica/internal/session"
+	"denova/config"
+	"denova/internal/observability"
+	"denova/internal/session"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 	contextCompactionPhaseMidRun = "mid_run"
 	contextCompactionReasonLimit = "context_usage_threshold"
 
-	contextCompactionSummaryPrefix = "[CaseMagica Context Compaction]"
+	contextCompactionSummaryPrefix = "[Denova Context Compaction]"
 	contextCompactionMaxAttempts   = 2
 )
 
@@ -41,24 +41,28 @@ type contextCompactionPolicy struct {
 }
 
 type ContextCompactionResult struct {
-	Triggered           bool
-	SkippedReason       string
-	Phase               string
-	TokensBefore        int
-	TokensAfter         int
-	ContextWindowTokens int
-	Strategy            string
-	Threshold           float64
-	Epoch               int
-	Summary             string
-	TargetRatio         float64
-	SourceMessageCount  int
-	MessageCountBefore  int
-	MessageCountAfter   int
-	RetainedTurns       int
+	Triggered                bool
+	SkippedReason            string
+	Phase                    string
+	TokensBefore             int
+	TokensAfter              int
+	ProjectedTokensBefore    int
+	ProjectedTokensAfter     int
+	ReservedCompletionTokens int
+	ReservedToolResultTokens int
+	ContextWindowTokens      int
+	Strategy                 string
+	Threshold                float64
+	Epoch                    int
+	Summary                  string
+	TargetRatio              float64
+	SourceMessageCount       int
+	MessageCountBefore       int
+	MessageCountAfter        int
+	RetainedTurns            int
 }
 
-type contextCompactionSummaryFunc func(ctx context.Context, cfg *config.Config, agentKind string, existingMemory string, source []*schema.Message, referenceContext string, sourceTokens int, policy contextCompactionPolicy, emitDelta func(attempt int, delta string)) (string, int, error)
+type contextCompactionSummaryFunc func(ctx context.Context, cfg *config.Config, agentKind string, existingCheckpoint string, source []*schema.Message, referenceContext string, sourceTokens int, policy contextCompactionPolicy, emitDelta func(attempt int, delta string)) (string, int, error)
 
 type contextCompactionController struct {
 	conversation ContextCompactionConversation
@@ -78,10 +82,15 @@ type ContextCompactionInput struct {
 	Phase               string
 	Emit                func(Event)
 	Force               bool
-	ExistingMemory      string
+	ExistingCheckpoint  string
 	ContextWindowTokens int
-	ReferenceContext    string
-	KeepLatestUser      bool
+	// ReservedCompletionTokens and ReservedToolResultTokens make compaction
+	// decisions against projected context usage, not only the prompt assembled
+	// before the next model/tool step.
+	ReservedCompletionTokens int
+	ReservedToolResultTokens int
+	ReferenceContext         string
+	KeepLatestUser           bool
 }
 
 type contextCompactionContextKey struct{}
@@ -153,29 +162,34 @@ func BuildContextCompaction(ctx context.Context, cfg *config.Config, agentKind s
 	if phase == "" {
 		phase = contextCompactionPhasePreRun
 	}
+	input = withDefaultContextProjectionReserves(cfg, agentKind, input, 0)
 	tokensBefore := EstimateContextTokens(input.Messages, input.Tools)
+	projectedTokensBefore := projectedContextTokens(tokensBefore, input)
 	result := ContextCompactionResult{
-		Phase:               phase,
-		TokensBefore:        tokensBefore,
-		ContextWindowTokens: policy.ContextWindowTokens,
-		Strategy:            policy.Strategy,
-		Threshold:           policy.Threshold,
-		MessageCountBefore:  len(input.Messages),
-		RetainedTurns:       policy.RetainedTurns,
+		Phase:                    phase,
+		TokensBefore:             tokensBefore,
+		ProjectedTokensBefore:    projectedTokensBefore,
+		ReservedCompletionTokens: input.ReservedCompletionTokens,
+		ReservedToolResultTokens: input.ReservedToolResultTokens,
+		ContextWindowTokens:      policy.ContextWindowTokens,
+		Strategy:                 policy.Strategy,
+		Threshold:                policy.Threshold,
+		MessageCountBefore:       len(input.Messages),
+		RetainedTurns:            policy.RetainedTurns,
 	}
-	shouldCompact, skipped := policy.shouldCompact(tokensBefore, input.Force)
+	shouldCompact, skipped := policy.shouldCompact(projectedTokensBefore, input.Force)
 	if !shouldCompact {
 		result.SkippedReason = skipped
 		return input.Messages, result, nil
 	}
 	source := compactionSourceMessages(compactionSourceBaseMessages(input), input.KeepLatestUser)
-	if len(source) == 0 && strings.TrimSpace(input.ExistingMemory) == "" && strings.TrimSpace(input.ReferenceContext) == "" {
+	if len(source) == 0 && strings.TrimSpace(input.ExistingCheckpoint) == "" && strings.TrimSpace(input.ReferenceContext) == "" {
 		result.SkippedReason = "empty_source"
 		return input.Messages, result, nil
 	}
 	sourceTokens := EstimateContextTokens(source, nil)
 	emitContextCompactionEvent(input.Emit, phase, "started", result)
-	summary, inputChars, err := summarizeContextForCompaction(ctx, cfg, agentKind, input.ExistingMemory, source, input.ReferenceContext, sourceTokens, policy, func(attempt int, delta string) {
+	summary, inputChars, err := summarizeContextForCompaction(ctx, cfg, agentKind, input.ExistingCheckpoint, source, input.ReferenceContext, sourceTokens, policy, func(attempt int, delta string) {
 		emitContextCompactionDeltaEvent(input.Emit, phase, result, attempt, delta)
 	})
 	if err != nil {
@@ -190,11 +204,56 @@ func BuildContextCompaction(ctx context.Context, cfg *config.Config, agentKind s
 	result.Epoch = epoch
 	result.Summary = summary
 	result.TokensAfter = EstimateContextTokens(newMessages, input.Tools)
+	result.ProjectedTokensAfter = projectedContextTokens(result.TokensAfter, input)
 	result.TargetRatio = contextCompactionRatio(countRunes(summary), inputChars)
 	result.SourceMessageCount = len(source)
 	result.MessageCountAfter = len(newMessages)
 	emitContextCompactionEvent(input.Emit, phase, "completed", result)
 	return newMessages, result, nil
+}
+
+// EstimateContextProjectionReserves returns bounded reserves for completion and
+// retained tool results. expectedOutputChars should be the user-configured
+// target when one exists; otherwise a small model-relative reserve is used.
+func EstimateContextProjectionReserves(cfg *config.Config, agentKind string, expectedOutputChars int) (completionTokens, toolResultTokens int) {
+	model := config.ResolveAgentModel(cfg, agentKind)
+	window := model.ContextWindowTokens
+	completionTokens = expectedOutputChars
+	if completionTokens <= 0 {
+		completionTokens = max(2048, window/50)
+	} else {
+		// Leave room for the hidden structured result and normal completion
+		// variance around the visible user-configured target.
+		completionTokens += max(1024, expectedOutputChars/4)
+	}
+	if window > 0 {
+		completionTokens = min(completionTokens, max(2048, window/4))
+	}
+	contextSettings := config.ResolveAgentContext(cfg, agentKind)
+	if contextSettings.ToolResultRetentionEnabled && contextSettings.ToolResultContextBudgetKB > 0 {
+		// Tool result budgets are bytes. Dividing by three is a conservative
+		// mixed Chinese/English token estimate without assuming ASCII-only text.
+		toolResultTokens = contextSettings.ToolResultContextBudgetKB * 1024 / 3
+		if window > 0 {
+			toolResultTokens = min(toolResultTokens, max(1024, window/10))
+		}
+	}
+	return completionTokens, toolResultTokens
+}
+
+func withDefaultContextProjectionReserves(cfg *config.Config, agentKind string, input ContextCompactionInput, expectedOutputChars int) ContextCompactionInput {
+	completion, tools := EstimateContextProjectionReserves(cfg, agentKind, expectedOutputChars)
+	if input.ReservedCompletionTokens <= 0 {
+		input.ReservedCompletionTokens = completion
+	}
+	if input.ReservedToolResultTokens <= 0 {
+		input.ReservedToolResultTokens = tools
+	}
+	return input
+}
+
+func projectedContextTokens(promptTokens int, input ContextCompactionInput) int {
+	return max(1, promptTokens+max(0, input.ReservedCompletionTokens)+max(0, input.ReservedToolResultTokens))
 }
 
 func compactionSourceBaseMessages(input ContextCompactionInput) []*schema.Message {
@@ -294,6 +353,12 @@ func isContextCompactionMessage(msg *schema.Message) bool {
 	return msg != nil && strings.HasPrefix(strings.TrimSpace(msg.Content), contextCompactionSummaryPrefix)
 }
 
+// IsContextCompactionSummaryMessage reports whether msg is a model-visible
+// context-checkpoint record produced by Denova's compaction pipeline.
+func IsContextCompactionSummaryMessage(msg *schema.Message) bool {
+	return isContextCompactionMessage(msg)
+}
+
 func compactMessagesForModel(messages []*schema.Message, summary string, epoch, retainedTurns int) []*schema.Message {
 	systemMessages := make([]*schema.Message, 0)
 	contextMessages := make([]*schema.Message, 0, len(messages))
@@ -348,11 +413,19 @@ func BuildCompactedModelMessages(messages []*schema.Message, summary string, epo
 	return compactMessagesForModel(messages, summary, epoch, retainedTurns)
 }
 
-func generateContextCompactionSummary(ctx context.Context, cfg *config.Config, agentKind string, existingMemory string, source []*schema.Message, referenceContext string, sourceTokens int, policy contextCompactionPolicy, emitDelta func(attempt int, delta string)) (string, int, error) {
+func generateContextCompactionSummary(ctx context.Context, cfg *config.Config, agentKind string, existingCheckpoint string, source []*schema.Message, referenceContext string, sourceTokens int, policy contextCompactionPolicy, emitDelta func(attempt int, delta string)) (string, int, error) {
+	var runErr error
+	traceCtx, finishTrace := withStandaloneRunTrace(ctx, cfg, config.AgentKindContextCompaction, "context_compaction", "generate", map[string]any{
+		"source_agent_kind": strings.TrimSpace(agentKind),
+		"source_messages":   len(source),
+		"source_tokens":     sourceTokens,
+	})
+	defer func() { finishTrace(runErr) }()
 	modelCfg := chatModelConfigForAgent(cfg, config.AgentKindContextCompaction)
-	inputChars := contextCompactionInputChars(existingMemory, source, referenceContext)
-	cm, err := openai.NewChatModel(ctx, &modelCfg)
+	inputChars := contextCompactionInputChars(existingCheckpoint, source, referenceContext)
+	cm, err := openai.NewChatModel(traceCtx, &modelCfg)
 	if err != nil {
+		runErr = err
 		return "", inputChars, fmt.Errorf("创建上下文压缩模型失败: %w", err)
 	}
 	systemPrompt := protectedSystemInstruction(cfg, config.AgentKindContextCompaction, contextCompactionSystemInstruction())
@@ -361,19 +434,21 @@ func generateContextCompactionSummary(ctx context.Context, cfg *config.Config, a
 	for attempt := 1; attempt <= contextCompactionMaxAttempts; attempt++ {
 		input := []*schema.Message{
 			schema.SystemMessage(systemPrompt),
-			schema.UserMessage(buildContextCompactionTranscript(source, existingMemory, referenceContext, sourceTokens, inputChars, retryReason, policy)),
+			schema.UserMessage(buildContextCompactionTranscript(source, existingCheckpoint, referenceContext, sourceTokens, inputChars, retryReason, policy)),
 		}
 		mode := fmt.Sprintf("stream_attempt_%d", attempt)
-		span, callID, traceCtx := beginLLMCallTrace(ctx, config.AgentKindContextCompaction, "context_compaction", mode, modelCfg, input, nil, true)
-		msg, err := streamContextCompactionAttempt(traceCtx, cm, input, attempt, emitDelta)
+		span, callID, llmTraceCtx := beginLLMCallTrace(traceCtx, config.AgentKindContextCompaction, "context_compaction", mode, modelCfg, input, nil, true)
+		msg, err := streamContextCompactionAttempt(llmTraceCtx, cm, input, attempt, emitDelta)
 		if err != nil {
 			finishLLMCallTrace(span, callID, config.AgentKindContextCompaction, "context_compaction", mode, modelCfg.Model, attempt, nil, err, nil)
+			runErr = err
 			return "", inputChars, fmt.Errorf("上下文压缩失败: %w", err)
 		}
 		finishLLMCallTrace(span, callID, config.AgentKindContextCompaction, "context_compaction", mode, modelCfg.Model, attempt, msg, nil, nil)
 		summary = strings.TrimSpace(msg.Content)
 		if summary == "" {
-			return "", inputChars, fmt.Errorf("上下文压缩结果为空")
+			runErr = fmt.Errorf("上下文压缩结果为空")
+			return "", inputChars, runErr
 		}
 		summaryChars := countRunes(summary)
 		minChars, maxChars := compactionTargetCharRange(inputChars, policy)
@@ -471,36 +546,38 @@ func contextCompactionRetryInstruction(summaryChars, minChars, maxChars int) str
 
 func contextCompactionSystemInstruction() string {
 	return strings.TrimSpace(`
-你是 CaseMagica 的独立“互动小说上下文压缩器”，用于类似酒馆/SillyTavern 的高轮次互动小说和长对话创作场景。
+你是 Denova 的独立“互动小说上下文压缩器”，用于类似酒馆/SillyTavern 的高轮次互动小说和长对话创作场景。
 
-你的任务是把输入上下文压缩成更精简的“事件时间线记忆”，同时保留所有会对后续剧情、写作任务或用户意图产生长期影响的信息。
+你的任务是从有界输入生成可重建的“历史上下文 checkpoint”，同时保留所有会对后续剧情、写作任务或用户意图产生长期影响的信息。checkpoint 不是新的事实真源；游戏模式的历史事实仍以带 turn_id 的 Turn 事件为准。
 
 输入可能包含：
-1. existing_memory：此前已经压缩过的记忆，可能为空。
-2. reference_context：参考上下文，例如完整 Story Memory 表格。游戏模式必须参考其中的故事记忆，尤其 plot_summary / 剧情纪要。
+1. existing_checkpoint：此前已经从同一来源链压缩出的 checkpoint，可能为空。
+2. reference_context：调用点显式提供的有界参考上下文，可能为空；不得假定存在任何额外记忆库。
 3. new_context：上次压缩后新增的原始有效对话链或互动回合链，包括用户行动、用户对白、LLM 剧情推进、NPC 反应、环境变化、任务状态等。
 
 处理目标：
-- 将 existing_memory、reference_context 与 new_context 合并，输出一份新的压缩记忆。
-- 如果 existing_memory 为空，则从 new_context 初始化压缩记忆。
-- 如果 existing_memory 不为空，则合并新信息；不要重复记录同一事件，新信息补充旧事件时应更新旧事件。
-- 不要删除旧记忆中的长期影响信息，除非 new_context 明确说明该信息已经失效、解决或被推翻。
+- 将 existing_checkpoint、reference_context 与 new_context 合并，输出一份新的历史 checkpoint。
+- 如果 existing_checkpoint 为空，则从 new_context 初始化；否则增量合并，不要重复记录同一事件。
+- 游戏 Turn 输入包含 source turn_id 时，事件和因果结论必须保留相应 turn_id；无法确定来源时明确标记来源缺失，不得自造 ID。
+- 不要删除旧 checkpoint 中的长期影响信息，除非 new_context 明确说明该信息已经失效、解决或被推翻。
 - 如果出现矛盾，不要自行修正；保留矛盾并标记为“待确认矛盾”。
 - 已完成任务可以压缩，但必须保留最终结果和遗留影响。
 - 未完成任务、伏笔、承诺、债务、秘密、危险不能删除。
 - 如果不确定某信息是否有长期影响，默认保留。
+- 游戏模式的当前 Actor 数值、位置、资源和可计算关系以调用方单独注入的 Actor State 为准；checkpoint 只保留这些变化的历史原因和来源 Turn，不复制一份“当前状态真源”。
+- 未来安排属于 DirectorPlan，稳定世界设定属于 Lore；只记录它们在输入中已经发生的变更或对历史事件的解释，不把计划写成既成事实。
 
 压缩重点：
 - 必须保留事件时间顺序。
 - 必须保留所有用户消息的核心意图、关键行动、选择、对白、承诺、拒绝、欺骗、威胁、安慰、交易、背叛、失败尝试及其后果。
 - 必须保留行动造成的后果和所有长期影响信息。
-- 必须保留角色关系、角色状态、世界/阵营状态、物品资源、能力、线索、秘密、伏笔、任务、危险、倒计时和当前阶段信息。
+- 必须保留角色关系和状态变化的原因、世界/阵营变化、物品资源变动、能力变化、线索、秘密、伏笔、任务、危险与倒计时；游戏模式的当前值不在 checkpoint 中重复建账。
 - 可以删除或合并氛围描写、重复心理描写、无后果闲聊、纯修辞性文本。
 - 不要写成小说文风；要写成清晰、紧凑、可供后续模型继续创作的事实账本。
 - 排除 thinking/reasoning 内容、传输噪音、展示用日志、重复工具卡片和无结果的实现过程。
 - 必须保留会改变后续行为的工具证据：文件读取/搜索发现、资料库查询结论、工具报错原因、文件/状态写入结果、版本恢复/工作区状态变化，以及需要后续复用的 tool_result metadata（target、idempotency_key、truncated 等）。
 - 禁止编造事实；不确定时明确标记“不确定”。
-- 目标长度由用户消息配置控制，并按 existing_memory、reference_context 与 new_context 的合计字符数计算，默认是输入字符数的 5%-20%。信息密度高时使用目标范围的上半区，不要为了短而丢长期影响信息。
+- 目标长度由用户消息配置控制，并按 existing_checkpoint、reference_context 与 new_context 的合计字符数计算，默认是输入字符数的 5%-20%。信息密度高时使用目标范围的上半区，不要为了短而丢长期影响信息。
 
 长期影响信息判定：
 只要某条信息未来可能影响角色反应、剧情分支、世界状态、任务推进、关系变化或玩家可用选择，就必须保留。以下信息一律视为长期影响信息：
@@ -510,41 +587,25 @@ func contextCompactionSystemInstruction() string {
 - 世界与阵营状态：地点被破坏/封锁/占领/发现/改变、阵营态度变化、组织行动、通缉、追捕、战争、政治变化、世界规则、禁忌、异常现象、公共事件。
 - 物品、资源与能力：获得、失去、损坏、使用、隐藏的重要物品；金钱、补给、武器、钥匙、信物、证据、药物、装备；技能、权限、身份、通行资格变化。
 - 线索、秘密与伏笔：已发现线索、未解谜团、未兑现威胁、未完成任务、倒计时事件、约定地点/时间/暗号、隐藏身份/目的/计划、叙事确认但角色未必知道的信息。
-- 当前阶段：当前地点、时间/阶段、在场角色、主角状态、NPC 态度、当前目标、危险、限制、用户最后行动、LLM 最后反馈、剧情停顿点、下一轮应从哪里继续。
+- 用户意图与约束：用户明确目标、拒绝、偏好、任务边界、尚未完成的请求和已确认决策。
 
 输出必须使用以下格式：
 
-【事件时间线】
-[时间] 事件名
-谁做了什么，造成了什么变化，这一段要求保留核心信息，特别是有长期影响的信息
+【历史事件时间线】
+- [source turn_id 或消息序号] 谁做了什么，造成了什么长期影响
 
-时间：事件发生的时间，格式为 YYYY-MM-DD 日内时间
+【历史因果与来源】
+- 结论或变化 ← 原因与 source turn_id；矛盾和不确定性在这里标明
 
-【长期影响账本】
-角色关系：
-角色状态：
-世界/阵营状态：
-物品/资源/能力：
-线索/秘密/伏笔：
-未闭环事项：
+【未闭环事项】
+- 伏笔、承诺、债务、秘密、危险、任务、倒计时及其来源
 
-【当前阶段快照】
-当前地点：
-当前时间/阶段：
-当前在场角色：
-主角当前状态：
-NPC当前态度：
-当前目标：
-当前危险：
-当前限制：
-用户最后行动：
-LLM最后反馈：
-剧情停顿点：
-下一轮应从哪里继续：
+【用户意图与任务约束】
+- 仍会影响后续行为的目标、偏好、拒绝、边界与已确认决策
 `)
 }
 
-func buildContextCompactionTranscript(messages []*schema.Message, existingMemory, referenceContext string, sourceTokens, inputChars int, retryInstruction string, policy contextCompactionPolicy) string {
+func buildContextCompactionTranscript(messages []*schema.Message, existingCheckpoint, referenceContext string, sourceTokens, inputChars int, retryInstruction string, policy contextCompactionPolicy) string {
 	blocks := make([]string, 0, len(messages))
 	for i, msg := range messages {
 		if msg == nil {
@@ -554,21 +615,21 @@ func buildContextCompactionTranscript(messages []*schema.Message, existingMemory
 	}
 	minChars, maxChars := compactionTargetCharRange(inputChars, policy)
 	var sb strings.Builder
-	sb.WriteString("请按系统要求压缩以下 CaseMagica 上下文。基于 existing_memory、reference_context 与 new_context 合并生成新的压缩记忆，保留所有会影响后续剧情、任务、关系、世界状态或用户偏好的信息。\n")
-	sb.WriteString(fmt.Sprintf("Estimated new context tokens: %d. Input characters across existing memory, reference context, and new context: %d. Target summary length: %d-%d characters (%s of input characters). 不得低于下限；信息密度高时使用目标范围上半区。\n\n", sourceTokens, inputChars, minChars, maxChars, compactionTargetRange(policy)))
+	sb.WriteString("请按系统要求压缩以下 Denova 上下文。基于 existing_checkpoint、reference_context 与 new_context 增量生成新的历史 checkpoint，保留所有会影响后续剧情、任务、关系、世界状态或用户偏好的信息。\n")
+	sb.WriteString(fmt.Sprintf("Estimated new context tokens: %d. Input characters across existing checkpoint, reference context, and new context: %d. Target summary length: %d-%d characters (%s of input characters). 不得低于下限；信息密度高时使用目标范围上半区。\n\n", sourceTokens, inputChars, minChars, maxChars, compactionTargetRange(policy)))
 	if retryInstruction = strings.TrimSpace(retryInstruction); retryInstruction != "" {
 		sb.WriteString("Retry instruction:\n")
 		sb.WriteString(retryInstruction)
 		sb.WriteString("\n\n")
 	}
-	sb.WriteString("<existing_memory>\n")
-	if existingMemory = strings.TrimSpace(existingMemory); existingMemory != "" {
-		sb.WriteString(existingMemory)
+	sb.WriteString("<existing_checkpoint>\n")
+	if existingCheckpoint = strings.TrimSpace(existingCheckpoint); existingCheckpoint != "" {
+		sb.WriteString(existingCheckpoint)
 		sb.WriteString("\n")
 	} else {
-		sb.WriteString("（未提供；本次输入从新增上下文与参考记忆初始化压缩记忆。）\n")
+		sb.WriteString("（未提供；本次输入从新增上下文与有界参考上下文初始化 checkpoint。）\n")
 	}
-	sb.WriteString("</existing_memory>\n\n")
+	sb.WriteString("</existing_checkpoint>\n\n")
 	if referenceContext = strings.TrimSpace(referenceContext); referenceContext != "" {
 		sb.WriteString("<reference_context>\n")
 		sb.WriteString(referenceContext)
@@ -586,8 +647,8 @@ func buildContextCompactionTranscript(messages []*schema.Message, existingMemory
 	return sb.String()
 }
 
-func contextCompactionInputChars(existingMemory string, messages []*schema.Message, referenceContext string) int {
-	total := countRunes(existingMemory)
+func contextCompactionInputChars(existingCheckpoint string, messages []*schema.Message, referenceContext string) int {
+	total := countRunes(existingCheckpoint)
 	total += countRunes(referenceContext)
 	for i, msg := range messages {
 		if msg == nil {
@@ -620,20 +681,23 @@ func emitContextCompactionEvent(emit func(Event), phase, status string, result C
 		return
 	}
 	emit(Event{Type: "context_compaction", Data: map[string]any{
-		"phase":                 phase,
-		"status":                status,
-		"tokens_before":         result.TokensBefore,
-		"tokens_after":          result.TokensAfter,
-		"context_window_tokens": result.ContextWindowTokens,
-		"strategy":              result.Strategy,
-		"threshold":             result.Threshold,
-		"target_ratio":          result.TargetRatio,
-		"epoch":                 result.Epoch,
-		"source_message_count":  result.SourceMessageCount,
-		"message_count_before":  result.MessageCountBefore,
-		"message_count_after":   result.MessageCountAfter,
-		"skipped_reason":        result.SkippedReason,
-		"summary":               result.Summary,
+		"phase":                       phase,
+		"status":                      status,
+		"tokens_before":               result.TokensBefore,
+		"projected_tokens_before":     result.ProjectedTokensBefore,
+		"reserved_completion_tokens":  result.ReservedCompletionTokens,
+		"reserved_tool_result_tokens": result.ReservedToolResultTokens,
+		"tokens_after":                result.TokensAfter,
+		"context_window_tokens":       result.ContextWindowTokens,
+		"strategy":                    result.Strategy,
+		"threshold":                   result.Threshold,
+		"target_ratio":                result.TargetRatio,
+		"epoch":                       result.Epoch,
+		"source_message_count":        result.SourceMessageCount,
+		"message_count_before":        result.MessageCountBefore,
+		"message_count_after":         result.MessageCountAfter,
+		"skipped_reason":              result.SkippedReason,
+		"summary":                     result.Summary,
 	}})
 }
 
@@ -642,15 +706,18 @@ func emitContextCompactionDeltaEvent(emit func(Event), phase string, result Cont
 		return
 	}
 	emit(Event{Type: "context_compaction", Data: map[string]any{
-		"phase":                 phase,
-		"status":                "delta",
-		"attempt":               attempt,
-		"delta":                 delta,
-		"tokens_before":         result.TokensBefore,
-		"context_window_tokens": result.ContextWindowTokens,
-		"strategy":              result.Strategy,
-		"threshold":             result.Threshold,
-		"message_count_before":  result.MessageCountBefore,
+		"phase":                       phase,
+		"status":                      "delta",
+		"attempt":                     attempt,
+		"delta":                       delta,
+		"tokens_before":               result.TokensBefore,
+		"projected_tokens_before":     result.ProjectedTokensBefore,
+		"reserved_completion_tokens":  result.ReservedCompletionTokens,
+		"reserved_tool_result_tokens": result.ReservedToolResultTokens,
+		"context_window_tokens":       result.ContextWindowTokens,
+		"strategy":                    result.Strategy,
+		"threshold":                   result.Threshold,
+		"message_count_before":        result.MessageCountBefore,
 	}})
 }
 

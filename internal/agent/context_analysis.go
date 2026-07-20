@@ -17,20 +17,23 @@ import (
 )
 
 type ContextAnalysis struct {
-	AgentKind           string                     `json:"agent_kind"`
-	Mode                string                     `json:"mode"`
-	SystemPrompt        string                     `json:"system_prompt"`
-	SystemPromptParts   []ContextAnalysisPart      `json:"system_prompt_parts"`
-	ContextParts        []ContextAnalysisPart      `json:"context_parts"`
-	ContextMessages     []ContextAnalysisPart      `json:"context_messages"`
-	MessageCount        int                        `json:"message_count"`
-	TokenEstimate       int                        `json:"token_estimate"`
-	ContextWindowTokens int                        `json:"context_window_tokens"`
-	ContextUsageRatio   float64                    `json:"context_usage_ratio"`
-	CompactionEpoch     int                        `json:"compaction_epoch,omitempty"`
-	CompactionActive    bool                       `json:"compaction_active,omitempty"`
-	WouldCompact        bool                       `json:"would_compact,omitempty"`
-	Compaction          *ContextAnalysisCompaction `json:"compaction,omitempty"`
+	AgentKind                string                     `json:"agent_kind"`
+	Mode                     string                     `json:"mode"`
+	SystemPrompt             string                     `json:"system_prompt"`
+	SystemPromptParts        []ContextAnalysisPart      `json:"system_prompt_parts"`
+	ContextParts             []ContextAnalysisPart      `json:"context_parts"`
+	ContextMessages          []ContextAnalysisPart      `json:"context_messages"`
+	MessageCount             int                        `json:"message_count"`
+	TokenEstimate            int                        `json:"token_estimate"`
+	ProjectedTokenEstimate   int                        `json:"projected_token_estimate"`
+	ReservedCompletionTokens int                        `json:"reserved_completion_tokens"`
+	ReservedToolResultTokens int                        `json:"reserved_tool_result_tokens"`
+	ContextWindowTokens      int                        `json:"context_window_tokens"`
+	ContextUsageRatio        float64                    `json:"context_usage_ratio"`
+	CompactionEpoch          int                        `json:"compaction_epoch,omitempty"`
+	CompactionActive         bool                       `json:"compaction_active,omitempty"`
+	WouldCompact             bool                       `json:"would_compact,omitempty"`
+	Compaction               *ContextAnalysisCompaction `json:"compaction,omitempty"`
 }
 
 type ContextAnalysisCompaction struct {
@@ -215,7 +218,7 @@ func BuildIDEContextAnalysis(cfg *config.Config, state *book.State, teller IDESt
 			title = runtimeContexts.StableTitle
 		} else if isContextCompactionMessage(msg) {
 			source = "上下文压缩"
-			title = "模型可见压缩摘要"
+			title = "模型可见历史检查点"
 		} else if i == len(messages)-1 {
 			source = "本轮上下文"
 			if strings.TrimSpace(runtimeContexts.Dynamic) != "" {
@@ -226,22 +229,25 @@ func BuildIDEContextAnalysis(cfg *config.Config, state *book.State, teller IDESt
 		}
 		contextMessages = append(contextMessages, contextAnalysisPartFromMessage(fmt.Sprintf("message_%d", i+1), source, title, msg))
 	}
-	usage := analyzeContextUsage(cfg, config.AgentKindIDE, systemPrompt, messages)
+	usage := analyzeContextUsage(cfg, config.AgentKindIDE, systemPrompt, messages, 0)
 	return ContextAnalysis{
-		AgentKind:           config.AgentKindIDE,
-		Mode:                "ide",
-		SystemPrompt:        systemPrompt,
-		SystemPromptParts:   systemParts,
-		ContextParts:        composition.ContextLog.FullParts(),
-		ContextMessages:     contextMessages,
-		MessageCount:        len(contextMessages),
-		TokenEstimate:       usage.tokens,
-		ContextWindowTokens: usage.window,
-		ContextUsageRatio:   usage.ratio,
-		CompactionEpoch:     usage.compactionEpoch(compaction),
-		CompactionActive:    compaction != nil && strings.TrimSpace(compaction.Summary) != "",
-		WouldCompact:        usage.wouldCompact,
-		Compaction:          contextAnalysisCompactionFromSession(compaction),
+		AgentKind:                config.AgentKindIDE,
+		Mode:                     "ide",
+		SystemPrompt:             systemPrompt,
+		SystemPromptParts:        systemParts,
+		ContextParts:             composition.ContextLog.FullParts(),
+		ContextMessages:          contextMessages,
+		MessageCount:             len(contextMessages),
+		TokenEstimate:            usage.tokens,
+		ProjectedTokenEstimate:   usage.projectedTokens,
+		ReservedCompletionTokens: usage.completionReserve,
+		ReservedToolResultTokens: usage.toolResultReserve,
+		ContextWindowTokens:      usage.window,
+		ContextUsageRatio:        usage.ratio,
+		CompactionEpoch:          usage.compactionEpoch(compaction),
+		CompactionActive:         compaction != nil && strings.TrimSpace(compaction.Summary) != "",
+		WouldCompact:             usage.wouldCompact,
+		Compaction:               contextAnalysisCompactionFromSession(compaction),
 	}, nil
 }
 
@@ -292,7 +298,7 @@ func BuildInteractiveStoryContextAnalysis(cfg *config.Config, state *book.State,
 		switch {
 		case isContextCompactionMessage(msg):
 			source = "上下文压缩"
-			title = "模型可见压缩摘要"
+			title = "模型可见历史检查点"
 			compactionEpoch = parseCompactionEpoch(msg.Content)
 		case i == len(messages)-1:
 			source = "本轮互动指令"
@@ -300,45 +306,74 @@ func BuildInteractiveStoryContextAnalysis(cfg *config.Config, state *book.State,
 		}
 		contextMessages = append(contextMessages, contextAnalysisPartFromMessage(fmt.Sprintf("message_%d", i+1), source, title, msg))
 	}
-	usage := analyzeContextUsage(cfg, config.AgentKindInteractiveStory, systemPrompt, messages)
+	usage := analyzeContextUsage(cfg, config.AgentKindInteractiveStory, systemPrompt, messages, teller.ReplyTargetChars)
 	return ContextAnalysis{
-		AgentKind:           config.AgentKindInteractiveStory,
-		Mode:                "interactive",
-		SystemPrompt:        systemPrompt,
-		SystemPromptParts:   systemParts,
-		ContextParts:        composition.ContextLog.FullParts(),
-		ContextMessages:     contextMessages,
-		MessageCount:        len(contextMessages),
-		TokenEstimate:       usage.tokens,
-		ContextWindowTokens: usage.window,
-		ContextUsageRatio:   usage.ratio,
-		CompactionEpoch:     interactiveCompactionEpoch(compaction, compactionEpoch),
-		CompactionActive:    compaction != nil && strings.TrimSpace(compaction.Summary) != "",
-		WouldCompact:        usage.wouldCompact,
-		Compaction:          contextAnalysisCompactionFromInteractive(compaction),
+		AgentKind:                config.AgentKindInteractiveStory,
+		Mode:                     "interactive",
+		SystemPrompt:             systemPrompt,
+		SystemPromptParts:        systemParts,
+		ContextParts:             composition.ContextLog.FullParts(),
+		ContextMessages:          contextMessages,
+		MessageCount:             len(contextMessages),
+		TokenEstimate:            usage.tokens,
+		ProjectedTokenEstimate:   usage.projectedTokens,
+		ReservedCompletionTokens: usage.completionReserve,
+		ReservedToolResultTokens: usage.toolResultReserve,
+		ContextWindowTokens:      usage.window,
+		ContextUsageRatio:        usage.ratio,
+		CompactionEpoch:          interactiveCompactionEpoch(compaction, compactionEpoch),
+		CompactionActive:         compaction != nil && strings.TrimSpace(compaction.Summary) != "",
+		WouldCompact:             usage.wouldCompact,
+		Compaction:               contextAnalysisCompactionFromInteractive(compaction),
 	}, nil
 }
 
 func BuildInteractiveDirectorContextAnalysis(cfg *config.Config, instruction string) (ContextAnalysis, error) {
+	return BuildInteractiveDirectorContextAnalysisWithStableContext(cfg, "", "", 0, instruction)
+}
+
+// BuildInteractiveDirectorContextAnalysisWithStableContext mirrors the exact
+// two-message layout used by the tool-enabled Director when resident Lore is
+// present, rather than hiding that stable prefix from context diagnostics.
+func BuildInteractiveDirectorContextAnalysisWithStableContext(cfg *config.Config, stableTitle, stableContext string, stableMaxBytes int, instruction string) (ContextAnalysis, error) {
 	systemPrompt, systemParts := buildInteractiveDirectorSystemPromptAnalysis(cfg)
-	messages := []*schema.Message{schema.UserMessage(instruction)}
-	contextMessages := buildInteractiveDirectorInstructionContextParts(instruction)
-	if len(contextMessages) == 0 {
-		contextMessages = append(contextMessages, contextAnalysisPartFromMessage("message_1", "本轮导演指令", "后台导演规划指令", messages[0]))
+	conversation := &singleInstructionConversation{
+		instruction:           instruction,
+		stableContextTitle:    stableTitle,
+		stableContext:         stableContext,
+		stableContextMaxBytes: stableMaxBytes,
 	}
-	usage := analyzeContextUsage(cfg, config.AgentKindInteractiveDirector, systemPrompt, messages)
+	messages, err := conversation.PrepareMessages("", instruction)
+	if err != nil {
+		return ContextAnalysis{}, err
+	}
+	contextMessages := make([]ContextAnalysisPart, 0, len(messages)+8)
+	if len(messages) > 1 {
+		part := contextAnalysisPartFromMessage("resident_lore", "enabled resident lore", strings.TrimSpace(stableTitle), messages[0])
+		part.Note = fmt.Sprintf("stable_model_prefix; complete=true; max_bytes=%d", stableMaxBytes)
+		contextMessages = append(contextMessages, part)
+	}
+	instructionParts := buildInteractiveDirectorInstructionContextParts(instruction)
+	if len(instructionParts) == 0 {
+		instructionParts = append(instructionParts, contextAnalysisPartFromMessage("director_instruction", "本轮导演指令", "后台导演规划指令", messages[len(messages)-1]))
+	}
+	contextMessages = append(contextMessages, instructionParts...)
+	usage := analyzeContextUsage(cfg, config.AgentKindInteractiveDirector, systemPrompt, messages, 1024)
 	return ContextAnalysis{
-		AgentKind:           config.AgentKindInteractiveDirector,
-		Mode:                "interactive_director",
-		SystemPrompt:        systemPrompt,
-		SystemPromptParts:   systemParts,
-		ContextParts:        contextMessages,
-		ContextMessages:     contextMessages,
-		MessageCount:        len(messages),
-		TokenEstimate:       usage.tokens,
-		ContextWindowTokens: usage.window,
-		ContextUsageRatio:   usage.ratio,
-		WouldCompact:        usage.wouldCompact,
+		AgentKind:                config.AgentKindInteractiveDirector,
+		Mode:                     "interactive_director",
+		SystemPrompt:             systemPrompt,
+		SystemPromptParts:        systemParts,
+		ContextParts:             contextMessages,
+		ContextMessages:          contextMessages,
+		MessageCount:             len(messages),
+		TokenEstimate:            usage.tokens,
+		ProjectedTokenEstimate:   usage.projectedTokens,
+		ReservedCompletionTokens: usage.completionReserve,
+		ReservedToolResultTokens: usage.toolResultReserve,
+		ContextWindowTokens:      usage.window,
+		ContextUsageRatio:        usage.ratio,
+		WouldCompact:             usage.wouldCompact,
 	}, nil
 }
 
@@ -403,10 +438,13 @@ func buildIDEAnalysisMessages(cfg *config.Config, effectiveMessages []*schema.Me
 }
 
 type contextUsageAnalysis struct {
-	tokens       int
-	window       int
-	ratio        float64
-	wouldCompact bool
+	tokens            int
+	projectedTokens   int
+	completionReserve int
+	toolResultReserve int
+	window            int
+	ratio             float64
+	wouldCompact      bool
 }
 
 func (u contextUsageAnalysis) compactionEpoch(compaction *session.ContextCompaction) int {
@@ -416,7 +454,7 @@ func (u contextUsageAnalysis) compactionEpoch(compaction *session.ContextCompact
 	return compaction.Epoch
 }
 
-func analyzeContextUsage(cfg *config.Config, agentKind, systemPrompt string, messages []*schema.Message) contextUsageAnalysis {
+func analyzeContextUsage(cfg *config.Config, agentKind, systemPrompt string, messages []*schema.Message, expectedOutputChars int) contextUsageAnalysis {
 	modelSettings := config.ResolveAgentModel(cfg, agentKind)
 	contextSettings := config.ResolveAgentContext(cfg, agentKind)
 	estimatedMessages := make([]*schema.Message, 0, len(messages)+1)
@@ -425,9 +463,16 @@ func analyzeContextUsage(cfg *config.Config, agentKind, systemPrompt string, mes
 	}
 	estimatedMessages = append(estimatedMessages, messages...)
 	tokens := EstimateContextTokens(estimatedMessages, nil)
-	usage := contextUsageAnalysis{tokens: tokens, window: modelSettings.ContextWindowTokens}
+	completionReserve, toolResultReserve := EstimateContextProjectionReserves(cfg, agentKind, expectedOutputChars)
+	usage := contextUsageAnalysis{
+		tokens:            tokens,
+		projectedTokens:   tokens + completionReserve + toolResultReserve,
+		completionReserve: completionReserve,
+		toolResultReserve: toolResultReserve,
+		window:            modelSettings.ContextWindowTokens,
+	}
 	if usage.window > 0 {
-		usage.ratio = float64(tokens) / float64(usage.window)
+		usage.ratio = float64(usage.projectedTokens) / float64(usage.window)
 		usage.wouldCompact = contextSettings.CompactionEnabled && usage.ratio >= contextSettings.CompactionThreshold
 	}
 	return usage
@@ -768,7 +813,7 @@ func composeAgentInput(req ChatRequest, pending *session.Interruption, bookServi
 	}
 	if req.PlanMode {
 		agentMessage = appendPlanModeInstruction(agentMessage)
-		contextLog.add("注入规则", "规划模式", "[规划模式] 请先提问或制定可审阅计划，不要直接进入执行。", "")
+		contextLog.add("注入规则", "规划模式", prompts.PlanMode(""), "")
 	}
 	if strings.TrimSpace(req.WritingSkill) != "" {
 		agentMessage = appendWritingSkillLoadHint(agentMessage, req.WritingSkill, contextLog)
@@ -783,8 +828,11 @@ func composeAgentInput(req ChatRequest, pending *session.Interruption, bookServi
 		agentMessage = appendSelectionContext(agentMessage, req.Selections)
 		contextLog.addSelections(req.Selections)
 	}
+	if !req.ResolvedReviewFeedback.Empty() {
+		agentMessage = appendReviewFeedbackContext(agentMessage, req.ResolvedReviewFeedback, contextLog)
+	}
 	agentMessage = appendContextBoundaryInstruction(agentMessage)
-	contextLog.add("注入规则", "上下文边界", "[上下文边界] 当前用户请求是“这次要做什么”", "")
+	contextLog.add("注入规则", "上下文边界", prompts.ContextBoundary(""), "")
 	return agentInputComposition{
 		OriginalMessage:    originalMessage,
 		Request:            req,

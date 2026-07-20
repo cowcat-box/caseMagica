@@ -8,7 +8,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
 
-	"casemagica/config"
+	"denova/config"
 )
 
 type agentConfigWriteInput struct {
@@ -120,6 +120,7 @@ func newListAgentConfigsTool(cfg *config.Config) (tool.BaseTool, error) {
 			SubAgentIndex: agentConfigSubAgentIndex(layered),
 			Notes: []string{
 				"write_agent_configs 必须显式指定 scope=user 或 scope=workspace。",
+				"Agent 模型选择是用户级配置；workspace 只承载提示词、工具、Skill、上下文和 SubAgent 定制。",
 				"model_profiles 已脱敏，不包含模型密钥；本工具不负责创建或编辑模型配置。",
 				"image_api_profiles 已脱敏，不包含图像模型密钥；本工具不负责创建或编辑图像模型配置。",
 				"delete_sub_agent 只删除目标层配置；如需屏蔽继承来的 SubAgent，请 upsert 同 ID 且 enabled=false 的覆盖项。",
@@ -130,7 +131,7 @@ func newListAgentConfigsTool(cfg *config.Config) (tool.BaseTool, error) {
 }
 
 func newWriteAgentConfigsTool(cfg *config.Config) (tool.BaseTool, error) {
-	return utils.InferTool("write_agent_configs", "批量写入 Agent 页配置。必须显式指定 scope=user 或 scope=workspace；只修改 agent_models、agent_tools、agent_prompts、agent_skills、agent_context、general_sub_agents 和 sub_agents。", func(ctx context.Context, input agentConfigWriteInput) (string, error) {
+	return utils.InferTool("write_agent_configs", "批量写入 Agent 页配置。必须显式指定 scope=user 或 scope=workspace；Agent 模型选择只能写入 user，workspace 只支持提示词、工具、Skill、上下文和 SubAgent 定制。", func(ctx context.Context, input agentConfigWriteInput) (string, error) {
 		_ = ctx
 		scope := strings.TrimSpace(input.Scope)
 		if scope != "user" && scope != "workspace" {
@@ -151,6 +152,9 @@ func newWriteAgentConfigsTool(cfg *config.Config) (tool.BaseTool, error) {
 			"deleted_sub_agents":  {},
 		}
 		for index, op := range input.Operations {
+			if scope == "workspace" && op.Model != nil {
+				return "", fmt.Errorf("Agent 模型选择是用户级配置，不能写入 workspace")
+			}
 			if err := applyAgentConfigWriteOperation(&settings, layered, op, result); err != nil {
 				return "", fmt.Errorf("Agent 配置操作 #%d 失败: %w", index+1, err)
 			}
@@ -163,13 +167,13 @@ func newWriteAgentConfigsTool(cfg *config.Config) (tool.BaseTool, error) {
 }
 
 func loadAgentConfigLayered(cfg *config.Config) (config.LayeredSettings, error) {
-	denovaDir := ""
+	novaDir := ""
 	workspace := ""
 	if cfg != nil {
-		denovaDir = cfg.DenovaDir
+		novaDir = cfg.DataDir()
 		workspace = cfg.Workspace
 	}
-	layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace)
+	layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace)
 	if err != nil {
 		return config.LayeredSettings{}, fmt.Errorf("读取 Agent 配置失败: %w", err)
 	}
@@ -177,15 +181,15 @@ func loadAgentConfigLayered(cfg *config.Config) (config.LayeredSettings, error) 
 }
 
 func loadWritableAgentConfigSettings(cfg *config.Config, scope string) (string, config.Settings, error) {
-	denovaDir := ""
+	novaDir := ""
 	workspace := ""
 	if cfg != nil {
-		denovaDir = cfg.DenovaDir
+		novaDir = cfg.DataDir()
 		workspace = cfg.Workspace
 	}
 	switch scope {
 	case "user":
-		path := config.UserConfigPath(denovaDir)
+		path := config.UserConfigPath(novaDir)
 		settings, err := config.ReadSettingsFile(path)
 		return path, settings, err
 	case "workspace":
@@ -390,8 +394,6 @@ func setAgentModelOverride(settings *config.Settings, agent string, value config
 		settings.AgentModels.ConfigManager = value
 	case config.AgentKindInteractiveDirector:
 		settings.AgentModels.InteractiveDirector = value
-	case config.AgentKindInteractiveHotChoices:
-		settings.AgentModels.InteractiveHotChoices = value
 	case config.AgentKindVersionSummary:
 		settings.AgentModels.VersionSummary = value
 	case config.AgentKindToolAgent:
@@ -417,8 +419,6 @@ func setAgentToolOverride(settings *config.Settings, agent string, value config.
 		settings.AgentTools.ConfigManager = value
 	case config.AgentKindInteractiveDirector:
 		settings.AgentTools.InteractiveDirector = value
-	case config.AgentKindInteractiveHotChoices:
-		settings.AgentTools.InteractiveHotChoices = value
 	case config.AgentKindVersionSummary:
 		settings.AgentTools.VersionSummary = value
 	case config.AgentKindToolAgent:
@@ -444,8 +444,6 @@ func setAgentPromptOverride(settings *config.Settings, agent string, value confi
 		settings.AgentPrompts.ConfigManager = value
 	case config.AgentKindInteractiveDirector:
 		settings.AgentPrompts.InteractiveDirector = value
-	case config.AgentKindInteractiveHotChoices:
-		settings.AgentPrompts.InteractiveHotChoices = value
 	case config.AgentKindVersionSummary:
 		settings.AgentPrompts.VersionSummary = value
 	case config.AgentKindToolAgent:
@@ -471,8 +469,6 @@ func setAgentSkillOverride(settings *config.Settings, agent string, value config
 		settings.AgentSkills.ConfigManager = value
 	case config.AgentKindInteractiveDirector:
 		settings.AgentSkills.InteractiveDirector = value
-	case config.AgentKindInteractiveHotChoices:
-		settings.AgentSkills.InteractiveHotChoices = value
 	case config.AgentKindVersionSummary:
 		settings.AgentSkills.VersionSummary = value
 	case config.AgentKindToolAgent:
@@ -498,8 +494,6 @@ func setAgentContextOverride(settings *config.Settings, agent string, value conf
 		settings.AgentContexts.ConfigManager = value
 	case config.AgentKindInteractiveDirector:
 		settings.AgentContexts.InteractiveDirector = value
-	case config.AgentKindInteractiveHotChoices:
-		settings.AgentContexts.InteractiveHotChoices = value
 	case config.AgentKindVersionSummary:
 		settings.AgentContexts.VersionSummary = value
 	case config.AgentKindToolAgent:

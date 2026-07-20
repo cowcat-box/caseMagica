@@ -82,16 +82,15 @@ func TestDeepAgentParentRuntimeContractsIncludeSubAgentDelegationProtocol(t *tes
 
 func TestRuntimeContractsCoverAllAgentKinds(t *testing.T) {
 	tests := map[string]string{
-		config.AgentKindIDE:                   "CREATOR.md",
-		config.AgentKindInteractiveStory:      "只输出本回合可展示在故事舞台上的故事正文",
-		config.AgentKindImage:                 "图像 Agent",
-		config.AgentKindConfigManager:         "配置管理 Agent",
-		config.AgentKindInteractiveDirector:   "Story Memory 与状态系统",
-		config.AgentKindInteractiveHotChoices: "快捷选项 Agent",
-		config.AgentKindVersionSummary:        "版本说明 Agent",
-		config.AgentKindToolAgent:             "model-only",
-		config.AgentKindAutomation:            "自动化Agent",
-		config.AgentKindContextCompaction:     "上下文压缩 Agent",
+		config.AgentKindIDE:                 "CREATOR.md",
+		config.AgentKindInteractiveStory:    "只输出本回合可展示在故事舞台上的故事正文",
+		config.AgentKindImage:               "图像 Agent",
+		config.AgentKindConfigManager:       "配置管理 Agent",
+		config.AgentKindInteractiveDirector: "Director 的状态结构审查与分支规划互斥",
+		config.AgentKindVersionSummary:      "版本说明 Agent",
+		config.AgentKindToolAgent:           "model-only",
+		config.AgentKindAutomation:          "自动化Agent",
+		config.AgentKindContextCompaction:   "上下文压缩 Agent",
 	}
 	for _, definition := range config.AgentKindDefinitions() {
 		required, ok := tests[definition.Kind]
@@ -105,5 +104,14 @@ func TestRuntimeContractsCoverAllAgentKinds(t *testing.T) {
 				t.Fatalf("contract for %s should contain %q:\n%s", agentKind, required, instruction)
 			}
 		})
+	}
+}
+
+func TestInteractiveDirectorStateSchemaContractAllowsOnlyStagedActorInitialization(t *testing.T) {
+	instruction := protectedSystemInstruction(&config.Config{}, config.AgentKindInteractiveDirector, "BUILT IN PROMPT")
+	for _, required := range []string{"state_schema_initialization", "Batch actor_ops", "finalize 前不生效", "后端原子应用"} {
+		if !strings.Contains(instruction, required) {
+			t.Fatalf("interactive Director state-schema contract missing %q:\n%s", required, instruction)
+		}
 	}
 }

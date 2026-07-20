@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"casemagica/internal/book"
+	"denova/internal/book"
 )
 
-func TestBookMetaStoreWriteAndReadFromDenovaDir(t *testing.T) {
+func TestBookMetaStoreWriteAndReadFromNovaDir(t *testing.T) {
 	root := t.TempDir()
 	bookDir := filepath.Join(root, "book")
 	if err := os.MkdirAll(bookDir, 0o755); err != nil {
@@ -40,7 +40,29 @@ func TestBookMetaStoreWriteAndReadFromDenovaDir(t *testing.T) {
 	}
 }
 
-func TestBookMetaStorePrefersDenovaDirOverLegacyBookJSON(t *testing.T) {
+func TestUpdateBookInfoCanClearAuthor(t *testing.T) {
+	root := t.TempDir()
+	bookDir := filepath.Join(root, "book")
+	if err := os.MkdirAll(bookDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	store := NewBookMetaStore(filepath.Join(root, "nova"))
+	if _, err := store.Write(bookDir, book.BookMeta{Title: "测试书", Author: "旧作者", Description: "简介"}); err != nil {
+		t.Fatal(err)
+	}
+	application := &App{bookMetaStore: store}
+	t.Cleanup(application.Close)
+
+	updated, err := application.UpdateBookInfo(bookDir, "测试书", "", "简介")
+	if err != nil {
+		t.Fatalf("清空作者失败: %v", err)
+	}
+	if updated.Author != "" {
+		t.Fatalf("作者字段未被清空: %#v", updated)
+	}
+}
+
+func TestBookMetaStorePrefersNovaDirOverLegacyBookJSON(t *testing.T) {
 	root := t.TempDir()
 	bookDir := filepath.Join(root, "book")
 	if err := os.MkdirAll(bookDir, 0o755); err != nil {

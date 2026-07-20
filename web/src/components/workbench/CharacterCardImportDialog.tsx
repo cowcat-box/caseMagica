@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import type { CharacterCardPreview } from '@/lib/api'
 
 export type CharacterCardTargetMode = 'current' | 'new_book'
@@ -18,6 +19,7 @@ interface CharacterCardImportDialogProps {
   targetMode: CharacterCardTargetMode
   bookTitle: string
   userCharacterName: string
+  semanticClassification: boolean
   previewing: boolean
   importing: boolean
   error: string
@@ -27,6 +29,7 @@ interface CharacterCardImportDialogProps {
   onTargetModeChange: (mode: CharacterCardTargetMode) => void
   onBookTitleChange: (title: string) => void
   onUserCharacterNameChange: (name: string) => void
+  onSemanticClassificationChange: (enabled: boolean) => void
   onImport: () => void | Promise<void>
 }
 
@@ -40,6 +43,7 @@ export function CharacterCardImportDialog({
   targetMode,
   bookTitle,
   userCharacterName,
+  semanticClassification,
   previewing,
   importing,
   error,
@@ -49,6 +53,7 @@ export function CharacterCardImportDialog({
   onTargetModeChange,
   onBookTitleChange,
   onUserCharacterNameChange,
+  onSemanticClassificationChange,
   onImport,
 }: CharacterCardImportDialogProps) {
   const { t } = useTranslation()
@@ -97,8 +102,14 @@ export function CharacterCardImportDialog({
               <div className="space-y-2 rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-2">
                 <div className="truncate text-sm font-medium text-[var(--nova-text)]">{preview.name}</div>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-[var(--nova-text-faint)]">
-                  <span>{t('importCard.entryCount', { count: preview.entry_count })}</span>
+                  <span>{t('importCard.enabledCount', { count: preview.enabled_entry_count })}</span>
+                  <span>{t('importCard.disabledCount', { count: preview.disabled_entry_count })}</span>
+                  <span>{t('importCard.residentCount', { count: preview.resident_entry_count, size: Math.ceil(preview.resident_entry_bytes / 1024) })}</span>
+                  <span>{t('importCard.autoCount', { count: preview.auto_entry_count })}</span>
                   <span>{t('importCard.openingPresetCount', { count: preview.opening_preset_count })}</span>
+                  {preview.opening_truncated_count > 0 && <span>{t('importCard.openingTruncatedCount', { count: preview.opening_truncated_count })}</span>}
+                  {preview.removed_runtime_entry_count > 0 && <span>{t('importCard.removedRuntimeCount', { count: preview.removed_runtime_entry_count })}</span>}
+                  {preview.sanitized_mixed_entry_count > 0 && <span>{t('importCard.sanitizedMixedCount', { count: preview.sanitized_mixed_entry_count })}</span>}
                   {preview.will_import_cover && <span>{t('importCard.willImportCover')}</span>}
                   {preview.user_placeholder_found && <span>{t('importCard.willImportUser')}</span>}
                   {preview.tags?.map((tag) => (
@@ -106,6 +117,23 @@ export function CharacterCardImportDialog({
                   ))}
                 </div>
                 <CompatibilityReport preview={preview} />
+              </div>
+            )}
+
+            {preview && (
+              <div className="flex items-start justify-between gap-3 rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-2.5">
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-[var(--nova-text)]">{t('importCard.semanticClassification')}</div>
+                  <div className="mt-1 text-[11px] leading-4 text-[var(--nova-text-faint)]">
+                    {t('importCard.semanticClassificationHint', { count: preview.uncertain_type_count || 0 })}
+                  </div>
+                </div>
+                <Switch
+                  checked={semanticClassification}
+                  onCheckedChange={onSemanticClassificationChange}
+                  disabled={importing}
+                  aria-label={t('importCard.semanticClassification')}
+                />
               </div>
             )}
 
@@ -163,6 +191,15 @@ export function CharacterCardImportDialog({
               </div>
             )}
 
+            {preview?.resident_lore_warning && (
+              <div className="rounded-[var(--nova-radius)] border border-[var(--nova-warning)]/25 bg-[var(--nova-warning-bg)] px-3 py-2 text-[11px] leading-4 text-[var(--nova-text-muted)]">
+                {t('importCard.residentWarning', {
+                  size: Math.ceil(preview.resident_lore_bytes / 1024),
+                  threshold: preview.resident_lore_warning_threshold_kb,
+                })}
+              </div>
+            )}
+
             {error && (
               <div className="rounded-[var(--nova-radius)] border border-[var(--nova-danger-border)] bg-[var(--nova-danger-bg)] px-3 py-2 text-[var(--nova-danger)]">
                 {error}
@@ -199,11 +236,12 @@ export function CharacterCardImportDialog({
 function CompatibilityReport({ preview }: { preview: CharacterCardPreview }) {
   const { t } = useTranslation()
   const groups = [
-    { key: 'imported', fields: preview.compatibility?.imported_fields || [] },
-    { key: 'downgraded', fields: preview.compatibility?.downgraded_fields || [] },
-    { key: 'unsupported', fields: preview.compatibility?.unsupported_fields || [] },
+    { key: 'capabilities', fields: preview.compatibility?.capabilities || [] },
+    { key: 'sanitized', fields: preview.compatibility?.sanitized_runtime || [] },
+    { key: 'discarded', fields: preview.compatibility?.discarded_extensions || [] },
   ].filter((group) => group.fields.length > 0)
-  if (groups.length === 0) return null
+  const warnings = preview.compatibility?.warnings || []
+  if (groups.length === 0 && warnings.length === 0 && !preview.compatibility?.ignored_loading_rules) return null
   return (
     <div className="space-y-1 border-t border-[var(--nova-border)] pt-2 text-[11px] leading-5">
       {groups.map((group) => (
@@ -214,6 +252,10 @@ function CompatibilityReport({ preview }: { preview: CharacterCardPreview }) {
           </span>
         </div>
       ))}
+      {preview.compatibility?.ignored_loading_rules && (
+        <div className="text-[var(--nova-text-faint)]">{t('importCard.compat.ignoredLoadingRules')}</div>
+      )}
+      {warnings.map((warning) => <div key={warning} className="text-[var(--nova-warning)]">{t(`importCard.compat.warning.${warning}`, { defaultValue: warning })}</div>)}
     </div>
   )
 }

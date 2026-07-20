@@ -1,44 +1,43 @@
 import { BookMarked, BookOpen, CheckCircle2, ChevronDown, ChevronRight, Circle, Database, FileText, Loader2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, SlidersHorizontal, Sparkles } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileTree } from '@/components/Sidebar/FileTree'
 import { SearchPanel } from '@/components/Sidebar/SearchPanel'
 import { AgentPanel } from '@/components/Chat/AgentPanel'
 import { FilePreview } from '@/components/workbench/FilePreview'
-import { MarkdownEditor } from '@/components/Editor/MarkdownEditor'
-import { VersionPanel } from '@/components/Versions/VersionPanel'
-import { HomeView } from '@/components/Home/HomeView'
-import { InteractiveLayout } from '@/features/interactive/components/InteractiveLayout'
-import { SettingPanel } from '@/features/interactive/components/SettingPanel'
+import { MarkdownEditor, type EditorFlushHandler } from '@/components/Editor/MarkdownEditor'
+import { BookSettingsShortcuts } from '@/components/workbench/BookSettingsShortcuts'
 import { getImagePresets, getInteractiveTellers } from '@/features/interactive/api'
 import { useInteractiveStore } from '@/features/interactive/stores/interactive-store'
-import { AgentsView } from '@/features/agents/AgentsView'
-import { AutomationsView } from '@/features/automations/AutomationsView'
-import { SkillsView } from '@/features/skills/SkillsView'
-import { SettingsView } from '@/features/settings/SettingsView'
 import type { ImagePreset, Teller } from '@/features/interactive/types'
 import type { FileNode } from '@/hooks/useWorkspace'
-import type { BookRecord, ChapterIllustration, ChapterSummary, ChatMessage, ContextAnalysis, DocumentPreview, LoreItem, SessionSummary, TextSelection, WorkspaceSearchResult, WorkspaceSummary } from '@/lib/api'
+import type { BookRecord, BookSortMode, ChapterIllustration, ChapterSummary, ContextAnalysis, DocumentPreview, LoreItem, SessionSummary, TextSelection, WorkspaceSearchResult, WorkspaceSummary } from '@/lib/api'
+import type { AgentUIMessage } from '@/lib/agent-ui'
+import type { ChatSendOptions } from '@/hooks/useAgentChat'
+import type { AgentPartRef } from '@/lib/agent-message-view'
 import type { RightPanel, WorkspaceMode } from '@/stores/workspace-store'
 import { workspaceFileKind } from '@/lib/workspace-file-kind'
+import { useWritingChangeReview } from '@/features/changes/use-writing-change-review'
+import type { ReviewFeedbackBatch, ReviewFeedbackSelection } from '@/features/changes/agent/ReviewFeedbackTray'
+import { useDocumentReview } from '@/features/document-review/use-document-review'
+import { ChangeReviewWorkspace } from '@/features/changes/review/ChangeReviewWorkspace'
 import type { Tab } from './TabController'
 import { TabController, tabKey } from './TabController'
 import { WorkbenchShell } from './WorkbenchShell'
 import { flattenFileTree, formatNumber } from './workbench-utils'
 
 const WRITING_AGENT_INIT_EVENT = 'nova:writing-agent-init'
+const InteractiveLayout = lazy(() => import('@/features/interactive/components/InteractiveLayout').then((module) => ({ default: module.InteractiveLayout })))
+const SettingPanel = lazy(() => import('@/features/interactive/components/SettingPanel').then((module) => ({ default: module.SettingPanel })))
+const VersionPanel = lazy(() => import('@/components/Versions/VersionPanel').then((module) => ({ default: module.VersionPanel })))
+const HomeView = lazy(() => import('@/components/Home/HomeView').then((module) => ({ default: module.HomeView })))
+const AgentsView = lazy(() => import('@/features/agents/AgentsView').then((module) => ({ default: module.AgentsView })))
+const AutomationsView = lazy(() => import('@/features/automations/AutomationsView').then((module) => ({ default: module.AutomationsView })))
+const SkillsView = lazy(() => import('@/features/skills/SkillsView').then((module) => ({ default: module.SkillsView })))
+const SettingsView = lazy(() => import('@/features/settings/SettingsView').then((module) => ({ default: module.SettingsView })))
 type MainRouteId = 'settings' | 'skills' | 'agents' | 'automations' | 'books' | 'interactive' | 'versions' | 'ide-lore' | 'ide-teller' | 'ide-writing'
 type PlanningDocumentIcon = 'ideas' | 'outline' | 'plan' | 'creator' | 'progress' | 'characterState'
-
-interface PlanningDocumentItem {
-  document: DocumentPreview
-  icon: PlanningDocumentIcon
-}
-
-interface PlanningShortcutItem extends PlanningDocumentItem {
-  label: string
-}
 
 interface ModeRouterProps {
   mode: WorkspaceMode
@@ -57,6 +56,7 @@ interface ModeRouterProps {
   interactiveRightVisible: boolean
   denovaDir: string
   books: BookRecord[]
+  bookSortMode: BookSortMode
   tree: FileNode[]
   loading: boolean
   selectedFile: string | null
@@ -69,7 +69,7 @@ interface ModeRouterProps {
   editorAutoSaveEnabled: boolean
   editorAutoSaveDelayMs: number
   versionRefreshSignal: number
-  messages: ChatMessage[]
+  messages: AgentUIMessage[]
   sessions: SessionSummary[]
   activeSessionId: string
   activityContent: string
@@ -88,11 +88,13 @@ interface ModeRouterProps {
   onCloseSettings: () => void
   onToggleInteractiveRightPanel: () => void
   onSwitchBook: (path: string) => void
+  onQuickSwitchBook: (path: string) => Promise<boolean>
+  onBeforeWorkspaceSwitch: EditorFlushHandler
   onBooksChange: () => void | Promise<void>
   onOpenCharacterCardImport: () => void
   onSetSidebarView: (view: 'outline' | 'files' | 'search') => void
   onSelectSearchResult: (result: WorkspaceSearchResult, query: string) => void | Promise<void>
-  onSelectFile: (path: string) => void | Promise<void>
+  onSelectFile: (path: string) => boolean | void | Promise<boolean | void>
   onSetChapterConfirmed: (path: string, confirmed: boolean) => void | Promise<void>
   onReferenceFile: (path: string) => void
   onCreateItem: (path: string, type: 'file' | 'dir') => Promise<void>
@@ -102,13 +104,15 @@ interface ModeRouterProps {
   onMoveItem: (from: string, to: string) => Promise<void>
   onActivateTab: (tab: Tab) => void
   onCloseTab: (tab: Tab) => void
-  onSaveCurrentFile: (content: string) => Promise<boolean>
+  onSaveCurrentFile: (path: string, content: string) => Promise<boolean>
+  onEditorFlushHandlerChange: (handler: EditorFlushHandler | null) => void
+  onWorkspaceChanged: (paths: string[]) => void | Promise<void>
   onQuoteSelection: (selection: TextSelection) => void
   onCreateChatSession: (title?: string) => void | Promise<void>
   onSwitchChatSession: (id: string) => void | Promise<void>
   onRenameChatSession: (id: string, title: string) => void | Promise<void>
   onDeleteChatSession: (id: string) => void | Promise<void>
-  onSend: (message: string, options?: { writingSkill?: string; ideContext?: { currentFile?: string; openFiles?: string[] }; imagePresetId?: string; tellerId?: string }) => void
+  onSend: (message: string, options?: ChatSendOptions) => boolean | Promise<boolean>
   onAnalyzeContext: (message: string, options?: { writingSkill?: string; ideContext?: { currentFile?: string; openFiles?: string[] }; imagePresetId?: string; tellerId?: string }) => Promise<ContextAnalysis>
   onStop: () => void
   onReferenceRemove: (path: string) => void
@@ -119,8 +123,8 @@ interface ModeRouterProps {
   onTextSelectionRemove: (index: number) => void
   onChatPlanModeChange: (value: boolean) => void
   onChatPlanModeToggle: () => void
-  onSubmitPlanQuestion: (message: ChatMessage, content: string, preview: string) => void
-  onApproveProposedPlan: (message: ChatMessage) => void
+  onSubmitPlanQuestion: (ref: AgentPartRef, content: string, preview: string) => void
+  onApproveProposedPlan: (ref: AgentPartRef) => void
   onExitChatPlanMode: () => void
   onDismissUpdateNotice?: () => void
 }
@@ -144,6 +148,7 @@ export function ModeRouter(props: ModeRouterProps) {
     interactiveRightVisible,
     denovaDir,
     books,
+    bookSortMode,
     tree,
     loading,
     selectedFile,
@@ -175,6 +180,8 @@ export function ModeRouter(props: ModeRouterProps) {
     onCloseSettings,
     onToggleInteractiveRightPanel,
     onSwitchBook,
+    onQuickSwitchBook,
+    onBeforeWorkspaceSwitch,
     onBooksChange,
     onOpenCharacterCardImport,
     onSetSidebarView,
@@ -190,6 +197,8 @@ export function ModeRouter(props: ModeRouterProps) {
     onActivateTab,
     onCloseTab,
     onSaveCurrentFile,
+    onEditorFlushHandlerChange,
+    onWorkspaceChanged,
     onQuoteSelection,
     onCreateChatSession,
     onSwitchChatSession,
@@ -229,6 +238,11 @@ export function ModeRouter(props: ModeRouterProps) {
   const [imagePresets, setImagePresets] = useState<ImagePreset[]>([])
   const [agentSubAgentDetailsOpen, setAgentSubAgentDetailsOpen] = useState(false)
   const [illustrationInsertSignal, setIllustrationInsertSignal] = useState<{ illustration: ChapterIllustration; nonce: number } | null>(null)
+  const [editorLine, setEditorLine] = useState(1)
+
+  useEffect(() => {
+    setEditorLine(1)
+  }, [selectedFile])
 
   useEffect(() => {
     let cancelled = false
@@ -319,12 +333,66 @@ export function ModeRouter(props: ModeRouterProps) {
       setIllustrationInsertSignal((current) => ({ illustration, nonce: (current?.nonce || 0) + 1 }))
     }
     if (illustration.chapter_path && selectedFile !== illustration.chapter_path) {
-      void Promise.resolve(onSelectFile(illustration.chapter_path)).finally(() => window.setTimeout(apply, 0))
+      void Promise.resolve(onSelectFile(illustration.chapter_path)).then((navigated) => {
+        if (navigated !== false) window.setTimeout(apply, 0)
+      })
       return
     }
     apply()
   }
   const aiVisible = rightPanel === 'ai'
+  const showAgent = useCallback(() => onSetRightPanel('ai'), [onSetRightPanel])
+  const {
+    activeReviewThreadID,
+    activeReviewRequest,
+    reviewFeedback: changeReviewFeedback,
+    submittedReviewCommentIDs,
+    openChangeReview,
+    closeChangeReview,
+    selectReviewFeedback,
+    removeReviewFeedback,
+    submitReviewFeedback,
+    restoreReviewFeedback,
+  } = useWritingChangeReview({
+    workspace,
+    contextKey: activeSessionId,
+    ideActive: mode === 'ide' && !settingsOpen && !versionsVisible && !ideWorkspacePanel,
+    selectedFile,
+    agentVisible: aiVisible,
+    onBeforeOpen: onBeforeWorkspaceSwitch,
+    onShowAgent: showAgent,
+  })
+  const documentReview = useDocumentReview({
+    workspace,
+    agentVisible: aiVisible,
+    onShowAgent: showAgent,
+  })
+  const reviewFeedback = useMemo<ReviewFeedbackBatch>(() => (
+    [changeReviewFeedback, documentReview.feedback].filter((feedback): feedback is ReviewFeedbackSelection => Boolean(feedback))
+  ), [changeReviewFeedback, documentReview.feedback])
+  const documentReviewController = useMemo(() => ({
+    comments: documentReview.thread.comments,
+    onCreate: documentReview.addComment,
+    onUpdate: documentReview.editComment,
+    onDelete: documentReview.removeComment,
+  }), [documentReview.addComment, documentReview.editComment, documentReview.removeComment, documentReview.thread.comments])
+  const removeActiveReviewFeedback = useCallback((selection: ReviewFeedbackSelection, commentID: string) => {
+    if (selection.source === 'document') documentReview.removeFeedback(commentID)
+    else removeReviewFeedback(commentID)
+  }, [documentReview.removeFeedback, removeReviewFeedback])
+  const submitActiveReviewFeedback = useCallback((feedback: ReviewFeedbackBatch) => {
+    for (const selection of feedback) {
+      if (selection.source === 'document') documentReview.submitFeedback(selection)
+      else submitReviewFeedback(selection)
+    }
+  }, [documentReview.submitFeedback, submitReviewFeedback])
+  const restoreActiveReviewFeedback = useCallback((feedback: ReviewFeedbackBatch) => {
+    for (const selection of feedback) {
+      if (selection.source === 'document') documentReview.restoreFeedback(selection)
+      else restoreReviewFeedback(selection)
+    }
+  }, [documentReview.restoreFeedback, restoreReviewFeedback])
+  const reviewVisible = Boolean(activeReviewThreadID)
   const closeBooks = () => {
     if (booksReturnMode === 'interactive') {
       onSetMode('interactive')
@@ -393,12 +461,15 @@ export function ModeRouter(props: ModeRouterProps) {
           <div className="py-4 text-center text-[var(--nova-text-muted)]">{t('router.loading')}</div>
         ) : sidebarView === 'outline' ? (
           <ChapterOutline
+            workspace={workspace}
+            tree={tree}
             chapters={summary?.chapters || []}
             ideas={summary?.ideas}
             outline={summary?.outline}
             chapterPlans={summary?.chapter_plans || []}
             selectedFile={selectedFile}
-            onSelectFile={onSelectFile}
+            onSelectFile={(path) => { void onSelectFile(path) }}
+            onRequestBookSettingCreate={(item) => requestSkillsAgent(t('planning.bookSettingCreatePrompt', item))}
             onSetChapterConfirmed={onSetChapterConfirmed}
           />
         ) : sidebarView === 'search' ? (
@@ -428,58 +499,85 @@ export function ModeRouter(props: ModeRouterProps) {
 
   const main = (
     <main className="relative h-full min-w-0 overflow-hidden bg-[var(--nova-bg)]">
+      <Suspense fallback={<div className="flex h-full items-center justify-center text-xs text-[var(--nova-text-muted)]">{t('router.loading')}</div>}>
       <MainRouteLayer visible={visibleMainRoute === 'ide-writing'}>
-        <TabController
-          tabs={openTabs}
-          activeTabKey={activeTabKey}
-          summary={summary}
-          actions={(
-            <IdeWritingInfoActions
-              projectVisible={projectVisible}
-              aiVisible={aiVisible}
-              onToggleProjectVisible={onToggleProjectVisible}
-              onToggleAgent={() => onSetRightPanel(aiVisible ? null : 'ai')}
+        {activeReviewThreadID ? (
+          <ChangeReviewWorkspace
+            workspace={workspace}
+            threadID={activeReviewThreadID}
+            scopeRequest={activeReviewRequest}
+            disabled={isStreaming}
+            selectedPath={selectedFile}
+            agentVisible={aiVisible}
+            onToggleAgent={() => onSetRightPanel(aiVisible ? null : 'ai')}
+            onClose={closeChangeReview}
+            onOpenFile={async (path) => {
+              const navigated = await onSelectFile(path)
+              if (navigated !== false) closeChangeReview()
+            }}
+            onWorkspaceChanged={onWorkspaceChanged}
+            onFeedbackCommentsChange={selectReviewFeedback}
+            hiddenCommentIDs={submittedReviewCommentIDs}
+          />
+        ) : (
+          <>
+            <TabController
+              tabs={openTabs}
+              activeTabKey={activeTabKey}
+              summary={summary}
+              actions={(
+                <IdeWritingInfoActions
+                  projectVisible={projectVisible}
+                  aiVisible={aiVisible}
+                  onToggleProjectVisible={onToggleProjectVisible}
+                  onToggleAgent={() => onSetRightPanel(aiVisible ? null : 'ai')}
+                />
+              )}
+              onActivateTab={onActivateTab}
+              onCloseTab={onCloseTab}
             />
-          )}
-          onActivateTab={onActivateTab}
-          onCloseTab={onCloseTab}
-        />
-        <div className="flex min-h-0 flex-1 flex-col">
-          {activeTab ? (
-            activeFileKind === 'image' || activeFileKind === 'json' || activeFileKind === 'jsonl' ? (
-              <FilePreview path={selectedFile || activeTab.path} content={fileContent} />
-            ) : (
-              <MarkdownEditor
-                fileName={selectedFile}
-                content={fileContent}
-                onSave={onSaveCurrentFile}
-                onQuoteSelection={onQuoteSelection}
-                saveSignal={saveSignal}
-                autoSaveEnabled={editorAutoSaveEnabled}
-                autoSaveDelayMs={editorAutoSaveDelayMs}
-                chapterSummary={currentChapter}
-                searchIntent={editorSearchIntent?.path === selectedFile ? editorSearchIntent : null}
-                onGenerateIllustration={requestChapterIllustration}
-                generateIllustrationDisabled={isStreaming || !currentChapter}
-                illustrationInsertSignal={illustrationInsertSignal}
-              />
-            )
-          ) : (
-            loreEmpty ? (
-              <EmptyLoreGuide
-                emptyText={t('router.chooseFile')}
-                title={t('loreInit.ideTitle')}
-                description={t('loreInit.ideDescription')}
-                action={t('loreInit.ideAction')}
-                onClick={requestWritingInit}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-xs text-[var(--nova-text-muted)]">
-                {t('router.chooseFile')}
-              </div>
-            )
-          )}
-        </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              {activeTab ? (
+                activeFileKind === 'image' || activeFileKind === 'json' || activeFileKind === 'jsonl' ? (
+                  <FilePreview path={selectedFile || activeTab.path} content={fileContent} />
+                ) : (
+                  <MarkdownEditor
+                    workspace={workspace}
+                    fileName={selectedFile}
+                    content={fileContent}
+                    onSave={onSaveCurrentFile}
+                    onQuoteSelection={onQuoteSelection}
+                    saveSignal={saveSignal}
+                    autoSaveEnabled={editorAutoSaveEnabled}
+                    autoSaveDelayMs={editorAutoSaveDelayMs}
+                    chapterSummary={currentChapter}
+                    searchIntent={editorSearchIntent?.path === selectedFile ? editorSearchIntent : null}
+                    onGenerateIllustration={requestChapterIllustration}
+                    generateIllustrationDisabled={isStreaming || !currentChapter}
+                    illustrationInsertSignal={illustrationInsertSignal}
+                    onLineChange={setEditorLine}
+                    onFlushHandlerChange={onEditorFlushHandlerChange}
+                    documentReview={documentReviewController}
+                  />
+                )
+              ) : (
+                loreEmpty ? (
+                  <EmptyLoreGuide
+                    emptyText={t('router.chooseFile')}
+                    title={t('loreInit.ideTitle')}
+                    description={t('loreInit.ideDescription')}
+                    action={t('loreInit.ideAction')}
+                    onClick={requestWritingInit}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-xs text-[var(--nova-text-muted)]">
+                    {t('router.chooseFile')}
+                  </div>
+                )
+              )}
+            </div>
+          </>
+        )}
       </MainRouteLayer>
 
       {mountedRoutes.has('interactive') && (
@@ -535,7 +633,9 @@ export function ModeRouter(props: ModeRouterProps) {
             workspace={workspace}
             denovaDir={denovaDir}
             books={books}
+            bookSortMode={bookSortMode}
             onSwitch={onSwitchBook}
+            onBeforeSwitch={onBeforeWorkspaceSwitch}
             onBooksChange={onBooksChange}
             onOpenCharacterCardImport={onOpenCharacterCardImport}
             onClose={closeBooks}
@@ -544,7 +644,7 @@ export function ModeRouter(props: ModeRouterProps) {
       )}
       {mountedRoutes.has('skills') && (
         <MainRouteLayer visible={visibleMainRoute === 'skills'}>
-          <SkillsView workspace={workspace} onClose={() => onSetMode(booksReturnMode)} onRequestAgent={requestSkillsAgent} />
+          <SkillsView workspace={workspace} onClose={() => onSetMode(booksReturnMode)} />
         </MainRouteLayer>
       )}
       {mountedRoutes.has('agents') && (
@@ -562,6 +662,7 @@ export function ModeRouter(props: ModeRouterProps) {
           <SettingsView onClose={onCloseSettings} />
         </MainRouteLayer>
       )}
+      </Suspense>
     </main>
   )
 
@@ -605,6 +706,12 @@ export function ModeRouter(props: ModeRouterProps) {
       onSubmitPlanQuestion={onSubmitPlanQuestion}
       onApproveProposedPlan={onApproveProposedPlan}
       onExitPlanMode={onExitChatPlanMode}
+      reviewFeedback={reviewFeedback}
+      onReviewFeedbackRemove={removeActiveReviewFeedback}
+      onReviewFeedbackSubmitted={submitActiveReviewFeedback}
+      onReviewFeedbackSubmissionFailed={restoreActiveReviewFeedback}
+      onOpenChangeReview={(reviewThreadID, groupID) => { void openChangeReview(reviewThreadID, groupID) }}
+      onWorkspaceChanged={onWorkspaceChanged}
       onClose={() => onSetRightPanel(null)}
       onSubAgentDetailsChange={setAgentSubAgentDetailsOpen}
     />
@@ -616,14 +723,17 @@ export function ModeRouter(props: ModeRouterProps) {
       booksReturnMode={booksReturnMode}
       currentBookName={currentBookName}
       workspace={workspace}
+      books={books}
       appVersion={appVersion}
       summary={summary}
       currentChapter={currentChapter}
+      editorLine={editorLine}
       isStreaming={isStreaming}
-      projectVisible={projectVisible}
+      projectVisible={projectVisible && !reviewVisible}
       activityBarExpanded={activityBarExpanded}
       rightPanel={rightPanel}
-      rightPanelWide={agentSubAgentDetailsOpen}
+      rightPanelWide={agentSubAgentDetailsOpen && !reviewVisible}
+      centerFocus={reviewVisible}
       settingsOpen={settingsOpen}
       interactiveSubmode={interactiveSubmode}
       sidebar={sidebar}
@@ -636,6 +746,7 @@ export function ModeRouter(props: ModeRouterProps) {
       onSetRightPanel={onSetRightPanel}
       onToggleSettings={onToggleSettings}
       onCloseSettings={onCloseSettings}
+      onQuickSwitchBook={onQuickSwitchBook}
       onDismissUpdateNotice={onDismissUpdateNotice}
     />
   )
@@ -721,44 +832,48 @@ function IdeWorkspacePanel({
 }
 
 function ChapterOutline({
+  workspace,
+  tree,
   chapters,
   ideas,
   outline,
   chapterPlans,
   selectedFile,
   onSelectFile,
+  onRequestBookSettingCreate,
   onSetChapterConfirmed,
 }: {
+  workspace: string
+  tree: FileNode[]
   chapters: ChapterSummary[]
   ideas?: DocumentPreview
   outline?: DocumentPreview
   chapterPlans: DocumentPreview[]
   selectedFile: string | null
   onSelectFile: (path: string) => void | Promise<void>
+  onRequestBookSettingCreate: (item: { path: string; title: string }) => void
   onSetChapterConfirmed: (path: string, confirmed: boolean) => void | Promise<void>
 }) {
   const { t } = useTranslation()
   const [collapsedVolumes, setCollapsedVolumes] = useState<Set<string>>(() => new Set())
-  const [bookSettingsExpanded, setBookSettingsExpanded] = useState(false)
+  const [chapterPlansExpanded, setChapterPlansExpanded] = useState(() => chapterPlans.length > 0)
   const [chapterPlanHistoryExpanded, setChapterPlanHistoryExpanded] = useState(false)
+  const previousChapterPlanCountRef = useRef(chapterPlans.length)
   const volumes = useMemo(() => groupChaptersByVolume(chapters, t), [chapters, t])
-  const settingShortcuts = useMemo<PlanningShortcutItem[]>(() => [
-    { document: planningDocument(outline, 'setting/outline.md', t('planning.outline')), icon: 'outline', label: t('planning.outlineTab') },
-    { document: planningDocument(undefined, 'CREATOR.md', t('planning.creatorRules')), icon: 'creator', label: t('planning.creatorRulesTab') },
-    { document: planningDocument(undefined, 'setting/progress.md', t('planning.writingProgress')), icon: 'progress', label: t('planning.writingProgressTab') },
-  ], [outline, t])
-  const bookSettings = useMemo<PlanningDocumentItem[]>(() => [
-    { document: planningDocument(ideas, 'ideas.md', t('planning.ideas')), icon: 'ideas' },
-    { document: planningDocument(undefined, 'setting/character-states.md', t('planning.characterStates')), icon: 'characterState' },
-  ], [ideas, t])
-  const hasPlanning = settingShortcuts.length > 0 || bookSettings.length > 0 || chapterPlans.length > 0
   const latestChapterPlan = chapterPlans[chapterPlans.length - 1]
   const historicalChapterPlans = useMemo(() => chapterPlans.slice(0, -1), [chapterPlans])
   useEffect(() => {
     if (selectedFile && historicalChapterPlans.some((plan) => plan.path === selectedFile)) {
+      setChapterPlansExpanded(true)
       setChapterPlanHistoryExpanded(true)
     }
   }, [historicalChapterPlans, selectedFile])
+  useEffect(() => {
+    if (previousChapterPlanCountRef.current === 0 && chapterPlans.length > 0) {
+      setChapterPlansExpanded(true)
+    }
+    previousChapterPlanCountRef.current = chapterPlans.length
+  }, [chapterPlans.length])
 
   const toggleVolume = (key: string) => {
     setCollapsedVolumes(prev => {
@@ -769,72 +884,29 @@ function ChapterOutline({
     })
   }
 
-  if (!hasPlanning && chapters.length === 0) {
-    return (
-      <div className="rounded-lg border border-dashed border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-4 text-center text-xs text-[var(--nova-text-faint)]">
-        {t('planning.noChapters')}
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-3">
-      <section className="space-y-1.5">
-        <div className="flex items-center justify-between gap-2 px-1">
-          <span className="text-[11px] font-medium text-[var(--nova-text-faint)]">{t('planning.bookSettings')}</span>
-          <button
-            type="button"
-            className="nova-nav-item flex min-w-0 items-center gap-1 rounded-[var(--nova-radius)] px-1.5 py-0.5 text-[10px] text-[var(--nova-text-faint)]"
-            onClick={() => setBookSettingsExpanded((expanded) => !expanded)}
-          >
-            {bookSettingsExpanded ? (
-              <ChevronDown className="h-3 w-3 shrink-0" />
-            ) : (
-              <ChevronRight className="h-3 w-3 shrink-0" />
-            )}
-            <span className="truncate">{t('planning.bookSettingCount', { count: bookSettings.length })}</span>
-          </button>
-        </div>
-        <div className="flex items-center gap-1">
-          {settingShortcuts.map((item) => {
-            const selected = selectedFile === item.document.path
-            return (
-              <button
-                key={item.document.path}
-                type="button"
-                className={`nova-nav-item min-w-0 flex-1 px-1.5 py-1 text-[11px] font-medium ${
-                  selected ? 'is-active' : 'bg-[var(--nova-surface-2)] text-[var(--nova-text-muted)]'
-                }`}
-                title={item.document.title}
-                onClick={() => onSelectFile(item.document.path)}
-              >
-                <span className="block truncate">{item.label}</span>
-              </button>
-            )
-          })}
-        </div>
-        {bookSettingsExpanded && (
-          <div className="space-y-0.5 pl-1">
-            {bookSettings.map((item) => (
-              <PlanningListItem
-                key={item.document.path}
-                document={item.document}
-                icon={item.icon}
-                selected={selectedFile === item.document.path}
-                onSelectFile={onSelectFile}
-                compact
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      <BookSettingsShortcuts workspace={workspace} tree={tree} outline={outline} ideas={ideas} chapterPlans={chapterPlans} selectedFile={selectedFile} onSelectFile={onSelectFile} onRequestCreate={onRequestBookSettingCreate} />
 
       <section className="space-y-1.5">
-        <div className="flex items-center justify-between px-1 text-[11px] font-medium text-[var(--nova-text-faint)]">
-          <span>{t('planning.chapterPlans')}</span>
-          {chapterPlans.length > 0 && <span>{t('planning.chapterPlanCount', { count: chapterPlans.length })}</span>}
-        </div>
         {chapterPlans.length > 0 ? (
+          <button
+            type="button"
+            className="nova-nav-item flex w-full items-center gap-1.5 rounded-[var(--nova-radius)] px-1 py-1 text-left text-[11px] font-medium text-[var(--nova-text-faint)]"
+            aria-expanded={chapterPlansExpanded}
+            onClick={() => setChapterPlansExpanded((expanded) => !expanded)}
+          >
+            {chapterPlansExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+            <span className="min-w-0 flex-1 truncate">{t('planning.chapterPlans')}</span>
+            <span className="shrink-0">{t('planning.chapterPlanCount', { count: chapterPlans.length })}</span>
+          </button>
+        ) : (
+          <div className="flex items-center justify-between gap-2 px-1 py-1 text-[11px] font-medium text-[var(--nova-text-faint)]">
+            <span>{t('planning.chapterPlans')}</span>
+            <span>{t('planning.chapterPlansEmpty')}</span>
+          </div>
+        )}
+        {chapterPlans.length > 0 && chapterPlansExpanded && (
           <div className="space-y-1">
             {latestChapterPlan && (
               <PlanningListItem document={latestChapterPlan} icon="plan" selected={selectedFile === latestChapterPlan.path} onSelectFile={onSelectFile} />
@@ -864,8 +936,6 @@ function ChapterOutline({
               </div>
             )}
           </div>
-        ) : (
-          <PlanningEmptyState text={t('planning.chapterPlansEmpty')} />
         )}
       </section>
 
@@ -946,16 +1016,6 @@ function PlanningListItem({
       </div>
     </button>
   )
-}
-
-function planningDocument(source: DocumentPreview | undefined, path: string, title: string): DocumentPreview {
-  return {
-    path: source?.path ?? path,
-    title,
-    excerpt: source?.excerpt ?? '',
-    words: source?.words ?? 0,
-    updated_at: source?.updated_at ?? '',
-  }
 }
 
 function planningIcon(icon: PlanningDocumentIcon) {

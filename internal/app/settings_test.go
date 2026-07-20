@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"casemagica/config"
+	"denova/config"
 )
 
 func TestAppSettingsReturnsLayered(t *testing.T) {
 	ws := t.TempDir()
-	denovaDir := t.TempDir()
+	novaDir := t.TempDir()
 
 	a := &App{
-		cfg:       &config.Config{Workspace: ws, DenovaDir: denovaDir, OpenAIModel: "x", RuntimeWebPort: 19091},
+		cfg:       &config.Config{Workspace: ws, NovaDir: novaDir, OpenAIModel: "x", RuntimeWebPort: 19091},
 		workspace: ws,
 	}
 	layered, err := a.Settings()
@@ -24,7 +24,7 @@ func TestAppSettingsReturnsLayered(t *testing.T) {
 	if layered.Effective.OpenAIBaseURL == "" {
 		t.Fatalf("default BaseURL should be present")
 	}
-	if layered.Paths.UserConfig == "" || layered.Paths.WorkspaceConfig == "" || layered.Paths.DenovaDir == "" {
+	if layered.Paths.UserConfig == "" || layered.Paths.WorkspaceConfig == "" || layered.Paths.NovaDir == "" {
 		t.Fatalf("settings paths should be exposed: %+v", layered.Paths)
 	}
 	if layered.Access.LocalURL == "" || layered.Access.LANURL == "" {
@@ -37,17 +37,17 @@ func TestAppSettingsReturnsLayered(t *testing.T) {
 
 func TestAppUpdateUserSettingsPersists(t *testing.T) {
 	ws := t.TempDir()
-	denovaDir := t.TempDir()
+	novaDir := t.TempDir()
 
 	a := &App{
-		cfg:       &config.Config{Workspace: ws, DenovaDir: denovaDir},
+		cfg:       &config.Config{Workspace: ws, NovaDir: novaDir},
 		workspace: ws,
 	}
 	in := config.Settings{OpenAIModel: "user-model"}
 	if _, err := a.UpdateUserSettings(in); err != nil {
 		t.Fatal(err)
 	}
-	out, err := config.ReadSettingsFile(filepath.Join(denovaDir, "config.toml"))
+	out, err := config.ReadSettingsFile(filepath.Join(novaDir, "config.toml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,17 +58,17 @@ func TestAppUpdateUserSettingsPersists(t *testing.T) {
 
 func TestAppUpdateUserSettingsPreservesRemoteAccessPasswordHash(t *testing.T) {
 	ws := t.TempDir()
-	denovaDir := t.TempDir()
+	novaDir := t.TempDir()
 	hash, err := config.HashRemoteAccessPassword("secret")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := config.WriteSettingsFile(filepath.Join(denovaDir, "config.toml"), config.Settings{RemoteAccessPasswordHash: hash}); err != nil {
+	if err := config.WriteSettingsFile(filepath.Join(novaDir, "config.toml"), config.Settings{RemoteAccessPasswordHash: hash}); err != nil {
 		t.Fatal(err)
 	}
 
 	a := &App{
-		cfg:       &config.Config{Workspace: ws, DenovaDir: denovaDir},
+		cfg:       &config.Config{Workspace: ws, NovaDir: novaDir},
 		workspace: ws,
 	}
 	enabled := true
@@ -78,7 +78,7 @@ func TestAppUpdateUserSettingsPreservesRemoteAccessPasswordHash(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	out, err := config.ReadSettingsFile(filepath.Join(denovaDir, "config.toml"))
+	out, err := config.ReadSettingsFile(filepath.Join(novaDir, "config.toml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,37 +90,49 @@ func TestAppUpdateUserSettingsPreservesRemoteAccessPasswordHash(t *testing.T) {
 	}
 }
 
-func TestAppUpdateWorkspaceSettingsPersists(t *testing.T) {
+func TestAppUpdateWorkspaceSettingsOnlyPersistsAgentOverrides(t *testing.T) {
 	ws := t.TempDir()
-	denovaDir := t.TempDir()
+	novaDir := t.TempDir()
+	if err := config.WriteSettingsFile(config.WorkspaceConfigPath(ws), config.Settings{OpenAIModel: "legacy-workspace-model"}); err != nil {
+		t.Fatal(err)
+	}
 
 	a := &App{
-		cfg:       &config.Config{Workspace: ws, DenovaDir: denovaDir},
+		cfg:       &config.Config{Workspace: ws, NovaDir: novaDir},
 		workspace: ws,
 	}
-	hotChoices := false
-	in := config.Settings{OpenAIModel: "ws-model", InteractiveHotChoices: &hotChoices}
-	if _, err := a.UpdateWorkspaceSettings(in); err != nil {
+	enabled := false
+	in := config.Settings{
+		OpenAIModel: "ignored-new-model",
+		AgentTools: config.AgentToolSettings{
+			IDE: config.AgentToolOverride{ShellExecute: &enabled},
+		},
+	}
+	layered, err := a.UpdateWorkspaceSettings(in)
+	if err != nil {
 		t.Fatal(err)
 	}
 	out, err := config.ReadSettingsFile(config.WorkspaceConfigPath(ws))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.OpenAIModel != "ws-model" {
-		t.Fatalf("workspace model not persisted: %s", out.OpenAIModel)
+	if out.OpenAIModel != "legacy-workspace-model" {
+		t.Fatalf("legacy workspace general setting should be preserved: %s", out.OpenAIModel)
 	}
-	if out.InteractiveHotChoices == nil || *out.InteractiveHotChoices {
-		t.Fatalf("interactive hot choices not persisted: %v", out.InteractiveHotChoices)
+	if out.AgentTools.IDE.ShellExecute == nil || *out.AgentTools.IDE.ShellExecute {
+		t.Fatalf("workspace Agent override not persisted: %#v", out.AgentTools.IDE)
+	}
+	if layered.Workspace.OpenAIModel != "" || layered.Effective.OpenAIModel == "ignored-new-model" {
+		t.Fatalf("workspace general settings must not become effective: %#v", layered)
 	}
 }
 
 func TestAppUpdateWorkspaceSettingsFiltersLLMInputLogSetting(t *testing.T) {
 	ws := t.TempDir()
-	denovaDir := t.TempDir()
+	novaDir := t.TempDir()
 
 	a := &App{
-		cfg:       &config.Config{Workspace: ws, DenovaDir: denovaDir},
+		cfg:       &config.Config{Workspace: ws, NovaDir: novaDir},
 		workspace: ws,
 	}
 	enabled := true
@@ -147,9 +159,9 @@ func TestAppUpdateWorkspaceSettingsFiltersLLMInputLogSetting(t *testing.T) {
 
 func TestAppUpdateWorkspaceSettingsRejectsStaleRevision(t *testing.T) {
 	ws := t.TempDir()
-	denovaDir := t.TempDir()
+	novaDir := t.TempDir()
 	a := &App{
-		cfg:       &config.Config{Workspace: ws, DenovaDir: denovaDir},
+		cfg:       &config.Config{Workspace: ws, NovaDir: novaDir},
 		workspace: ws,
 	}
 	layered, err := a.UpdateWorkspaceSettings(config.Settings{OpenAIModel: "front-base"})
@@ -230,7 +242,7 @@ func TestApplyLayeredSettingsToConfigAppliesAgentToolResultLimit(t *testing.T) {
 	}
 }
 
-func TestApplyLayeredSettingsToConfigAllowsUnlimitedAgentToolResultLimit(t *testing.T) {
+func TestApplyLayeredSettingsToConfigMapsZeroToolResultLimitToHighDefault(t *testing.T) {
 	limitKB := 0
 	cfg := &config.Config{AgentToolResultLimitKB: 128}
 	applyLayeredSettingsToConfig(cfg, config.LayeredSettings{
@@ -238,8 +250,8 @@ func TestApplyLayeredSettingsToConfigAllowsUnlimitedAgentToolResultLimit(t *test
 			AgentToolResultLimitKB: &limitKB,
 		},
 	})
-	if cfg.AgentToolResultLimitKB != 0 {
-		t.Fatalf("agent tool result limit = %d, want 0", cfg.AgentToolResultLimitKB)
+	if cfg.AgentToolResultLimitKB != config.DefaultAgentToolResultLimitKB {
+		t.Fatalf("agent tool result limit = %d, want %d", cfg.AgentToolResultLimitKB, config.DefaultAgentToolResultLimitKB)
 	}
 }
 

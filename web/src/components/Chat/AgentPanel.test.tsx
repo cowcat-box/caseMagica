@@ -3,17 +3,18 @@ import userEvent from '@testing-library/user-event'
 import type { ComponentProps } from 'react'
 import { VirtuosoMockContext } from 'react-virtuoso'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchSettings, updateWorkspaceSettings } from '@/features/settings/api'
+import { fetchSettings, updateUserSettings } from '@/features/settings/api'
 import { AgentPanel } from './AgentPanel'
 
 const useWritingSkillOptionsMock = vi.hoisted(() => vi.fn())
+const useWorkspaceChangeGroupsMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/features/settings/api', () => ({
   fetchSettings: vi.fn().mockResolvedValue({
     effective: { ide_story_teller_id: 'classic', writing_skill_default: 'novel-lite' },
-    workspace: {},
+    user: {},
   }),
-  updateWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
+  updateUserSettings: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/hooks/useSkillCommands', () => ({
@@ -26,11 +27,31 @@ vi.mock('@/hooks/useWritingSkillOptions', () => ({
   useWritingSkillOptions: useWritingSkillOptionsMock,
 }))
 
+vi.mock('@/features/changes/use-change-review', () => ({
+  useWorkspaceChangeGroups: useWorkspaceChangeGroupsMock,
+}))
+
 describe('AgentPanel', () => {
   beforeEach(() => {
     vi.mocked(fetchSettings).mockClear()
-    vi.mocked(updateWorkspaceSettings).mockClear()
+    vi.mocked(updateUserSettings).mockClear()
+    vi.mocked(updateUserSettings).mockImplementation(async (settings) => ({
+      default: {},
+      global: {},
+      user: settings,
+      workspace: {},
+      effective: {
+        ide_story_teller_id: 'classic',
+        ide_image_preset_id: 'game-cg',
+        writing_skill_default: 'novel-lite',
+        ...settings,
+      },
+      revisions: { user: 'r2' },
+      paths: { denova_dir: '', nova_dir: '', user_config: '', workspace_config: '' },
+    }))
     useWritingSkillOptionsMock.mockReset()
+    useWorkspaceChangeGroupsMock.mockReset()
+    useWorkspaceChangeGroupsMock.mockReturnValue({ data: [] })
     useWritingSkillOptionsMock.mockReturnValue([
       { name: 'novel-lite', description: 'Lite', scope: 'builtin', path: '/skills/novel-lite/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-standard', description: 'Standard', scope: 'builtin', path: '/skills/novel-standard/SKILL.md', active: true, agent: 'ide' },
@@ -44,6 +65,7 @@ describe('AgentPanel', () => {
     renderAgentPanel()
 
     expect(useWritingSkillOptionsMock).toHaveBeenCalledWith('/workspace')
+    expect(useWorkspaceChangeGroupsMock).toHaveBeenCalledWith('/workspace', { sessionID: 'session-1' })
     expect(screen.getByRole('button', { name: '对话' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '会话' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '运行追踪' })).toBeInTheDocument()
@@ -71,6 +93,30 @@ describe('AgentPanel', () => {
     expect(handleCreateSession).toHaveBeenCalledTimes(1)
   })
 
+  it('创作 Agent 将思考和工具调用折叠到同一个思考过程', async () => {
+    const user = userEvent.setup()
+    renderAgentPanel({
+      messages: [{
+        id: 'assistant-trace',
+        role: 'assistant',
+        parts: [
+          { type: 'reasoning', text: '读取章节上下文' },
+          { type: 'dynamic-tool', toolName: 'read_file', toolCallId: 'tool-1', state: 'output-available', input: { path: 'chapters/ch01.md' }, output: 'ok' },
+          { type: 'text', text: '已完成续写。' },
+        ],
+      }],
+    })
+
+    expect(screen.getByRole('button', { name: /思考过程.*1 次工具调用/ })).toBeInTheDocument()
+    expect(screen.queryByText('读取章节上下文')).not.toBeInTheDocument()
+    expect(screen.queryByText('read_file')).not.toBeInTheDocument()
+    expect(screen.getByText('已完成续写。')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /思考过程.*1 次工具调用/ }))
+    expect(screen.getByText('读取章节上下文')).toBeInTheDocument()
+    expect(screen.getByText('read_file')).toBeInTheDocument()
+  })
+
   it('打开 SubAgent 详情时通知外层扩展右栏', async () => {
     const user = userEvent.setup()
     const handleDetailsChange = vi.fn()
@@ -79,11 +125,13 @@ describe('AgentPanel', () => {
       messages: [{
         id: 'subagent-output-1',
         role: 'assistant',
-        content: '调研摘要',
-        agent_name: 'researcher',
-        subagent: true,
-        subagent_session_id: 'run-1-subagent-01-researcher',
-      } as any],
+        metadata: {
+          agent_name: 'researcher',
+          subagent: true,
+          subagent_session_id: 'run-1-subagent-01-researcher',
+        },
+        parts: [{ type: 'text', text: '调研摘要' }],
+      }],
       onSubAgentDetailsChange: handleDetailsChange,
     })
 
@@ -92,6 +140,7 @@ describe('AgentPanel', () => {
     expect(handleDetailsChange).toHaveBeenLastCalledWith(true)
     expect(screen.getAllByText('researcher 子会话').length).toBeGreaterThan(0)
     expect(screen.getByRole('separator', { name: '调整 SubAgent 详情宽度' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: '输入动作' })).toHaveLength(1)
 
     await user.click(screen.getAllByRole('button', { name: '关闭 SubAgent 详情' })[0])
     expect(handleDetailsChange).toHaveBeenLastCalledWith(false)
@@ -107,7 +156,7 @@ describe('AgentPanel', () => {
 
     try {
       const { container } = renderAgentPanel({
-        messages: [{ id: 'assistant-1', role: 'assistant', content: '最后一行内容' } as any],
+        messages: [{ id: 'assistant-1', role: 'assistant', parts: [{ type: 'text', text: '最后一行内容' }] }],
       })
 
       await waitFor(() => {
@@ -166,7 +215,7 @@ describe('AgentPanel', () => {
     fireEvent.click(slowBurnItem.closest('[role="menuitem"]') || slowBurnItem)
 
     await waitFor(() => {
-      expect(updateWorkspaceSettings).toHaveBeenCalledWith(expect.objectContaining({ ide_story_teller_id: 'slow-burn' }))
+      expect(updateUserSettings).toHaveBeenCalledWith(expect.objectContaining({ ide_story_teller_id: 'slow-burn' }))
     })
 
     window.dispatchEvent(new CustomEvent('nova:writing-agent-init', {
@@ -179,6 +228,96 @@ describe('AgentPanel', () => {
         expect.objectContaining({ tellerId: 'slow-burn', writingSkill: 'novel-lite' }),
       )
     })
+  })
+
+  it('发送开始时移走审阅意见，并在请求失败时恢复', async () => {
+    const user = userEvent.setup()
+    const handleSend = vi.fn()
+      .mockImplementationOnce(async (_message, options) => {
+        options?.onSubmissionStart?.()
+        options?.onSubmissionError?.()
+        return false
+      })
+      .mockImplementationOnce(async (_message, options) => {
+        options?.onSubmissionStart?.()
+        return true
+      })
+    const handleSubmitted = vi.fn()
+    const handleSubmissionFailed = vi.fn()
+    renderAgentPanel({
+      onSend: handleSend,
+      onReviewFeedbackSubmitted: handleSubmitted,
+      onReviewFeedbackSubmissionFailed: handleSubmissionFailed,
+      reviewFeedback: [{
+        reviewThreadId: 'thread-1',
+        comments: [{ id: 'comment-1', group_id: 'group-1', body: '把这里写得更克制' }],
+      }],
+    })
+
+    await user.click(screen.getByRole('button', { name: '发送' }))
+    await waitFor(() => expect(handleSend).toHaveBeenCalledTimes(1))
+    expect(handleSubmitted).toHaveBeenCalledTimes(1)
+    expect(handleSubmissionFailed).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole('button', { name: '发送' }))
+    await waitFor(() => expect(handleSubmitted).toHaveBeenCalledTimes(2))
+    expect(handleSubmissionFailed).toHaveBeenCalledTimes(1)
+  })
+
+  it('同时提交正文与 Diff 审阅意见并保留各自来源', async () => {
+    const user = userEvent.setup()
+    const handleSend = vi.fn().mockResolvedValue(true)
+    renderAgentPanel({
+      onSend: handleSend,
+      onReviewFeedbackRemove: vi.fn(),
+      reviewFeedback: [
+        {
+          source: 'workspace_change',
+          reviewThreadId: 'diff-thread',
+          comments: [{ id: 'diff-comment', body: '调整 Diff 里的转场', review_path: 'chapters/ch01.md' }],
+        },
+        {
+          source: 'document',
+          reviewThreadId: 'document-thread',
+          comments: [{ id: 'document-comment', body: '正文这里需要更克制', path: 'chapters/ch02.md' }],
+        },
+      ],
+    })
+
+    expect(screen.getByTitle('调整 Diff 里的转场')).toHaveTextContent('Diff · chapters/ch01.md')
+    expect(screen.getByTitle('正文这里需要更克制')).toHaveTextContent('正文 · chapters/ch02.md')
+    await user.click(screen.getByRole('button', { name: '发送' }))
+
+    await waitFor(() => expect(handleSend).toHaveBeenCalledWith(
+      '请处理这 2 条审阅意见。',
+      expect.objectContaining({
+        reviewFeedback: [
+          { source: 'workspace_change', reviewThreadId: 'diff-thread', commentIds: ['diff-comment'] },
+          { source: 'document', reviewThreadId: 'document-thread', commentIds: ['document-comment'] },
+        ],
+      }),
+    ))
+  })
+
+  it('在超过单次评论上限时保留反馈并阻止发送', async () => {
+    const user = userEvent.setup()
+    const handleSend = vi.fn().mockResolvedValue(true)
+    renderAgentPanel({
+      onSend: handleSend,
+      onReviewFeedbackRemove: vi.fn(),
+      reviewFeedback: [{
+        reviewThreadId: 'thread-1',
+        comments: Array.from({ length: 257 }, (_, index) => ({
+          id: `comment-${index}`,
+          group_id: 'group-1',
+          body: `意见 ${index}`,
+        })),
+      }],
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('一次最多提交 256 条审阅意见')
+    await user.click(screen.getByRole('button', { name: '发送' }))
+    expect(handleSend).not.toHaveBeenCalled()
   })
 })
 

@@ -6,8 +6,15 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 )
+
+// DisplayTimeFormat is the canonical user-facing timestamp layout shared across
+// the project. Persisting or surfacing times through a single layout keeps
+// displays consistent and avoids the same magic string being re-decided in
+// every package.
+const DisplayTimeFormat = "2006-01-02 15:04"
 
 // WorkspaceSummary 汇总当前作品的写作进度。
 type WorkspaceSummary struct {
@@ -122,7 +129,7 @@ func (s *Service) Summary() (WorkspaceSummary, error) {
 			Words:        words,
 			Status:       chapterStatus(words, confirmed),
 			Confirmed:    confirmed,
-			UpdatedAt:    info.ModTime().Format("2006-01-02 15:04"),
+			UpdatedAt:    info.ModTime().UTC().Format(time.RFC3339),
 		}
 		chapter.Volume, chapter.VolumePath = chapterVolume(chapter.Path)
 		summary.Chapters = append(summary.Chapters, chapter)
@@ -160,7 +167,7 @@ func (s *Service) documentPreview(relPath, fallbackTitle string) *DocumentPrevie
 		Title:     documentTitle(content, fallbackTitle, relPath),
 		Excerpt:   documentExcerpt(content),
 		Words:     countWritingWords(content),
-		UpdatedAt: info.ModTime().Format("2006-01-02 15:04"),
+		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 	}
 }
 

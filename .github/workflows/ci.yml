@@ -45,6 +45,9 @@ jobs:
       - name: Run Go tests
         run: go test ./...
 
+      - name: Check reachable Go vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
       - name: Run frontend tests
         run: pnpm --dir web test
 
@@ -52,4 +55,21 @@ jobs:
         run: pnpm --dir web build
 
       - name: Build distribution
-        run: ./build.sh
+        run: ./scripts/build.sh
+
+  windows-workspace-change:
+    name: Windows workspace change regression
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Initialize a workspace change store
+        run: go test ./internal/workspacechange -run '^TestNewServiceInitializesWorkspaceChangeStoreOnWindows$' -count=1

@@ -7,11 +7,11 @@ import (
 	"log"
 	"strings"
 
-	"casemagica/config"
-	"casemagica/internal/agent"
-	"casemagica/internal/book"
-	"casemagica/internal/imagepreset"
-	"casemagica/internal/loreimage"
+	"denova/config"
+	"denova/internal/agent"
+	"denova/internal/book"
+	"denova/internal/imagepreset"
+	"denova/internal/loreimage"
 )
 
 // LoreAppService 负责资料库 CRUD。
@@ -266,11 +266,11 @@ func (s *LoreAppService) loreImageRuntimeSnapshot() (*book.LoreStore, config.Con
 	cfg := *a.cfg
 	workspace := a.workspace
 	bookService := a.bookService
-	denovaDir := cfg.DenovaDir
+	novaDir := cfg.DataDir()
 	a.mu.RUnlock()
 
 	cfg.Workspace = workspace
-	if layered, err := config.LoadLayeredWithStartupConfig(denovaDir, workspace); err == nil {
+	if layered, err := config.LoadLayeredWithStartupConfig(novaDir, workspace); err == nil {
 		applyLayeredSettingsToConfig(&cfg, layered)
 	} else {
 		log.Printf("[lore-image] 加载分层配置失败 workspace=%s err=%v", workspace, err)
@@ -286,10 +286,10 @@ func resolveLoreImagePreset(cfg config.Config, requestedID string) (imagepreset.
 	if presetID == "" {
 		presetID = imagepreset.DefaultID
 	}
-	if strings.TrimSpace(cfg.DenovaDir) == "" {
+	if strings.TrimSpace(cfg.DataDir()) == "" {
 		return imagepreset.DefaultPreset(), nil
 	}
-	return imagepreset.NewLibrary(cfg.DenovaDir).Get(presetID)
+	return imagepreset.NewLibrary(cfg.DataDir()).Get(presetID)
 }
 
 func dedupeLoreImageItemIDs(ids []string) []string {

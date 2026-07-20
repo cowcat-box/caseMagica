@@ -1,11 +1,40 @@
 package agent
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
-	"casemagica/internal/session"
+	"github.com/cloudwego/eino/schema"
+
+	"denova/internal/session"
 )
+
+func TestAppendAssistantIfAnyReturnsPersistenceFailure(t *testing.T) {
+	wantErr := errors.New("disk full")
+	conversation := &failingAssistantConversation{err: wantErr}
+	var content strings.Builder
+	content.WriteString("不会被误报为成功的正文")
+	generated, err := appendAssistantIfAny(conversation, &content, nil, session.MessageMetadata{})
+	if !errors.Is(err, wantErr) || generated != "不会被误报为成功的正文" {
+		t.Fatalf("persistence failure must reach the run loop: generated=%q err=%v", generated, err)
+	}
+	if content.Len() == 0 {
+		t.Fatal("failed persistence must not clear the only in-memory copy")
+	}
+}
+
+type failingAssistantConversation struct{ err error }
+
+func (c *failingAssistantConversation) PrepareMessages(string, string) ([]*schema.Message, error) {
+	return nil, nil
+}
+func (c *failingAssistantConversation) AppendAssistant(string) error { return c.err }
+func (c *failingAssistantConversation) MarkInterrupted(string, string, string) error {
+	return nil
+}
+func (c *failingAssistantConversation) PendingInterruption() *session.Interruption { return nil }
+func (c *failingAssistantConversation) ResolveInterruption(string) error           { return nil }
 
 func TestDisplayRecorderKeepsWriteFileContentArgs(t *testing.T) {
 	appender := &displayRecorderTestAppender{}
@@ -28,6 +57,31 @@ func TestDisplayRecorderKeepsWriteFileContentArgs(t *testing.T) {
 	args := appender.events[0].Args
 	if args != wantArgs {
 		t.Fatalf("display history should keep full write args, got %q", args)
+	}
+}
+
+func TestDisplayRecorderPersistsReclassifiedInteractiveContentAsThinking(t *testing.T) {
+	appender := &displayRecorderTestAppender{}
+	recorder := &displayEventRecorder{
+		appender:       appender,
+		pendingToolIDs: map[string]string{},
+	}
+
+	recorder.Record(Event{Type: "interactive_content_reclassified", Data: map[string]interface{}{
+		"agent_kind": AgentKindInteractiveStory,
+		"content":    "我先检查资料，再开始写正文。",
+	}})
+	recorder.Record(Event{Type: "tool_call", Data: map[string]interface{}{
+		"agent_kind": AgentKindInteractiveStory,
+		"id":         "call-lore",
+		"name":       "list_lore_items",
+	}})
+
+	if len(appender.events) != 2 {
+		t.Fatalf("events = %#v", appender.events)
+	}
+	if appender.events[0].Role != "thinking" || appender.events[0].Content != "我先检查资料，再开始写正文。" {
+		t.Fatalf("reclassified content was not persisted as thinking: %#v", appender.events[0])
 	}
 }
 
@@ -98,7 +152,7 @@ func TestDisplayRecorderKeepsIDEEditFileChapterArgs(t *testing.T) {
 		pendingToolIDs: map[string]string{},
 	}
 
-	args := `{"file_path":"chapters/ch01.md","old_string":"旧段落","new_string":"新段落"}`
+	args := `{"file_path":"chapters/ch01.md","edits":[{"id":"paragraph-1","old_string":"旧段落","new_string":"新段落"}]}`
 	recorder.Record(Event{Type: "tool_call", Data: map[string]interface{}{
 		"agent_kind": AgentKindIDE,
 		"id":         "call-1",

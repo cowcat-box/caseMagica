@@ -25,8 +25,14 @@ func (s *Store) UpdateTriggerState(id string, triggerID string, state TriggerSta
 		return Task{}, fmt.Errorf("trigger id is required")
 	}
 	for _, scope := range s.availableScopes() {
+		path, err := s.pathForScope(scope)
+		if err != nil {
+			return Task{}, err
+		}
+		unlock := storePathLocks.Lock(path)
 		tasks, err := s.readScope(scope)
 		if err != nil {
+			unlock()
 			return Task{}, err
 		}
 		for i := range tasks {
@@ -40,26 +46,40 @@ func (s *Store) UpdateTriggerState(id string, triggerID string, state TriggerSta
 			tasks[i].UpdatedAt = time.Now().UTC()
 			normalized, err := NormalizeTask(tasks[i])
 			if err != nil {
+				unlock()
 				return Task{}, err
 			}
 			tasks[i] = normalized
 			if err := s.writeScope(scope, tasks); err != nil {
+				unlock()
 				return Task{}, err
 			}
+			unlock()
 			return normalized, nil
 		}
+		unlock()
 	}
 	return Task{}, fmt.Errorf("automation task %s not found", id)
 }
 
 func (s *Store) ListInbox() ([]TriggerInboxItem, error) {
 	items := []TriggerInboxItem{}
-	for _, scope := range s.availableScopes() {
-		scopeItems, err := s.readInboxScope(scope)
+	for _, location := range s.inboxLocations() {
+		path, err := location.store.inboxPathForScope(location.scope)
 		if err != nil {
 			return nil, err
 		}
-		items = append(items, scopeItems...)
+		unlock := storePathLocks.Lock(path)
+		scopeItems, err := location.store.readInboxScope(location.scope)
+		unlock()
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range scopeItems {
+			if s.visibleInboxItem(item) {
+				items = append(items, item)
+			}
+		}
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		return items[i].CreatedAt.After(items[j].CreatedAt)
@@ -68,11 +88,24 @@ func (s *Store) ListInbox() ([]TriggerInboxItem, error) {
 }
 
 func (s *Store) CreateInboxItem(item TriggerInboxItem) (TriggerInboxItem, error) {
+	if strings.TrimSpace(item.Workspace) == "" && strings.TrimSpace(s.workspace) != "" {
+		item.Workspace = s.workspace
+	}
 	normalized, err := NormalizeInboxItem(item)
 	if err != nil {
 		return TriggerInboxItem{}, err
 	}
-	items, err := s.readInboxScope(normalized.Scope)
+	destination := s
+	if normalized.Scope == ScopeWorkspace && strings.TrimSpace(normalized.Workspace) != "" {
+		destination = NewStore(s.userDir, normalized.Workspace)
+	}
+	path, err := destination.inboxPathForScope(normalized.Scope)
+	if err != nil {
+		return TriggerInboxItem{}, err
+	}
+	unlock := storePathLocks.Lock(path)
+	defer unlock()
+	items, err := destination.readInboxScope(normalized.Scope)
 	if err != nil {
 		return TriggerInboxItem{}, err
 	}
@@ -83,7 +116,7 @@ func (s *Store) CreateInboxItem(item TriggerInboxItem) (TriggerInboxItem, error)
 	if len(items) > MaxInboxItems {
 		items = items[:MaxInboxItems]
 	}
-	if err := s.writeInboxScope(normalized.Scope, items); err != nil {
+	if err := destination.writeInboxScope(normalized.Scope, items); err != nil {
 		return TriggerInboxItem{}, err
 	}
 	return normalized, nil
@@ -94,16 +127,24 @@ func (s *Store) GetInboxItem(id string) (TriggerInboxItem, error) {
 	if id == "" {
 		return TriggerInboxItem{}, fmt.Errorf("inbox item id is required")
 	}
-	for _, scope := range s.availableScopes() {
-		items, err := s.readInboxScope(scope)
+	for _, location := range s.inboxLocations() {
+		path, err := location.store.inboxPathForScope(location.scope)
 		if err != nil {
 			return TriggerInboxItem{}, err
 		}
+		unlock := storePathLocks.Lock(path)
+		items, err := location.store.readInboxScope(location.scope)
+		if err != nil {
+			unlock()
+			return TriggerInboxItem{}, err
+		}
 		for _, item := range items {
-			if item.ID == id {
+			if item.ID == id && s.visibleInboxItem(item) {
+				unlock()
 				return item, nil
 			}
 		}
+		unlock()
 	}
 	return TriggerInboxItem{}, fmt.Errorf("automation inbox item %s not found", id)
 }
@@ -250,14 +291,11 @@ func (s *Store) writeInboxScope(scope string, items []TriggerInboxItem) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
 	data, err := json.MarshalIndent(inboxFile{Items: items}, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o644)
+	return durableWriteJSON(path, append(data, '\n'), 0o644)
 }
 
 func (s *Store) updateInboxItem(id string, update func(TriggerInboxItem, time.Time) TriggerInboxItem) (TriggerInboxItem, error) {
@@ -265,13 +303,19 @@ func (s *Store) updateInboxItem(id string, update func(TriggerInboxItem, time.Ti
 	if id == "" {
 		return TriggerInboxItem{}, fmt.Errorf("inbox item id is required")
 	}
-	for _, scope := range s.availableScopes() {
-		items, err := s.readInboxScope(scope)
+	for _, location := range s.inboxLocations() {
+		path, err := location.store.inboxPathForScope(location.scope)
 		if err != nil {
 			return TriggerInboxItem{}, err
 		}
+		unlock := storePathLocks.Lock(path)
+		items, err := location.store.readInboxScope(location.scope)
+		if err != nil {
+			unlock()
+			return TriggerInboxItem{}, err
+		}
 		for i := range items {
-			if items[i].ID != id {
+			if items[i].ID != id || !s.visibleInboxItem(items[i]) {
 				continue
 			}
 			now := time.Now().UTC()
@@ -279,16 +323,48 @@ func (s *Store) updateInboxItem(id string, update func(TriggerInboxItem, time.Ti
 			next.UpdatedAt = now
 			normalized, err := NormalizeInboxItem(next)
 			if err != nil {
+				unlock()
 				return TriggerInboxItem{}, err
 			}
 			items[i] = normalized
-			if err := s.writeInboxScope(scope, items); err != nil {
+			if err := location.store.writeInboxScope(location.scope, items); err != nil {
+				unlock()
 				return TriggerInboxItem{}, err
 			}
+			unlock()
 			return normalized, nil
 		}
+		unlock()
 	}
 	return TriggerInboxItem{}, fmt.Errorf("automation inbox item %s not found", id)
+}
+
+func (s *Store) visibleInboxItem(item TriggerInboxItem) bool {
+	if len(s.knownWorkspaces) > 0 {
+		return true
+	}
+	if item.Scope != ScopeUser || strings.TrimSpace(s.workspace) == "" {
+		return true
+	}
+	return canonicalStoreRoot(item.Workspace) == canonicalStoreRoot(s.workspace)
+}
+
+func (s *Store) inboxLocations() []taskStoreLocation {
+	locations := []taskStoreLocation{{store: NewStore(s.userDir, ""), scope: ScopeUser}}
+	seen := map[string]bool{}
+	appendWorkspace := func(workspace string) {
+		canonical := canonicalStoreRoot(workspace)
+		if canonical == "" || seen[canonical] {
+			return
+		}
+		seen[canonical] = true
+		locations = append(locations, taskStoreLocation{store: NewStore(s.userDir, canonical), scope: ScopeWorkspace})
+	}
+	appendWorkspace(s.workspace)
+	for _, workspace := range s.knownWorkspaces {
+		appendWorkspace(workspace)
+	}
+	return locations
 }
 
 func (s *Store) inboxPathForScope(scope string) (string, error) {

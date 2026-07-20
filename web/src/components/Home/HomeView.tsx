@@ -5,28 +5,24 @@ import { toast } from 'sonner'
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { BookOpen, Download, FileText, Folder, GripVertical, LibraryBig, Loader2, Pencil, Plus, Trash2, Upload, X } from 'lucide-react'
+import { ArrowDownUp, BookOpen, Download, FileText, Folder, GripVertical, LibraryBig, Loader2, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { EmptyState } from '@/components/common/EmptyState'
 import { TooltipIconButton } from '@/components/common/tooltip-icon-button'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { FeaturePageShell } from '@/components/layout/feature-page-shell'
 import { NovelImportDialog } from './NovelImportDialog'
 import {
   downloadBookExport,
   exportBook,
   removeBook,
   reorderBooks,
+  setBookSortMode,
   switchWorkspace,
   type BookRecord,
+  type BookSortMode,
 } from '@/lib/api'
 import { getImagePresets } from '@/features/interactive/api'
 import type { ImagePreset } from '@/features/interactive/types'
@@ -38,13 +34,17 @@ interface HomeViewProps {
   /** 当前工作区路径，用于高亮当前书籍并作为父目录推断默认值 */
   workspace: string
   /** 用户 Nova 数据目录，新建书籍默认创建在该目录下 */
-  denovaDir: string
+  novaDir: string
   /** Nova 数据目录下实际存在的书籍 */
   books: BookRecord[]
+  /** 书架与标题快捷入口共用的持久化排序方式。 */
+  bookSortMode: BookSortMode
   /** 切换到指定 workspace 后由父组件刷新业务状态 */
   onSwitch: (path: string) => void
+  /** 在后端切换 workspace 前保存当前编辑器草稿。 */
+  onBeforeSwitch?: () => Promise<boolean>
   /** 书籍记录有变更时通知父组件刷新列表 */
-  onBooksChange: () => void
+  onBooksChange: () => void | Promise<void>
   /** 打开酒馆角色卡导入弹窗 */
   onOpenCharacterCardImport?: () => void
   /** 关闭全局书籍管理弹窗 */
@@ -57,7 +57,7 @@ const iconButtonCls = 'nova-nav-item text-[var(--nova-text-faint)] hover:bg-[var
 type BookDialogState = { mode: 'create'; book: null } | { mode: 'edit'; book: BookRecord }
 
 /** 书籍管理视图：集中展示、创建、打开和编辑 Nova 数据目录中的书籍。 */
-export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange, onOpenCharacterCardImport, onClose }: HomeViewProps) {
+export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, onBeforeSwitch, onBooksChange, onOpenCharacterCardImport, onClose }: HomeViewProps) {
   const { t } = useTranslation()
   const [showNovelImport, setShowNovelImport] = useState(false)
   const [bookDialog, setBookDialog] = useState<BookDialogState | null>(null)
@@ -66,9 +66,8 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
   const [coverVersions, setCoverVersions] = useState<Record<string, string>>({})
   const [orderedBooks, setOrderedBooks] = useState<BookRecord[]>(books)
   const [deleteTarget, setDeleteTarget] = useState<BookRecord | null>(null)
-  const [deleteError, setDeleteError] = useState('')
-  const [deleting, setDeleting] = useState(false)
   const [exportingPath, setExportingPath] = useState('')
+  const [updatingSortMode, setUpdatingSortMode] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -106,6 +105,7 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
   /** 切换到指定书籍 */
   const handleSwitch = async (path: string) => {
     try {
+      if (onBeforeSwitch && !(await onBeforeSwitch())) return
       const data = await switchWorkspace(path)
       onSwitch(data.workspace || path)
     } catch (e) {
@@ -119,6 +119,7 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    if (bookSortMode !== 'manual') return
     const { active, over } = event
     if (!over || active.id === over.id) return
     const oldIndex = orderedBooks.findIndex((book) => book.path === active.id)
@@ -135,27 +136,34 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
     }
   }
 
+  const handleSortModeChange = async (mode: string) => {
+    if ((mode !== 'recent' && mode !== 'manual') || mode === bookSortMode || updatingSortMode) return
+    setUpdatingSortMode(true)
+    try {
+      await setBookSortMode(mode)
+      await onBooksChange()
+    } catch (e) {
+      console.error('[HomeView.tsx] 保存书籍排序模式失败', { mode, error: e })
+      toast.error(t('home.sortUpdateError'), {
+        description: e instanceof Error ? e.message : String(e),
+      })
+    } finally {
+      setUpdatingSortMode(false)
+    }
+  }
+
   const openDeleteDialog = (book: BookRecord) => {
     setDeleteTarget(book)
-    setDeleteError('')
   }
 
   const handleDelete = async () => {
     if (!deleteTarget) return
-    setDeleting(true)
-    setDeleteError('')
-    try {
-      const result = await removeBook(deleteTarget.path)
-      if (deleteTarget.path === workspace) {
-        onSwitch(result.workspace || '')
-      } else {
-        await onBooksChange()
-      }
-      setDeleteTarget(null)
-    } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setDeleting(false)
+    if (deleteTarget.path === workspace && onBeforeSwitch && !(await onBeforeSwitch())) return false
+    const result = await removeBook(deleteTarget.path)
+    if (deleteTarget.path === workspace) {
+      onSwitch(result.workspace || '')
+    } else {
+      await onBooksChange()
     }
   }
 
@@ -189,23 +197,14 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
   }
 
   return (
-    <div className="nova-sidebar flex h-full min-w-0 flex-col text-[var(--nova-text)]">
-      <div className="nova-topbar flex h-10 shrink-0 items-center gap-2 border-b px-4 text-xs">
-        <LibraryBig className="h-3.5 w-3.5 text-[var(--nova-text-muted)]" />
-        <span className="font-medium text-[var(--nova-text)]">{t('home.title')}</span>
-        <span className="text-[11px] text-[var(--nova-text-faint)]">{t('home.bookCount', { count: books.length })}</span>
-        {onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            className={`${iconButtonCls} ml-auto rounded p-1`}
-            aria-label={t('home.close')}
-            title={t('home.close')}
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+    <FeaturePageShell
+      icon={LibraryBig}
+      title={t('home.title')}
+      subtitle={t('home.bookCount', { count: books.length })}
+      onClose={onClose}
+      closeLabel={t('home.close')}
+      className="nova-sidebar min-w-0 text-[var(--nova-text)]"
+    >
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto flex w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden px-4 py-5 sm:max-w-4xl sm:px-6 sm:py-6">
@@ -242,7 +241,7 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
                     disabled={Boolean(exportingPath)}
                     onClick={() => void handleExportTxt(currentBook)}
                   >
-                    {exportingPath === currentBook.path ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                    {exportingPath === currentBook.path ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Download data-icon="inline-start" />}
                     {exportingPath === currentBook.path ? t('home.exporting') : t('home.exportTxt')}
                   </Button>
                   <div className="flex items-center gap-1.5 rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2 py-1 text-[11px] text-[var(--nova-text-muted)]">
@@ -262,6 +261,22 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
                 {t('home.bookshelf')}
               </div>
               <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+                <Select value={bookSortMode} disabled={updatingSortMode} onValueChange={(mode) => void handleSortModeChange(mode)}>
+                  <SelectTrigger
+                    size="sm"
+                    aria-label={t('home.sortLabel')}
+                    className="nova-nav-item border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[11px] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
+                  >
+                    {updatingSortMode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowDownUp className="h-3.5 w-3.5" />}
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text)]">
+                    <SelectGroup>
+                      <SelectItem value="recent" className="text-xs">{t('home.sortRecent')}</SelectItem>
+                      <SelectItem value="manual" className="text-xs">{t('home.sortManual')}</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
                 <Button
                   type="button"
                   size="xs"
@@ -269,7 +284,7 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
                   className={`${ghostButtonCls} max-w-full`}
                   onClick={() => setShowNovelImport(true)}
                 >
-                  <FileText className="h-3.5 w-3.5" />
+                  <FileText data-icon="inline-start" />
                   {t('home.importNovel')}
                 </Button>
                 {onOpenCharacterCardImport && (
@@ -280,7 +295,7 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
                     className={`${ghostButtonCls} max-w-full`}
                     onClick={onOpenCharacterCardImport}
                   >
-                    <Upload className="h-3.5 w-3.5" />
+                    <Upload data-icon="inline-start" />
                     {t('home.importCard')}
                   </Button>
                 )}
@@ -293,7 +308,7 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
                     onClick={openCreateDialog}
                     data-onboarding-anchor="books-create"
                   >
-                    <Plus className="h-3.5 w-3.5" />
+                    <Plus data-icon="inline-start" />
                     {t('home.createBook')}
                   </Button>
                 )}
@@ -301,20 +316,25 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
             </div>
 
             {orderedBooks.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-[var(--nova-radius)] border border-dashed border-[var(--nova-border)] bg-[var(--nova-surface)] px-4 py-8 text-center text-xs text-[var(--nova-text-faint)]">
-                <div className="text-sm font-medium text-[var(--nova-text-muted)]">{t('home.empty')}</div>
-                <div className="max-w-md leading-5">{t('home.emptyDescription')}</div>
-                <Button
-                  type="button"
-                  size="xs"
-                  className={primaryButtonCls}
-                  onClick={openCreateDialog}
-                  data-onboarding-anchor="books-create"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  {t('home.createBook')}
-                </Button>
-              </div>
+              <EmptyState
+                variant="dashed"
+                icon={BookOpen}
+                title={t('home.empty')}
+                description={t('home.emptyDescription')}
+                className="bg-[var(--nova-surface)] text-[var(--nova-text-faint)]"
+                content={(
+                  <Button
+                    type="button"
+                    size="xs"
+                    className={primaryButtonCls}
+                    onClick={openCreateDialog}
+                    data-onboarding-anchor="books-create"
+                  >
+                    <Plus data-icon="inline-start" />
+                    {t('home.createBook')}
+                  </Button>
+                )}
+              />
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={orderedBooks.map((book) => book.path)} strategy={rectSortingStrategy}>
@@ -326,6 +346,7 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
                         <SortableBookCard
                           key={book.path}
                           book={book}
+                          disabled={bookSortMode !== 'manual'}
                         >
                           {(dragHandleProps) => (
                             <div
@@ -335,10 +356,6 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
                                   : 'border-[var(--nova-border)] bg-[var(--nova-surface)] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)]'
                               }`}
                             >
-                              {isCurrent && (
-                                <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-[var(--nova-accent)]" />
-                              )}
-                              <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden h-3 border-t border-[var(--nova-border)] bg-[var(--nova-surface-2)] sm:block" />
                               <button
                                 type="button"
                                 className="flex h-full w-full min-w-0 flex-col items-center px-2 py-2 text-center sm:min-h-[232px] sm:items-stretch sm:px-3 sm:py-3 sm:text-left"
@@ -352,18 +369,20 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
                                 />
                                 <div className="flex min-w-0 flex-1 flex-col self-stretch">
                                   <div className="line-clamp-2 text-xs font-semibold leading-4 text-[var(--nova-text)] sm:text-sm sm:leading-5">{book.name || t('home.unnamedBook')}</div>
-                                  {book.author && <div className="hidden truncate text-[11px] text-[var(--nova-text-muted)] sm:mt-2 sm:block">{book.author}</div>}
-                                  <div className="mt-auto hidden truncate pt-4 text-[10px] text-[var(--nova-text-faint)] sm:block">{book.path}</div>
+                                  <div className="hidden truncate text-[11px] text-[var(--nova-text-muted)] sm:mt-2 sm:block">{book.author || t('home.authorUnset')}</div>
+                                  <div className="mt-auto hidden truncate pt-2 text-[10px] text-[var(--nova-text-faint)] sm:block">{book.path}</div>
                                 </div>
                               </button>
-                              <div className="absolute right-2 top-2 z-10 flex shrink-0 items-center gap-0.5">
-                                <TooltipIconButton
-                                  label={t('home.dragToSort')}
-                                  className={`${iconButtonCls} cursor-grab bg-[var(--nova-surface)] opacity-100 sm:pointer-events-none sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100`}
-                                  {...dragHandleProps}
-                                >
-                                  <GripVertical className="h-3.5 w-3.5" />
-                                </TooltipIconButton>
+                              <div className="absolute right-1 top-1 z-10 flex shrink-0 items-center gap-0.5">
+                                {bookSortMode === 'manual' && (
+                                  <TooltipIconButton
+                                    label={t('home.dragToSort')}
+                                    className={`${iconButtonCls} cursor-grab bg-[var(--nova-surface)] opacity-100 sm:pointer-events-none sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100`}
+                                    {...dragHandleProps}
+                                  >
+                                    <GripVertical className="h-3.5 w-3.5" />
+                                  </TooltipIconButton>
+                                )}
                                 <TooltipIconButton
                                   label={t('home.editInfo')}
                                   className={`${iconButtonCls} bg-[var(--nova-surface)] opacity-100 sm:pointer-events-none sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100`}
@@ -387,7 +406,7 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </TooltipIconButton>
                                 {isCurrent && (
-                                  <span className="hidden rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-1.5 py-0.5 text-[10px] text-[var(--nova-text-muted)] sm:inline">
+                                  <span className="hidden rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-1.5 py-0.5 text-[10px] text-[var(--nova-text-muted)] sm:pointer-events-none sm:inline">
                                     {t('common.current')}
                                   </span>
                                 )}
@@ -407,7 +426,7 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
       </ScrollArea>
       <NovelImportDialog
         open={showNovelImport}
-        denovaDir={denovaDir}
+        novaDir={novaDir}
         onOpenChange={setShowNovelImport}
         onImported={(result) => {
           onSwitch(result.workspace)
@@ -419,7 +438,7 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
         open={Boolean(bookDialog)}
         mode={bookDialog?.mode || 'create'}
         book={bookDialog?.book || null}
-        denovaDir={denovaDir}
+        novaDir={novaDir}
         imagePresetOptions={imagePresetOptions}
         defaultImagePresetId={defaultImagePresetId}
         coverVersion={coverVersion}
@@ -430,36 +449,20 @@ export function HomeView({ workspace, denovaDir, books, onSwitch, onBooksChange,
         onBooksChange={onBooksChange}
         onCoverUpdated={handleCoverUpdated}
       />
-      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => {
-        if (!open && !deleting) setDeleteTarget(null)
-      }}>
-        <AlertDialogContent className="border-[var(--nova-border)] bg-[var(--nova-surface)] text-[var(--nova-text)]">
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('home.deleteBook')}</AlertDialogTitle>
-            <AlertDialogDescription className="text-[var(--nova-text-muted)]">
-              {t('home.deleteBookDescription', { name: deleteTarget?.name || t('home.unnamedBook') })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="truncate rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2.5 py-2 text-xs text-[var(--nova-text-faint)]">
-            {deleteTarget?.path}
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
+        title={t('home.deleteBook')}
+        description={t('home.deleteBookDescription', { name: deleteTarget?.name || t('home.unnamedBook') })}
+        confirmLabel={t('home.softDeleteBook')}
+        detailContent={deleteTarget ? (
+          <div className="truncate rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2.5 py-2 text-xs text-[var(--nova-text-faint)]" title={deleteTarget.path}>
+            {deleteTarget.path}
           </div>
-          {deleteError && <div className="text-xs text-[var(--nova-danger)]">{deleteError}</div>}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              className="border border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text)] hover:bg-[var(--nova-hover)]"
-              disabled={deleting}
-              onClick={(e) => {
-                e.preventDefault()
-                void handleDelete()
-              }}
-            >
-              {t('home.softDeleteBook')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        ) : null}
+        onConfirm={handleDelete}
+      />
+    </FeaturePageShell>
   )
 }
 

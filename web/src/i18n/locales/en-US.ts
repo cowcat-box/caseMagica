@@ -26,8 +26,7 @@ import storyPicker from './en-US/storyPicker'
 import branchTimeline from './en-US/branchTimeline'
 import storyStage from './en-US/storyStage'
 import snapshot from './en-US/snapshot'
-import memoryPanel from './en-US/memoryPanel'
-import storyMemory from './en-US/storyMemory'
+import directorPanel from './en-US/directorPanel'
 import settings from './en-US/settings'
 import time from './en-US/time'
 import versions from './en-US/versions'
@@ -37,6 +36,7 @@ import skills from './en-US/skills'
 import automations from './en-US/automations'
 import messages from './en-US/messages'
 import onboarding from './en-US/onboarding'
+import changes from './en-US/changes'
 
 const enUS = {
   ...common,
@@ -67,8 +67,7 @@ const enUS = {
   ...branchTimeline,
   ...storyStage,
   ...snapshot,
-  ...memoryPanel,
-  ...storyMemory,
+  ...directorPanel,
   ...settings,
   ...time,
   ...versions,
@@ -78,6 +77,7 @@ const enUS = {
   ...automations,
   ...messages,
   ...onboarding,
+  ...changes,
 } as const
 
 export default enUS

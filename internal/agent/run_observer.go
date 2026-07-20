@@ -2,23 +2,51 @@ package agent
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 )
 
 type runObserverKey struct{}
 
+// LLMOutcome captures bounded metadata from the latest model response in one run.
+type LLMOutcome struct {
+	FinishReason      string
+	RequestedTools    []string
+	ProviderRequestID string
+}
+
 // RunObserver records durable state for one Agent run without changing model-visible behavior.
 type RunObserver struct {
-	ledger       *RunLedger
-	rootSpanID   string
-	llmSpanID    string
-	pendingTools map[string]*traceSpanHandle
-	mu           sync.Mutex
+	ledger         *RunLedger
+	runID          string
+	sessionID      string
+	reviewThreadID string
+	rootSpanID     string
+	llmSpanID      string
+	lastLLMOutcome LLMOutcome
+	pendingTools   map[string]*traceSpanHandle
+	mu             sync.Mutex
 }
 
 func newRunObserver(ledger *RunLedger, rootSpanID string) *RunObserver {
-	return &RunObserver{ledger: ledger, rootSpanID: rootSpanID, pendingTools: map[string]*traceSpanHandle{}}
+	runID := ""
+	if ledger != nil {
+		runID = strings.TrimSpace(ledger.ID())
+	}
+	return newRunObserverWithIdentity(ledger, rootSpanID, runID, "", "")
+
+}
+
+func newRunObserverWithIdentity(ledger *RunLedger, rootSpanID, runID, sessionID, reviewThreadID string) *RunObserver {
+	return &RunObserver{
+		ledger:         ledger,
+		runID:          strings.TrimSpace(runID),
+		sessionID:      strings.TrimSpace(sessionID),
+		reviewThreadID: strings.TrimSpace(reviewThreadID),
+		rootSpanID:     rootSpanID,
+		pendingTools:   map[string]*traceSpanHandle{},
+	}
 }
 
 func ContextWithRunObserver(ctx context.Context, observer *RunObserver) context.Context {
@@ -45,6 +73,56 @@ func (o *RunObserver) RecordLLMSpan(spanID string) {
 	o.mu.Unlock()
 }
 
+func (o *RunObserver) RecordLLMOutcome(outcome LLMOutcome) {
+	if o == nil {
+		return
+	}
+	outcome.FinishReason = strings.TrimSpace(outcome.FinishReason)
+	outcome.ProviderRequestID = strings.TrimSpace(outcome.ProviderRequestID)
+	outcome.RequestedTools = append([]string(nil), outcome.RequestedTools...)
+	o.mu.Lock()
+	o.lastLLMOutcome = outcome
+	o.mu.Unlock()
+}
+
+func (o *RunObserver) LastLLMOutcome() LLMOutcome {
+	if o == nil {
+		return LLMOutcome{}
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	outcome := o.lastLLMOutcome
+	outcome.RequestedTools = append([]string(nil), outcome.RequestedTools...)
+	return outcome
+}
+
+// RunID returns the durable run identity available to tools in this context.
+// It is intentionally metadata-only; tools must not depend on the run ledger
+// contents when applying workspace changes.
+func (o *RunObserver) RunID() string {
+	if o == nil {
+		return ""
+	}
+	return o.runID
+}
+
+// SessionID identifies the user-visible conversation that owns this run.
+func (o *RunObserver) SessionID() string {
+	if o == nil {
+		return ""
+	}
+	return o.sessionID
+}
+
+// ReviewThreadID links this run to a multi-run review without changing the
+// run-scoped ChangeGroup/Undo boundary.
+func (o *RunObserver) ReviewThreadID() string {
+	if o == nil {
+		return ""
+	}
+	return o.reviewThreadID
+}
+
 func (o *RunObserver) RecordToolDecision(decision ToolDecision) {
 	if o == nil || o.ledger == nil {
 		return
@@ -52,7 +130,7 @@ func (o *RunObserver) RecordToolDecision(decision ToolDecision) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	_ = o.ledger.RecordToolDecision(decision)
-	o.pendingTools[o.toolKey(decision.ToolCallID, decision.ToolName)] = newTraceSpanHandle(o.ledger.ID(), o.ledger, o.parentSpanID(), "tool_call", map[string]any{
+	attrs := map[string]any{
 		"tool_name":           decision.ToolName,
 		"tool_call_id":        decision.ToolCallID,
 		"source":              decision.Source,
@@ -62,7 +140,17 @@ func (o *RunObserver) RecordToolDecision(decision ToolDecision) {
 		"mutates_workspace":   decision.MutatesWorkspace,
 		"requires_post_check": decision.RequiresPostCheck,
 		"target":              decision.Target,
-	})
+	}
+	if decision.ArgsBytes > 0 {
+		attrs["args_bytes"] = decision.ArgsBytes
+	}
+	if decision.ArgsComplete != nil {
+		attrs["args_complete"] = *decision.ArgsComplete
+	}
+	if decision.ModelFinishReason != "" {
+		attrs["model_finish_reason"] = decision.ModelFinishReason
+	}
+	o.pendingTools[o.toolKey(decision.ToolCallID, decision.ToolName)] = newTraceSpanHandle(o.ledger.ID(), o.ledger, o.parentSpanID(), "tool_call", attrs)
 }
 
 func (o *RunObserver) RecordToolExecution(result ToolExecutionRecord) {
@@ -85,7 +173,7 @@ func (o *RunObserver) RecordToolExecution(result ToolExecutionRecord) {
 	if status == "" {
 		status = "success"
 	}
-	span.Finish(status, map[string]any{
+	attrs := map[string]any{
 		"tool_name":       result.ToolName,
 		"tool_call_id":    result.ToolCallID,
 		"capability":      result.Capability,
@@ -96,7 +184,40 @@ func (o *RunObserver) RecordToolExecution(result ToolExecutionRecord) {
 		"idempotency_key": result.IdempotencyKey,
 		"error":           result.Error,
 		"recorded_at":     time.Now().UTC().Format(time.RFC3339Nano),
-	})
+	}
+	if result.DomainStatus != "" {
+		attrs["domain_status"] = result.DomainStatus
+		attrs["domain_diagnostic_count"] = result.DomainDiagnosticCount
+		attrs["retry_modules"] = append([]string(nil), result.RetryModules...)
+	}
+	if result.Workspace != "" {
+		attrs["workspace"] = result.Workspace
+	}
+	if result.ChangeGroupID != "" {
+		attrs["change_group_id"] = result.ChangeGroupID
+	}
+	if result.ReviewThreadID != "" {
+		attrs["review_thread_id"] = result.ReviewThreadID
+	}
+	if result.ChangeSetID != "" {
+		attrs["change_set_id"] = result.ChangeSetID
+	}
+	if result.BaseRevision != "" {
+		attrs["base_revision"] = result.BaseRevision
+	}
+	if result.Revision != "" {
+		attrs["revision"] = result.Revision
+	}
+	if result.ArgsBytes > 0 {
+		attrs["args_bytes"] = result.ArgsBytes
+	}
+	if result.ArgsComplete != nil {
+		attrs["args_complete"] = *result.ArgsComplete
+	}
+	if result.ModelFinishReason != "" {
+		attrs["model_finish_reason"] = result.ModelFinishReason
+	}
+	span.Finish(status, attrs)
 }
 
 func (o *RunObserver) RecordMutations(mutations []ToolMutation) {

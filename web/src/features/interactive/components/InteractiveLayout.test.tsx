@@ -31,16 +31,12 @@ vi.mock('./BranchTimeline', () => ({
   BranchTimeline: () => <div data-testid="branch-timeline" />,
 }))
 
-vi.mock('./MemoryPanel', () => ({
-  MemoryPanel: () => <div data-testid="memory-panel" />,
+vi.mock('./DirectorPanel', () => ({
+  DirectorPanel: () => <div data-testid="director-panel" />,
 }))
 
 vi.mock('./SettingPanel', () => ({
   SettingPanel: () => <div data-testid="setting-panel" />,
-}))
-
-vi.mock('./StoryMemoryView', () => ({
-  StoryMemoryView: () => <div data-testid="story-memory-view" />,
 }))
 
 vi.mock('./StoryPicker', () => ({
@@ -51,7 +47,7 @@ vi.mock('./StoryStage', () => ({
   StoryStage: (props: {
     stories: StorySummary[]
     storyId: string
-    onStoryCreate: (input: { title: string; origin?: string; story_teller_id: string; story_director_id?: string; reply_target_chars?: number }) => Promise<void>
+    onStoryCreate: (input: { title: string; origin?: string; story_teller_id: string; story_director_id?: string; choice_count: number; reply_target_chars?: number }) => Promise<void>
     onDirectorChange: (directorId: string) => Promise<void>
   }) => (
     <div data-testid="story-stage-probe" data-story-id={props.storyId}>
@@ -62,6 +58,7 @@ vi.mock('./StoryStage', () => ({
           origin: '',
           story_teller_id: 'classic',
           story_director_id: 'default',
+          choice_count: 5,
           reply_target_chars: 2000,
         })}
       >
@@ -182,6 +179,7 @@ function story(id: string, title: string): StorySummary {
     origin: '',
     story_teller_id: 'classic',
     story_director_id: 'default',
+    choice_count: 5,
     reply_target_chars: 2000,
     opening: { mode: 'ai' },
     created_at: '2026-07-04T00:00:00Z',
@@ -197,8 +195,6 @@ function teller(id: string, name: string): Teller {
     id,
     name,
     description: '',
-    random_event_rate: 0,
-    tags: [],
     context_policy: {
       creator: 'summary',
       lore: 'summary',
@@ -216,10 +212,8 @@ function storyDirector(id: string, name: string, narrativeStyleId: string): Stor
     name,
     description: '',
     module_refs: { narrative_style_id: narrativeStyleId },
-    strategy: { enabled: true },
-    trpg_system: {},
-    opening_selector: { enabled: true },
-    tags: [],
-    custom: false,
+		strategy: { enabled: true },
+		trpg_system: {},
+		custom: false,
   }
 }

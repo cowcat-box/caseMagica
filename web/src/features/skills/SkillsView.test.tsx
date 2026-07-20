@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSkill, deleteSkillDocument, getSkillDocument, getSkillFileDocument, getSkills, installSkillGitHub, installSkillZip, previewSkillGitHubInstall, previewSkillZipInstall, saveSkillDocument, saveSkillFileDocument } from '@/lib/api'
+import { createSkill, deleteSkillDocument, getSkillDocument, getSkillFileDocument, getSkills, installSkillRemote, installSkillZip, previewSkillRemoteInstall, previewSkillZipInstall, saveSkillDocument, saveSkillFileDocument } from '@/lib/api'
 import type { SkillDocument, SkillFileDocument, SkillSnapshot } from '@/lib/api'
 import { SkillsView } from './SkillsView'
 
@@ -15,9 +15,9 @@ vi.mock('@/lib/api', () => ({
   getSkillDocument: vi.fn(),
   getSkillFileDocument: vi.fn(),
   getSkills: vi.fn(),
-  installSkillGitHub: vi.fn(),
+  installSkillRemote: vi.fn(),
   installSkillZip: vi.fn(),
-  previewSkillGitHubInstall: vi.fn(),
+  previewSkillRemoteInstall: vi.fn(),
   previewSkillZipInstall: vi.fn(),
   saveSkillDocument: vi.fn(),
   saveSkillFileDocument: vi.fn(),
@@ -30,9 +30,9 @@ describe('SkillsView', () => {
     vi.mocked(getSkillDocument).mockReset()
     vi.mocked(getSkillFileDocument).mockReset()
     vi.mocked(getSkills).mockReset()
-    vi.mocked(installSkillGitHub).mockReset()
+    vi.mocked(installSkillRemote).mockReset()
     vi.mocked(installSkillZip).mockReset()
-    vi.mocked(previewSkillGitHubInstall).mockReset()
+    vi.mocked(previewSkillRemoteInstall).mockReset()
     vi.mocked(previewSkillZipInstall).mockReset()
     vi.mocked(saveSkillDocument).mockReset()
     vi.mocked(saveSkillFileDocument).mockReset()
@@ -130,7 +130,7 @@ describe('SkillsView', () => {
     await user.click(await screen.findByRole('button', { name: '配置' }))
     await user.clear(screen.getByLabelText('Skill 名称'))
     await user.type(screen.getByLabelText('Skill 名称'), 'beat-plan')
-    await user.click(screen.getByRole('button', { name: '工作区' }))
+    await user.click(screen.getByRole('radio', { name: '工作区' }))
     await user.clear(screen.getByLabelText('触发说明'))
     await user.type(screen.getByLabelText('触发说明'), 'Beat planning')
     await user.click(screen.getByRole('button', { name: '保存配置' }))
@@ -175,13 +175,15 @@ describe('SkillsView', () => {
       file: { ...refDoc.file, size: 10 },
     })
 
-    render(<SkillsView workspace="/books/demo" />)
+    const { container } = render(<SkillsView workspace="/books/demo" />)
 
-    await user.click(await screen.findByRole('button', { name: /references\/style\.md/ }))
+    await user.click(await screen.findByRole('button', { name: '目录文件' }))
+    await user.click(await screen.findByRole('button', { name: /style\.md/ }))
     await waitFor(() => {
       expect(vi.mocked(getSkillFileDocument)).toHaveBeenCalledWith('user', 'draft-plan', 'references/style.md')
     })
-    const editor = screen.getByRole('textbox') as HTMLTextAreaElement
+    await user.click(screen.getByRole('button', { name: 'Raw' }))
+    const editor = container.querySelector('textarea') as HTMLTextAreaElement
     await waitFor(() => {
       expect(editor.value).toContain('# Style')
     })
@@ -195,26 +197,53 @@ describe('SkillsView', () => {
     expect(vi.mocked(saveSkillDocument)).not.toHaveBeenCalled()
   })
 
-  it('scans GitHub sources and installs only selected Skills', async () => {
+  it('renders Skill markdown by default and switches to raw editing', async () => {
     const user = userEvent.setup()
-    vi.mocked(previewSkillGitHubInstall).mockResolvedValue({
+    const doc = skillDocument({
+      name: 'draft-plan',
+      description: 'Planning',
+      scope: 'user',
+      path: '/nova/skills/draft-plan/SKILL.md',
+      editable: true,
+      active: true,
+      content: '---\nname: draft-plan\ndescription: Planning\n---\n\n# Draft Plan\n\n- Keep the outline lean\n',
+    })
+    vi.mocked(getSkills).mockResolvedValue(skillsSnapshot({ skills: [doc] }))
+    vi.mocked(getSkillDocument).mockResolvedValue(doc)
+
+    const { container } = render(<SkillsView workspace="/books/demo" />)
+
+    expect(await screen.findByRole('heading', { name: 'Draft Plan' })).toBeInTheDocument()
+    expect(screen.queryByText(/name: draft-plan/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'SKILL.md' })).not.toBeInTheDocument()
+    expect(container.querySelector('textarea')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Raw' }))
+
+    const editor = container.querySelector('textarea') as HTMLTextAreaElement
+    expect(editor.value).toContain('# Draft Plan')
+  })
+
+  it('scans Remote URL sources and installs only selected Skills', async () => {
+    const user = userEvent.setup()
+    vi.mocked(previewSkillRemoteInstall).mockResolvedValue({
       candidates: [
         { id: 'id-one', name: 'one', description: 'One skill', source_path: 'skills/one', conflict: false },
         { id: 'id-two', name: 'two', description: 'Two skill', source_path: 'skills/two', conflict: false },
       ],
     })
-    vi.mocked(installSkillGitHub).mockResolvedValue({
+    vi.mocked(installSkillRemote).mockResolvedValue({
       installed: [skillDocument({ name: 'one', description: 'One skill', scope: 'user' })],
     })
 
     render(<SkillsView workspace="/books/demo" />)
 
     await user.click(await screen.findByRole('button', { name: '导入' }))
-    await user.type(screen.getByLabelText('GitHub 地址'), 'owner/repo')
+    await user.type(screen.getByLabelText('远程 URL'), 'owner/repo')
     await user.click(screen.getByRole('button', { name: '扫描' }))
 
     await waitFor(() => {
-      expect(vi.mocked(previewSkillGitHubInstall)).toHaveBeenCalledWith({
+      expect(vi.mocked(previewSkillRemoteInstall)).toHaveBeenCalledWith({
         url: 'owner/repo',
         ref: '',
         subdir: '',
@@ -225,7 +254,7 @@ describe('SkillsView', () => {
     await user.click(screen.getByRole('button', { name: '安装 1 个' }))
 
     await waitFor(() => {
-      expect(vi.mocked(installSkillGitHub)).toHaveBeenCalledWith({
+      expect(vi.mocked(installSkillRemote)).toHaveBeenCalledWith({
         url: 'owner/repo',
         ref: '',
         subdir: '',
@@ -250,7 +279,7 @@ describe('SkillsView', () => {
     render(<SkillsView workspace="/books/demo" />)
 
     await user.click(await screen.findByRole('button', { name: '导入' }))
-    await user.click(screen.getByRole('button', { name: 'ZIP' }))
+    await user.click(screen.getByRole('radio', { name: 'ZIP' }))
     await user.upload(screen.getByLabelText('ZIP 文件'), file)
     await user.click(screen.getByRole('button', { name: '扫描' }))
 
@@ -264,9 +293,34 @@ describe('SkillsView', () => {
     })
   })
 
+  it('deletes an editable Skill after confirming in the dialog', async () => {
+    const user = userEvent.setup()
+    const doc = skillDocument({
+      name: 'draft-plan',
+      description: 'Planning',
+      scope: 'user',
+      path: '/nova/skills/draft-plan/SKILL.md',
+      editable: true,
+      active: true,
+      content: '---\nname: draft-plan\ndescription: Planning\n---\n\n# Draft Plan\n',
+    })
+    vi.mocked(getSkills).mockResolvedValue(skillsSnapshot({ skills: [doc] }))
+    vi.mocked(getSkillDocument).mockResolvedValue(doc)
+
+    render(<SkillsView workspace="/books/demo" />)
+
+    await user.click(await screen.findByRole('button', { name: '删除' }))
+    const dialog = await screen.findByRole('alertdialog', { name: '删除' })
+    expect(within(dialog).getByText(/draft-plan/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: '删除' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(deleteSkillDocument)).toHaveBeenCalledWith('user', 'draft-plan')
+    })
+  })
+
   it('restores built-in Skill by deleting the active override', async () => {
     const user = userEvent.setup()
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     const override = skillDocument({
       name: 'novel-standard',
       description: 'Workspace override',
@@ -293,11 +347,12 @@ describe('SkillsView', () => {
     render(<SkillsView workspace="/books/demo" />)
 
     await user.click(await screen.findByRole('button', { name: '恢复内置' }))
+    const dialog = await screen.findByRole('alertdialog', { name: '恢复内置' })
+    await user.click(within(dialog).getByRole('button', { name: '恢复内置' }))
 
     await waitFor(() => {
       expect(vi.mocked(deleteSkillDocument)).toHaveBeenCalledWith('workspace', 'novel-standard')
     })
-    confirmSpy.mockRestore()
   })
 })
 

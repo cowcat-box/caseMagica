@@ -52,9 +52,6 @@ func TestDefaultSettingsValues(t *testing.T) {
 	if s.VolumeDirFormat != "v{order:05}-{volume}" {
 		t.Fatalf("VolumeDirFormat default: %s", s.VolumeDirFormat)
 	}
-	if s.InteractiveHotChoices == nil || *s.InteractiveHotChoices != true {
-		t.Fatalf("InteractiveHotChoices default")
-	}
 	if s.AgentModels.IDE.EnableThinking == nil || !*s.AgentModels.IDE.EnableThinking {
 		t.Fatalf("IDE thinking should default on")
 	}
@@ -144,7 +141,6 @@ func TestMergeOverridesNonZero(t *testing.T) {
 		AllowLANAccess:             boolPtr(false),
 		WritingSkillDefault:        "novel-standard",
 		IDEImagePresetID:           "realistic",
-		InteractiveHotChoices:      boolPtr(true),
 		InteractiveStageFontSize:   intPtr(16),
 		InteractiveStageLineHeight: floatPtr(1.78),
 	}
@@ -172,7 +168,6 @@ func TestMergeOverridesNonZero(t *testing.T) {
 		IDEImagePresetID:           "2d-illustration",
 		RemoteAccessUsername:       "reader",
 		RemoteAccessPasswordHash:   "$2a$10$hash",
-		InteractiveHotChoices:      boolPtr(false),
 		InteractiveStageFontSize:   intPtr(18),
 		InteractiveStageLineHeight: floatPtr(1.95),
 	}
@@ -242,9 +237,6 @@ func TestMergeOverridesNonZero(t *testing.T) {
 	}
 	if out.RemoteAccessUsername != "reader" || out.RemoteAccessPasswordHash == "" || !out.RemoteAccessPasswordSet {
 		t.Fatalf("remote access credentials should override parent: %#v", out)
-	}
-	if out.InteractiveHotChoices == nil || *out.InteractiveHotChoices != false {
-		t.Fatalf("InteractiveHotChoices should override parent")
 	}
 	if out.InteractiveStageFontSize == nil || *out.InteractiveStageFontSize != 18 {
 		t.Fatalf("InteractiveStageFontSize should override parent")
@@ -442,7 +434,7 @@ func TestWriteSettingsFileFiltersNegativeAgentIdleTimeout(t *testing.T) {
 	}
 }
 
-func TestWriteSettingsFileAllowsUnlimitedAgentToolResultLimit(t *testing.T) {
+func TestWriteSettingsFileMapsZeroToolResultLimitToHighDefault(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "config.toml")
 	in := Settings{OpenAIModel: "abc", AgentToolResultLimitKB: intPtr(0)}
@@ -453,8 +445,8 @@ func TestWriteSettingsFileAllowsUnlimitedAgentToolResultLimit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.AgentToolResultLimitKB == nil || *out.AgentToolResultLimitKB != 0 {
-		t.Fatalf("agent tool result limit should preserve explicit 0, got %v", out.AgentToolResultLimitKB)
+	if out.AgentToolResultLimitKB == nil || *out.AgentToolResultLimitKB != DefaultAgentToolResultLimitKB {
+		t.Fatalf("agent tool result limit should persist the high default, got %v", out.AgentToolResultLimitKB)
 	}
 }
 
@@ -527,7 +519,7 @@ func TestPrepareUserSettingsForWriteRejectsEnabledRemoteAccessWithoutCredentials
 	}
 }
 
-func TestLoadLayeredAppliesAllLayers(t *testing.T) {
+func TestLoadLayeredKeepsGeneralSettingsUserScopedAndAppliesWorkspaceAgentOverrides(t *testing.T) {
 	home := t.TempDir()
 	ws := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(ws, ".denova"), 0o755); err != nil {
@@ -535,7 +527,12 @@ func TestLoadLayeredAppliesAllLayers(t *testing.T) {
 	}
 
 	user := Settings{OpenAIModel: "user-model", MaxIteration: intPtr(20)}
-	wsCfg := Settings{OpenAIModel: "ws-model"}
+	wsCfg := Settings{
+		OpenAIModel: "ws-model",
+		AgentTools: AgentToolSettings{
+			IDE: AgentToolOverride{ShellExecute: boolPtr(false)},
+		},
+	}
 	if err := WriteSettingsFile(filepath.Join(home, "config.toml"), user); err != nil {
 		t.Fatal(err)
 	}
@@ -547,14 +544,20 @@ func TestLoadLayeredAppliesAllLayers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if layered.Effective.OpenAIModel != "ws-model" {
-		t.Fatalf("workspace should win: %s", layered.Effective.OpenAIModel)
+	if layered.Effective.OpenAIModel != "user-model" {
+		t.Fatalf("general settings should stay user-scoped: %s", layered.Effective.OpenAIModel)
 	}
 	if layered.Effective.MaxIteration == nil || *layered.Effective.MaxIteration != 20 {
 		t.Fatalf("user MaxIteration should inherit: %v", layered.Effective.MaxIteration)
 	}
 	if layered.User.OpenAIModel != "user-model" {
 		t.Fatalf("raw user should be preserved")
+	}
+	if layered.Workspace.OpenAIModel != "" {
+		t.Fatalf("workspace general setting should be filtered: %s", layered.Workspace.OpenAIModel)
+	}
+	if layered.Effective.AgentTools.IDE.ShellExecute == nil || *layered.Effective.AgentTools.IDE.ShellExecute {
+		t.Fatalf("workspace Agent override should remain effective: %#v", layered.Effective.AgentTools.IDE)
 	}
 }
 
@@ -581,8 +584,37 @@ func TestLoadLayeredIgnoresDenovaDirFromEditableLayers(t *testing.T) {
 	if layered.Effective.DenovaDir != normalizePath(home) {
 		t.Fatalf("editable layers should not override startup denova_dir: %q", layered.Effective.DenovaDir)
 	}
-	if layered.Effective.OpenAIModel != "ws-model" {
-		t.Fatalf("other editable fields should still merge: %q", layered.Effective.OpenAIModel)
+	if layered.Effective.OpenAIModel != "user-model" {
+		t.Fatalf("workspace general fields should not override user settings: %q", layered.Effective.OpenAIModel)
+	}
+}
+
+func TestPrepareWorkspaceAgentSettingsForWritePreservesLegacyGeneralValues(t *testing.T) {
+	existing := Settings{
+		OpenAIModel: "legacy-workspace-model",
+		AgentTools: AgentToolSettings{
+			IDE: AgentToolOverride{ShellExecute: boolPtr(true)},
+		},
+	}
+	incoming := Settings{
+		OpenAIModel: "ignored-new-model",
+		AgentModels: AgentModelSettings{
+			IDE: AgentModelOverride{ProfileID: "ignored-workspace-profile"},
+		},
+		AgentTools: AgentToolSettings{
+			IDE: AgentToolOverride{ShellExecute: boolPtr(false)},
+		},
+	}
+
+	prepared := PrepareWorkspaceAgentSettingsForWrite(existing, incoming)
+	if prepared.OpenAIModel != "legacy-workspace-model" {
+		t.Fatalf("legacy general value should remain reversible on disk: %q", prepared.OpenAIModel)
+	}
+	if prepared.AgentModels.IDE.ProfileID != "" {
+		t.Fatalf("workspace model selection must remain user-scoped: %#v", prepared.AgentModels)
+	}
+	if prepared.AgentTools.IDE.ShellExecute == nil || *prepared.AgentTools.IDE.ShellExecute {
+		t.Fatalf("workspace Agent override should be replaced: %#v", prepared.AgentTools.IDE)
 	}
 }
 
@@ -617,6 +649,35 @@ func TestLoadLayeredIgnoresStartupPortsFromWorkspaceLayer(t *testing.T) {
 	}
 	if !strings.HasSuffix(layered.Access.LocalURL, ":18080") || !strings.HasSuffix(layered.Access.LANURL, ":18080") {
 		t.Fatalf("access URLs should use backend_port: %+v", layered.Access)
+	}
+}
+
+func TestLoadLayeredIgnoresAgentModelsFromWorkspaceLayer(t *testing.T) {
+	home := t.TempDir()
+	ws := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(ws, ".nova"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteSettingsFile(filepath.Join(home, "config.toml"), Settings{
+		AgentModels: AgentModelSettings{InteractiveStory: AgentModelOverride{ProfileID: "user-model"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteSettingsFile(filepath.Join(ws, ".nova", "config.toml"), Settings{
+		AgentModels: AgentModelSettings{InteractiveStory: AgentModelOverride{ProfileID: "workspace-model"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	layered, err := LoadLayered(home, ws)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if layered.Workspace.AgentModels.InteractiveStory.ProfileID != "" {
+		t.Fatalf("workspace agent model should be filtered: %#v", layered.Workspace.AgentModels)
+	}
+	if layered.Effective.AgentModels.InteractiveStory.ProfileID != "user-model" {
+		t.Fatalf("user agent model should remain effective: %#v", layered.Effective.AgentModels)
 	}
 }
 

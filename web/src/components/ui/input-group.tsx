@@ -3,6 +3,8 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
+import { Button, type buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
@@ -62,7 +64,59 @@ function InputGroupAddon({
   )
 }
 
+function InputGroupButton({
+  className,
+  variant = "ghost",
+  size = "icon-sm",
+  ...props
+}: React.ComponentProps<typeof Button> & VariantProps<typeof buttonVariants>) {
+  return (
+    <Button
+      data-slot="input-group-button"
+      variant={variant}
+      size={size}
+      className={cn("shrink-0", className)}
+      {...props}
+    />
+  )
+}
+
+function InputGroupTextarea({
+  className,
+  ...props
+}: React.ComponentProps<"textarea">) {
+  return (
+    <textarea
+      data-slot="input-group-control"
+      className={cn(
+        "min-h-16 w-full resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function InputGroupInput({
+  className,
+  ...props
+}: React.ComponentProps<"input">) {
+  return (
+    <Input
+      data-slot="input-group-control"
+      className={cn(
+        "flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
 export {
   InputGroup,
   InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupTextarea,
 }

@@ -5,12 +5,13 @@ import (
 	"errors"
 	"io"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
-	"casemagica/internal/book"
+	"denova/internal/book"
 )
 
 // MaxCharacterCardUploadBytes limits tavern character card uploads.
@@ -71,10 +72,18 @@ func (h *Handlers) HandleWorkspaceImportCharacterCard(ctx context.Context, c *ap
 	if targetMode == "" {
 		targetMode = "current"
 	}
-	importOptions := book.CharacterCardImportOptions{
-		UserCharacterName: strings.TrimSpace(string(c.FormValue("user_character_name"))),
+	classificationMode := strings.TrimSpace(string(c.FormValue("lore_classification")))
+	if classificationMode == "" {
+		classificationMode = book.LoreClassificationModeSemantic
 	}
-	log.Printf("[api] 导入酒馆角色卡 filename=%q size=%d workspace=%q target_mode=%q", filename, len(data), h.app.Workspace(), targetMode)
+	importOptions := book.CharacterCardImportOptions{
+		UserCharacterName:  strings.TrimSpace(string(c.FormValue("user_character_name"))),
+		ClassificationMode: classificationMode,
+		ClassifyLore: func(inputs []book.LoreClassificationInput) ([]book.LoreClassificationSuggestion, error) {
+			return h.app.ClassifyLoreItems(ctx, inputs)
+		},
+	}
+	log.Printf("[api] 导入酒馆角色卡 filename=%q size=%d workspace=%q target_mode=%q lore_classification=%q", filename, len(data), h.app.Workspace(), targetMode, classificationMode)
 
 	var result book.CharacterCardImportResult
 	var err error
@@ -99,6 +108,7 @@ func (h *Handlers) HandleWorkspaceImportCharacterCard(ctx context.Context, c *ap
 		writeErrorKey(c, status, "api.characterCard.importFailed", "detail", err.Error())
 		return
 	}
+	result.Message = messageKey(c, "api.characterCard.imported", "name", result.Name)
 	log.Printf("[api] 导入酒馆角色卡完成 name=%q target=%q entries=%d items=%d", result.Name, result.TargetPath, result.EntryCount, result.ItemCount)
 	writeJSON(c, consts.StatusOK, result)
 }
@@ -116,14 +126,23 @@ func (h *Handlers) importCharacterCardToNewBook(ctx context.Context, filename st
 		return book.CharacterCardImportResult{}, err
 	}
 	if layered.Paths.DenovaDir == "" {
-		return book.CharacterCardImportResult{}, errors.New("CaseMagica 数据目录未配置")
+		return book.CharacterCardImportResult{}, errors.New("Denova 数据目录未配置")
 	}
 	workspace, meta, err := h.app.CreateBook(ctx, layered.Paths.DenovaDir, title, "", "")
 	if err != nil {
 		return book.CharacterCardImportResult{}, err
 	}
+	cleanup := func() {
+		if _, removeErr := h.app.RemoveBook(workspace); removeErr != nil {
+			log.Printf("[api] 清理导入失败的新书记录失败 workspace=%q err=%v", workspace, removeErr)
+		}
+		if removeErr := os.RemoveAll(workspace); removeErr != nil {
+			log.Printf("[api] 清理导入失败的新书目录失败 workspace=%q err=%v", workspace, removeErr)
+		}
+	}
 	result, err := h.app.BookService().ImportTavernCharacterCard(filename, data, options)
 	if err != nil {
+		cleanup()
 		return book.CharacterCardImportResult{}, err
 	}
 	result.Workspace = workspace

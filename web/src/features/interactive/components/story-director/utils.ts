@@ -1,5 +1,5 @@
-import type { StoryDirector, StoryDirectorActorStateSystem, StoryDirectorModuleRefs, StoryDirectorOpeningSelector, StoryDirectorTRPGSystem, TellerEventPackage } from '../../types'
-import { DIRECTOR_PLAN_REQUIRED_HEADINGS, STORY_DIRECTOR_BRANCH_PLANNING_TURNS_FALLBACK, STORY_DIRECTOR_PLANNING_TEMPLATE_LIMIT } from './constants'
+import type { StoryDirector, StoryDirectorActorStateSystem, StoryDirectorModuleRefs, StoryDirectorTRPGSystem, TellerEventPackage } from '../../types'
+import { DIRECTOR_PRIVATE_PLAN_REQUIRED_HEADINGS, STORY_DIRECTOR_BRANCH_PLANNING_TURNS_FALLBACK, STORY_DIRECTOR_PLANNING_TEMPLATE_LIMIT } from './constants'
 
 export function parseDecimalInput(value: string) {
   const parsed = Number(value)
@@ -12,12 +12,12 @@ export function normalizeBranchPlanningTurns(value: string) {
   return Math.min(12, Math.max(1, Math.round(parsed)))
 }
 
-export function validateDirectorPlanningTemplate(value: string) {
+export function validateDirectorPlanningTemplate(value: string, requiredHeadings: readonly string[] = DIRECTOR_PRIVATE_PLAN_REQUIRED_HEADINGS) {
   const bytes = utf8ByteLength(value || '')
   if (!String(value || '').trim()) {
     return { bytes, missingHeadings: [], valid: true }
   }
-  const missingHeadings = DIRECTOR_PLAN_REQUIRED_HEADINGS.filter((heading) => !String(value || '').includes(heading))
+  const missingHeadings = requiredHeadings.filter((heading) => !String(value || '').includes(heading))
   return {
     bytes,
     missingHeadings,
@@ -40,25 +40,15 @@ export function utf8ByteLength(value: string): number {
 }
 
 export function normalizedStoryDirectorRefs(refs: StoryDirectorModuleRefs | undefined): StoryDirectorModuleRefs {
-  const legacyEventPackageID = refs?.event_system_id || ''
-  const eventPackageIDs = refs?.event_package_ids?.length
-    ? refs.event_package_ids
-    : legacyEventPackageID
-      ? [legacyEventPackageID]
-      : ['default']
   return {
     narrative_style_id: refs?.narrative_style_id || 'classic',
     narrative_style_disabled: refs?.narrative_style_disabled === true,
-    event_package_ids: normalizeIDList(eventPackageIDs),
-    event_packages_disabled: refs?.event_packages_disabled === true || refs?.event_system_disabled === true,
+    event_package_ids: normalizeIDList(refs?.event_package_ids?.length ? refs.event_package_ids : ['default']),
+    event_packages_disabled: refs?.event_packages_disabled === true,
     rule_system_id: refs?.rule_system_id || 'default',
     rule_system_disabled: refs?.rule_system_disabled === true,
     actor_state_id: refs?.actor_state_id || 'default',
     actor_state_disabled: refs?.actor_state_disabled === true,
-    memory_structure_id: refs?.memory_structure_id || 'default',
-    memory_structure_disabled: refs?.memory_structure_disabled === true,
-    opening_selector_id: refs?.opening_selector_id || 'default',
-    opening_selector_disabled: refs?.opening_selector_disabled === true,
     image_preset_id: refs?.image_preset_id || 'game-cg',
     image_preset_disabled: refs?.image_preset_disabled === true,
   }
@@ -81,27 +71,19 @@ export function directorResolvedEventPackages(director: StoryDirector): TellerEv
     ? director.event_packages
     : director.resolved_snapshot?.event_packages?.length
       ? director.resolved_snapshot.event_packages
-      : director.resolved_snapshot?.event_system?.event_packages || []
+      : []
 }
 
 export function newEmptyStoryDirectorSections(): {
   trpg_system: StoryDirectorTRPGSystem
   actor_state: StoryDirectorActorStateSystem
-  opening_selector: StoryDirectorOpeningSelector
 } {
   return {
     trpg_system: { rule_templates: [] },
-    actor_state: { templates: [], initial_actors: [] },
-    opening_selector: { enabled: true, trait_pools: [], initial_state_ops: [] },
+    actor_state: { templates: [], trait_pools: [], initial_actors: [] },
   }
 }
 
 export function findById<T extends { id: string }>(items: T[], id: string): T | undefined {
   return items.find((item) => item.id === id)
-}
-
-export function presetStatusLabel(item: { custom?: boolean; builtin_overridden?: boolean }, t: (key: string) => string) {
-  if (item.custom) return t('settingPanel.custom')
-  if (item.builtin_overridden) return t('settingPanel.builtInOverridden')
-  return t('settingPanel.builtIn')
 }
