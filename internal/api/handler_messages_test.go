@@ -38,7 +38,7 @@ func TestMessagesAPIListsAndMarksRead(t *testing.T) {
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("NOVA_CHANGELOG_PATH", changelog)
+	t.Setenv("DENOVA_CHANGELOG_PATH", changelog)
 
 	application := newTestApplication(t)
 	server := NewServer(application, "0")
@@ -112,7 +112,7 @@ func TestMessagesAPIUsesRequestLocale(t *testing.T) {
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("NOVA_CHANGELOG_PATH", changelog)
+	t.Setenv("DENOVA_CHANGELOG_PATH", changelog)
 
 	application := newTestApplication(t)
 	server := NewServer(application, "0")

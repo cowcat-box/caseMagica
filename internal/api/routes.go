@@ -253,7 +253,7 @@ func resolveWebRoot() string {
 	candidates := []string{}
 	if v := os.Getenv("CASEMAGICA_WEB_DIR"); v != "" {
 		candidates = append(candidates, v)
-	} else if v := os.Getenv("NOVA_WEB_DIR"); v != "" {
+	} else if v := os.Getenv("DENOVA_WEB_DIR"); v != "" {
 		candidates = append(candidates, v)
 	}
 	candidates = append(candidates, "web")

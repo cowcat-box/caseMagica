@@ -18,7 +18,7 @@ try {
 }
 
 const args = process.argv.slice(2);
-const backendPort = process.env.CASEMAGICA_BACKEND_PORT || process.env.CASEMAGICA_BACKEND_PORT;
+const backendPort = process.env.CASEMAGICA_BACKEND_PORT || process.env.DENOVA_BACKEND_PORT;
 if (backendPort && !hasFlag(args, "port")) {
   args.push("--port", backendPort);
 }
@@ -27,9 +27,9 @@ const child = spawn(binaryPath, args, {
   stdio: "inherit",
   env: {
     ...process.env,
-    CASEMAGICA_DIR: process.env.CASEMAGICA_DIR || process.env.CASEMAGICA_DIR || resolve(process.cwd(), ".casemagica"),
-    CASEMAGICA_WEB_DIR: process.env.CASEMAGICA_WEB_DIR || process.env.NOVA_WEB_DIR || join(packageRoot, "web"),
-    CASEMAGICA_SKILLS_DIR: process.env.CASEMAGICA_SKILLS_DIR || process.env.CASEMAGICA_SKILLS_DIR || join(packageRoot, "skills"),
+    CASEMAGICA_DIR: process.env.CASEMAGICA_DIR || process.env.DENOVA_DIR || resolve(process.cwd(), ".casemagica"),
+    CASEMAGICA_WEB_DIR: process.env.CASEMAGICA_WEB_DIR || process.env.DENOVA_WEB_DIR || join(packageRoot, "web"),
+    CASEMAGICA_SKILLS_DIR: process.env.CASEMAGICA_SKILLS_DIR || process.env.DENOVA_SKILLS_DIR || join(packageRoot, "skills"),
   },
 });
 

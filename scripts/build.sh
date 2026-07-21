@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "${ROOT_DIR}"
 
 OUTPUT_DIR="output"
-VERSION="${CASEMAGICA_VERSION:-${NOVA_VERSION:-$(node -p "require('./web/package.json').version" 2>/dev/null || echo dev)}}"
+VERSION="${CASEMAGICA_VERSION:-${DENOVA_VERSION:-$(node -p "require('./web/package.json').version" 2>/dev/null || echo dev)}}"
 
 echo "==> 清理 output 目录"
 rm -rf "${OUTPUT_DIR}"

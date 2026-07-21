@@ -117,7 +117,7 @@ func (s *Service) resolveChangelogPath() string {
 	}
 	if env := strings.TrimSpace(os.Getenv("CASEMAGICA_CHANGELOG_PATH")); env != "" {
 		candidates = append(candidates, env)
-	} else if env := strings.TrimSpace(os.Getenv("NOVA_CHANGELOG_PATH")); env != "" {
+	} else if env := strings.TrimSpace(os.Getenv("DENOVA_CHANGELOG_PATH")); env != "" {
 		candidates = append(candidates, env)
 	}
 	candidates = append(candidates, "CHANGELOG.md")
@@ -191,7 +191,7 @@ func (s *Service) writeState(state map[string]time.Time) error {
 
 func (s *Service) statePath() (string, error) {
 	if strings.TrimSpace(s.denovaDir) == "" {
-		return "", fmt.Errorf("nova dir is required")
+		return "", fmt.Errorf("casemagica dir is required")
 	}
 	return filepath.Join(s.denovaDir, "messages", stateFileName), nil
 }

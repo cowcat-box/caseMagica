@@ -9,9 +9,9 @@ import (
 
 func TestSchedulerInvokesReplacementAfterDelay(t *testing.T) {
 	want := Invocation{
-		Executable: "/tmp/nova",
-		Args:       []string{"/tmp/nova", "--port", "8090"},
-		Env:        []string{"NOVA_TEST=1"},
+		Executable: "/tmp/casemagica",
+		Args:       []string{"/tmp/casemagica", "--port", "8090"},
+		Env:        []string{"CASEMAGICA_TEST=1"},
 	}
 	delay := 25 * time.Millisecond
 	done := make(chan Invocation, 1)

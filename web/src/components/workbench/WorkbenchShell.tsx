@@ -87,7 +87,7 @@ const ACTIVITY_BAR_DEFAULT_WIDTH = 180
 const ACTIVITY_BAR_MAX_WIDTH = 280
 const ACTIVITY_BAR_WIDTH_KEYBOARD_STEP = 8
 
-function NovaBrandIcon() {
+function CaseMagicaBrandIcon() {
   return (
     <img
       src="/favicon.svg"
@@ -443,7 +443,7 @@ export function WorkbenchShell({
   const topBar = (
     <header className="nova-topbar grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center border-b px-3 text-xs">
       <div className="flex min-w-0 items-center gap-2">
-        <NovaBrandIcon />
+            <CaseMagicaBrandIcon />
         <LayoutGroup id="workbench-mode-switch">
         <div role="group" className="flex h-7 items-center rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] p-0.5" aria-label={t('workbench.modeSwitch')}>
           <button
@@ -594,7 +594,7 @@ export function WorkbenchShell({
       <header className="nova-mobile-topbar nova-topbar shrink-0 border-b border-[var(--nova-border)] py-2 pl-3 pr-3">
         <div className="flex min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <NovaBrandIcon />
+        <CaseMagicaBrandIcon />
             <BookSwitcher
               books={books}
               currentBookName={currentBookName}
