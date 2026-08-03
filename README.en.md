@@ -1,5 +1,7 @@
 # CaseMagica
 
+Current version: <strong>v0.3.0</strong> · Beta
+
 An AI creative platform for novel writing and AI role-playing games.
 
 English | [中文](README.md)

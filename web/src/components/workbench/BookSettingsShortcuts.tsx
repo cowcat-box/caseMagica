@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, MessageCircle, Pin, PinOff, Search, Settings2 } from 'lucide-react'
+import { Download, GripVertical, MessageCircle, Pin, PinOff, Search, Settings2, Upload } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { FileNode } from '@/hooks/useWorkspace'
 import type { DocumentPreview } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { downloadSettingsFile, type SettingsKind } from '@/lib/api-client/books'
+import { SettingsImportDialog } from '@/components/workbench/SettingsImportDialog'
 import { flattenFileTree } from './workbench-utils'
 
 const STORAGE_PREFIX = 'nova.outline.pinned-settings:'
@@ -22,6 +25,18 @@ interface BookSettingItem {
   exists: boolean
 }
 
+/** 设定项可独立导出/导入的类型映射（PRD 需求三：大纲、规则、粗细纲）。 */
+function settingsKindForPath(path: string): SettingsKind | null {
+  switch (path) {
+    case 'setting/outline.md':
+      return 'outline'
+    case 'CREATOR.md':
+      return 'rules'
+    default:
+      return null
+  }
+}
+
 interface BookSettingsShortcutsProps {
   workspace: string
   tree: FileNode[]
@@ -31,6 +46,7 @@ interface BookSettingsShortcutsProps {
   selectedFile: string | null
   onSelectFile: (path: string) => void | Promise<void>
   onRequestCreate?: (item: { path: string; title: string }) => void
+  onWorkspaceChanged?: (paths: string[]) => void | Promise<void>
 }
 
 /** 工作区级书籍设定收藏：动态发现文件，并持久化 Pin 与排序偏好。 */
@@ -43,11 +59,13 @@ export function BookSettingsShortcuts({
   selectedFile,
   onSelectFile,
   onRequestCreate,
+  onWorkspaceChanged,
 }: BookSettingsShortcutsProps) {
   const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [pinnedPaths, setPinnedPaths] = useState<string[]>(() => readPinnedPaths(workspace))
   const [missingItem, setMissingItem] = useState<BookSettingItem | null>(null)
+  const [importItem, setImportItem] = useState<BookSettingItem | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
   const candidates = useMemo(() => discoverBookSettings({ tree, outline, ideas, chapterPlans, t }), [chapterPlans, ideas, outline, t, tree])
   const candidatesByPath = useMemo(() => new Map(candidates.map((item) => [item.path, item])), [candidates])
@@ -92,6 +110,14 @@ export function BookSettingsShortcuts({
     })
   }
 
+  const exportSettingItem = async (item: BookSettingItem) => {
+    try {
+      await downloadSettingsFile(workspace, item.path)
+    } catch (error) {
+      console.error('导出设定文件失败', item.path, error)
+    }
+  }
+
   return (
     <section className="space-y-1.5">
       <div className="flex items-center justify-between gap-2 px-1">
@@ -124,6 +150,8 @@ export function BookSettingsShortcuts({
                         selected={item.exists && selectedFile === item.path}
                         onSelect={selectItem}
                         onTogglePinned={togglePinned}
+                        onExport={item.exists ? () => void exportSettingItem(item) : undefined}
+                        onImport={settingsKindForPath(item.path) ? () => setImportItem(item) : undefined}
                       />
                     ))}
                   </SortableContext>
@@ -167,19 +195,32 @@ export function BookSettingsShortcuts({
           ) : null}
         </div>
       ) : null}
+      <SettingsImportDialog
+        open={Boolean(importItem)}
+        workspace={workspace}
+        presetKind={importItem ? settingsKindForPath(importItem.path) || undefined : undefined}
+        onOpenChange={(open) => { if (!open) setImportItem(null) }}
+        onImported={() => {
+          setImportItem(null)
+          if (onWorkspaceChanged) void onWorkspaceChanged([workspace])
+        }}
+      />
     </section>
   )
 }
 
-function SortableSettingRow({ item, pinned, selected, onSelect, onTogglePinned }: {
+function SortableSettingRow({ item, pinned, selected, onSelect, onTogglePinned, onExport, onImport }: {
   item: BookSettingItem
   pinned: boolean
   selected: boolean
   onSelect: (item: BookSettingItem) => void
   onTogglePinned: (path: string) => void
+  onExport?: () => void
+  onImport?: () => void
 }) {
   const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.path, disabled: !pinned })
+  const hasActions = Boolean(onExport || onImport)
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className={`flex items-center gap-1 rounded-md border px-1 py-1 ${selected ? 'border-[var(--nova-border)] bg-[var(--nova-active)]' : 'border-transparent bg-[var(--nova-surface)]'} ${isDragging ? 'z-10 opacity-70 shadow-lg' : ''}`}>
       <button type="button" disabled={!pinned} aria-label={t('planning.reorderBookSetting', { title: item.title })} className="cursor-grab p-1 text-[var(--nova-text-faint)] disabled:cursor-default disabled:opacity-20" {...attributes} {...listeners}>
@@ -189,6 +230,29 @@ function SortableSettingRow({ item, pinned, selected, onSelect, onTogglePinned }
         <span className="block truncate text-xs text-[var(--nova-text)]">{item.title}</span>
         <span className="block truncate text-[10px] text-[var(--nova-text-faint)]">{item.path}</span>
       </button>
+      {hasActions && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label={t('planning.settingActions', { title: item.title })} className="rounded p-1.5 text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]">
+              <Settings2 className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="border-[var(--nova-border)] bg-[var(--nova-menu-bg)] text-[var(--nova-text)]">
+            {onExport && (
+              <DropdownMenuItem className="text-xs" onClick={onExport}>
+                <Download className="h-3.5 w-3.5" />
+                {t('planning.exportSetting')}
+              </DropdownMenuItem>
+            )}
+            {onImport && (
+              <DropdownMenuItem className="text-xs" onClick={onImport}>
+                <Upload className="h-3.5 w-3.5" />
+                {t('planning.importSetting')}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       <button type="button" aria-label={pinned ? t('planning.unpinBookSetting', { title: item.title }) : t('planning.pinBookSetting', { title: item.title })} className="rounded p-1.5 text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]" onClick={() => onTogglePinned(item.path)}>
         {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
       </button>

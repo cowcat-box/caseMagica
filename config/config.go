@@ -31,6 +31,7 @@ type Config struct {
 	AgentContexts               AgentContextSettings         `toml:"agent_context"`
 	GeneralSubAgents            AgentGeneralSubAgentSettings `toml:"general_sub_agents"`
 	SubAgents                   []SubAgentConfig             `toml:"sub_agents"`
+	Continuation                ContinuationSettings         `toml:"continuation"`
 	SkillsDir                   string                       `toml:"skills_dir"`
 	BackendPort                 int                          `toml:"backend_port"`
 	FrontendPort                int                          `toml:"frontend_port"`
@@ -97,6 +98,7 @@ func LoadWithWorkspace(workspace string) (*Config, LayeredSettings, error) {
 		AgentContexts:               s.AgentContexts,
 		GeneralSubAgents:            s.GeneralSubAgents,
 		SubAgents:                   s.SubAgents,
+		Continuation:                ResolveContinuationSettings(s.Continuation),
 		SkillsDir:                   s.SkillsDir,
 		BackendPort:                 settingsInt(s.BackendPort, 8080),
 		FrontendPort:                settingsInt(s.FrontendPort, 5173),
@@ -212,6 +214,7 @@ func settingsFromConfig(cfg *Config) Settings {
 		AgentContexts:            cfg.AgentContexts,
 		GeneralSubAgents:         cfg.GeneralSubAgents,
 		SubAgents:                cfg.SubAgents,
+		Continuation:             cfg.Continuation,
 		SkillsDir:                cfg.SkillsDir,
 		CaseMagicaDir:                firstNonEmpty(cfg.CaseMagicaDir, cfg.DenovaDir),
 		DenovaDir:                  firstNonEmpty(cfg.CaseMagicaDir, cfg.DenovaDir),

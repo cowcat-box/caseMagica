@@ -597,6 +597,16 @@ function App() {
   const continueWriting = useCallback(() => {
     if (!isStreaming) send('/continue')
   }, [isStreaming, send])
+  const [continuationOpen, setContinuationOpen] = useState(false)
+  const openContinuation = useCallback(() => {
+    setSettingsOpen(false)
+    if (mode !== 'ide') {
+      booksReturnModeRef.current = 'ide'
+      setBooksReturnMode('ide')
+      setMode('ide')
+    }
+    setContinuationOpen(true)
+  }, [mode, setMode])
 
   const handleSetMode = useCallback((nextMode: WorkspaceMode) => {
     if (nextMode === 'books' || nextMode === 'skills' || nextMode === 'agents' || nextMode === 'automations') {
@@ -787,6 +797,8 @@ function App() {
         onBooksChange={refreshBooks}
         onOpenCharacterCardImport={handleOpenCharacterCardImportFromBooks}
         onSetSidebarView={setSidebarView}
+        continuationOpen={continuationOpen}
+        onCloseContinuation={() => setContinuationOpen(false)}
         onSelectSearchResult={handleSelectSearchResult}
         onSelectFile={handleSelectFile}
         onSetChapterConfirmed={handleSetChapterConfirmed}
@@ -833,6 +845,7 @@ function App() {
         onOpenVersions={handleOpenVersions}
         onOpenSearch={handleOpenGlobalSearch}
         onContinueWriting={continueWriting}
+        onOpenContinuation={openContinuation}
         onToggleRightPanel={() => {
           if (mode === 'interactive') {
             setInteractiveRightVisible((value) => !value)

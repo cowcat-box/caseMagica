@@ -1,11 +1,13 @@
 package api
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -144,6 +146,85 @@ func TestBookExportRejectsUnsupportedFormat(t *testing.T) {
 		server.engine.Engine,
 		http.MethodGet,
 		"/api/books/export?path="+url.QueryEscape(application.Workspace())+"&format=epub",
+		nil,
+	)
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("export status = %d body=%s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestBookExportSelectionZipAPI(t *testing.T) {
+	application := newTestApplication(t)
+	if _, err := application.UpdateBookInfo(application.Workspace(), "星河边境", "CaseMagica", ""); err != nil {
+		t.Fatalf("写入书籍元信息失败: %v", err)
+	}
+	service := application.BookService()
+	if err := service.Create("chapters/ch00001-第一章-开局.md", "file", "# 第一章 开局\n\n天亮了。"); err != nil {
+		t.Fatalf("创建第一章失败: %v", err)
+	}
+	if err := service.Create("setting/outline.md", "file", "# 书名大纲\n\n推进主线。"); err != nil {
+		t.Fatalf("创建大纲失败: %v", err)
+	}
+	if err := service.Create("setting/chapter-groups/group1-第一组.md", "file", "# 第一组\n\n前五章。"); err != nil {
+		t.Fatalf("创建细纲失败: %v", err)
+	}
+	server := NewServer(application, "0")
+
+	resp := ut.PerformRequest(
+		server.engine.Engine,
+		http.MethodGet,
+		"/api/books/export?path="+url.QueryEscape(application.Workspace())+"&format=zip&chapters=1&groups=all&outline=1&meta=1",
+		nil,
+	)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("export status = %d body=%s", resp.Code, resp.Body.String())
+	}
+	if contentType := string(resp.Header().Peek("Content-Type")); !strings.HasPrefix(contentType, "application/zip") {
+		t.Fatalf("content type = %q", contentType)
+	}
+	disposition := string(resp.Header().Peek("Content-Disposition"))
+	if !strings.Contains(disposition, "attachment") || !strings.Contains(disposition, ".zip") {
+		t.Fatalf("content disposition = %q", disposition)
+	}
+	reader, err := zip.NewReader(bytes.NewReader(resp.Body.Bytes()), int64(resp.Body.Len()))
+	if err != nil {
+		t.Fatalf("zip 解析失败: %v", err)
+	}
+	entries := map[string]string{}
+	for _, file := range reader.File {
+		rc, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		content, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		entries[file.Name] = string(content)
+	}
+	want := map[string]string{
+		"chapters/ch00001-第一章-开局.md":        "# 第一章 开局\n\n天亮了。",
+		"setting/outline.md":                    "# 书名大纲\n\n推进主线。",
+		"setting/chapter-groups/group1-第一组.md": "# 第一组\n\n前五章。",
+	}
+	for path, content := range want {
+		if entries[path] != content {
+			t.Errorf("zip entry %q = %q, want %q", path, entries[path], content)
+		}
+	}
+	if _, ok := entries["book.json"]; !ok {
+		t.Errorf("zip should contain book.json, got %v", entries)
+	}
+}
+
+func TestBookExportTXTRejectsNonChapterSelection(t *testing.T) {
+	application := newTestApplication(t)
+	server := NewServer(application, "0")
+	resp := ut.PerformRequest(
+		server.engine.Engine,
+		http.MethodGet,
+		"/api/books/export?path="+url.QueryEscape(application.Workspace())+"&format=txt&outline=1",
 		nil,
 	)
 	if resp.Code != http.StatusBadRequest {

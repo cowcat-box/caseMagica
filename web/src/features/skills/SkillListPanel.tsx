@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Bot, Download, Plus } from 'lucide-react'
+import { Bot, Download, MessageSquareText, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ResourceDirectory } from '@/components/resource-directory/ResourceDirectory'
@@ -17,10 +17,11 @@ interface SkillListPanelProps {
   onToggleAgent: () => void
   onCreate: () => void
   onInstall: () => void
+  onOpenChat: () => void
   onSelect: (key: string) => void
 }
 
-/** Skills 左侧栏：Agent/新建/导入入口 + ResourceDirectory 分组列表。 */
+/** Skills 左侧栏：AI 对话/Agent/新建/导入入口 + ResourceDirectory 分组列表。 */
 export function SkillListPanel({
   snapshot,
   selectedKey,
@@ -30,6 +31,7 @@ export function SkillListPanel({
   onToggleAgent,
   onCreate,
   onInstall,
+  onOpenChat,
   onSelect,
 }: SkillListPanelProps) {
   const { t } = useTranslation()
@@ -74,13 +76,25 @@ export function SkillListPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--nova-surface-2)]">
-      <div className="grid shrink-0 grid-cols-3 gap-2 p-3">
+      <div className="grid shrink-0 grid-cols-2 gap-2 p-3">
+        <button
+          type="button"
+          onClick={onOpenChat}
+          disabled={agentOpen}
+          className={`nova-nav-item inline-flex h-8 items-center justify-center gap-1.5 rounded border border-[var(--nova-border)] px-2 ${mode === 'chat' ? 'is-active' : 'bg-[var(--nova-surface)]'} disabled:cursor-not-allowed disabled:opacity-40`}
+          title={agentOpen ? t('skills.chat.agentBlockedTitle') : t('skills.chat.title')}
+        >
+          <MessageSquareText className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0 truncate">{t('skills.chat.title')}</span>
+        </button>
         <button
           type="button"
           onClick={onToggleAgent}
-          className={`nova-nav-item inline-flex h-8 items-center justify-center gap-1.5 rounded border border-[var(--nova-border)] px-2 ${agentOpen ? 'is-active' : 'bg-[var(--nova-surface)]'}`}
+          disabled={mode === 'chat'}
+          className={`nova-nav-item inline-flex h-8 items-center justify-center gap-1.5 rounded border border-[var(--nova-border)] px-2 ${agentOpen ? 'is-active' : 'bg-[var(--nova-surface)]'} disabled:cursor-not-allowed disabled:opacity-40`}
+          title={mode === 'chat' ? t('skills.chat.agentBlockedTitle') : t('skills.agent.button')}
         >
-          <Bot className="h-3.5 w-3.5" />
+          <Bot className="h-3.5 w-3.5 shrink-0" />
           <span className="min-w-0 truncate">{t('skills.agent.button')}</span>
         </button>
         <button
@@ -88,7 +102,7 @@ export function SkillListPanel({
           onClick={onCreate}
           className={`nova-nav-item inline-flex h-8 items-center justify-center gap-1.5 rounded border border-[var(--nova-border)] px-2 ${mode === 'create' ? 'is-active' : 'bg-[var(--nova-surface)]'}`}
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-3.5 w-3.5 shrink-0" />
           <span className="min-w-0 truncate">{t('skills.create.newButton')}</span>
         </button>
         <button
@@ -96,7 +110,7 @@ export function SkillListPanel({
           onClick={onInstall}
           className={`nova-nav-item inline-flex h-8 items-center justify-center gap-1.5 rounded border border-[var(--nova-border)] px-2 ${mode === 'install' ? 'is-active' : 'bg-[var(--nova-surface)]'}`}
         >
-          <Download className="h-3.5 w-3.5" />
+          <Download className="h-3.5 w-3.5 shrink-0" />
           <span className="min-w-0 truncate">{t('skills.install.action')}</span>
         </button>
       </div>

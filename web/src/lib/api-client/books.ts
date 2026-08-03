@@ -1,11 +1,23 @@
 import { fetchAPI, jsonHeaders, parseSSEStream, readErrorMessage, requestJSON } from './client'
 import type { BookCoverResult, BookMeta, BookRecord, BookSortMode, BookshelfResult, NovelImportResult, SSEEvent } from './types'
 
-export type BookExportFormat = 'txt'
+export type BookExportFormat = 'txt' | 'md' | 'zip'
 
 export interface BookExportFile {
   filename: string
   blob: Blob
+}
+
+/** 导出内容勾选：不传任何字段时后端保持旧行为（导出全书章节正文）。 */
+export interface BookExportSelection {
+  chapters?: boolean
+  groups?: 'latest' | 'all'
+  outline?: boolean
+  rules?: boolean
+  progress?: boolean
+  characterStates?: boolean
+  ideas?: boolean
+  meta?: boolean
 }
 
 export async function getBookshelf(): Promise<BookshelfResult> {
@@ -137,8 +149,19 @@ export async function uploadBookCover(path: string, file: File): Promise<BookCov
   })
 }
 
-export async function exportBook(input: { path: string; format: BookExportFormat }): Promise<BookExportFile> {
+export async function exportBook(input: { path: string; format: BookExportFormat; selection?: BookExportSelection }): Promise<BookExportFile> {
   const params = new URLSearchParams({ path: input.path, format: input.format })
+  const selection = input.selection
+  if (selection) {
+    if (selection.chapters) params.set('chapters', '1')
+    if (selection.groups) params.set('groups', selection.groups)
+    if (selection.outline) params.set('outline', '1')
+    if (selection.rules) params.set('rules', '1')
+    if (selection.progress) params.set('progress', '1')
+    if (selection.characterStates) params.set('character_states', '1')
+    if (selection.ideas) params.set('ideas', '1')
+    if (selection.meta) params.set('meta', '1')
+  }
   const res = await fetchAPI(`/api/books/export?${params.toString()}`)
   if (!res.ok) {
     throw new Error(await readErrorMessage(res))
@@ -156,6 +179,64 @@ export function downloadBookExport(file: BookExportFile) {
   link.click()
   link.remove()
   window.setTimeout(() => URL.revokeObjectURL(href), 0)
+}
+
+export type SettingsKind = 'outline' | 'rules' | 'progress' | 'character_states' | 'ideas' | 'chapter_group'
+
+export interface SettingsImportPreview {
+  kind: SettingsKind
+  target_path?: string
+}
+
+export interface SettingsImportResult {
+  target_path: string
+  backup_path?: string
+}
+
+/** 识别书籍设定材料类型并预览目标落位（不写入）。 */
+export async function identifySettingsImport(workspace: string, file: File, presetKind?: SettingsKind): Promise<SettingsImportPreview> {
+  const form = new FormData()
+  form.append('path', workspace)
+  if (presetKind) form.append('kind', presetKind)
+  form.append('file', file)
+  return requestJSON<SettingsImportPreview>('/api/books/settings/identify', {
+    method: 'POST',
+    body: form,
+  })
+}
+
+/** 导入书籍设定材料（写入前自动备份原文件）。 */
+export async function importSettingsFile(workspace: string, file: File, kind: SettingsKind): Promise<SettingsImportResult> {
+  const form = new FormData()
+  form.append('path', workspace)
+  form.append('kind', kind)
+  form.append('file', file)
+  return requestJSON<SettingsImportResult>('/api/books/settings/import', {
+    method: 'POST',
+    body: form,
+  })
+}
+
+/** 下载单个设定文件。 */
+export async function downloadSettingsFile(workspace: string, filePath: string) {
+  const params = new URLSearchParams({ path: workspace, file: filePath })
+  const res = await fetchAPI(`/api/books/settings/export?${params.toString()}`)
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res))
+  }
+  const filename = filenameFromContentDisposition(res.headers.get('Content-Disposition')) || filePath.split('/').pop() || 'setting.md'
+  downloadBookExport({ filename, blob: await res.blob() })
+}
+
+/** 打包下载全部章节组细纲。 */
+export async function downloadChapterGroups(workspace: string) {
+  const params = new URLSearchParams({ path: workspace })
+  const res = await fetchAPI(`/api/books/settings/export/groups?${params.toString()}`)
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res))
+  }
+  const filename = filenameFromContentDisposition(res.headers.get('Content-Disposition')) || 'chapter-groups.zip'
+  downloadBookExport({ filename, blob: await res.blob() })
 }
 
 function filenameFromContentDisposition(header: string | null): string {

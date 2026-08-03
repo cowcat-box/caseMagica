@@ -9,6 +9,7 @@ import search from './zh-CN/search'
 import sidebar from './zh-CN/sidebar'
 import tab from './zh-CN/tab'
 import command from './zh-CN/command'
+import continuation from './zh-CN/continuation'
 import home from './zh-CN/home'
 import importCard from './zh-CN/importCard'
 import novelImport from './zh-CN/novelImport'
@@ -50,6 +51,7 @@ const zhCN = {
   ...sidebar,
   ...tab,
   ...command,
+  ...continuation,
   ...home,
   ...importCard,
   ...novelImport,

@@ -36,6 +36,7 @@ interface CommandPaletteProps {
   onOpenVersions: () => void
   onOpenSearch: () => void
   onContinueWriting: () => void
+  onOpenContinuation: () => void
   onToggleRightPanel: () => void
 }
 
@@ -49,6 +50,7 @@ export function CommandPalette({
   onOpenVersions,
   onOpenSearch,
   onContinueWriting,
+  onOpenContinuation,
   onToggleRightPanel,
 }: CommandPaletteProps) {
   const { t } = useTranslation()
@@ -78,6 +80,13 @@ export function CommandPalette({
       shortcut: '⌘⇧F',
       icon: <Search className="h-4 w-4" />,
       onSelect: onOpenSearch,
+    },
+    {
+      id: 'continuation',
+      label: t('command.continuation'),
+      disabled: isStreaming,
+      icon: <Sparkles className="h-4 w-4" />,
+      onSelect: onOpenContinuation,
     },
     {
       id: 'continue',

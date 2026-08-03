@@ -12,18 +12,26 @@ import (
 // ErrUnsupportedBookExportFormat indicates that the requested export format is not implemented.
 var ErrUnsupportedBookExportFormat = errors.New("unsupported book export format")
 
+// ErrTXTRequiresChaptersOnly indicates that txt export cannot be mixed with other selected content.
+var ErrTXTRequiresChaptersOnly = errors.New("txt export supports chapter text only")
+
 // BookExportFormat identifies the output format for a book export.
 type BookExportFormat string
 
 const (
 	// BookExportFormatTXT exports a plain UTF-8 text manuscript.
 	BookExportFormatTXT BookExportFormat = "txt"
+	// BookExportFormatMD exports markdown files; a single file is returned raw, multiple files are zipped.
+	BookExportFormatMD BookExportFormat = "md"
+	// BookExportFormatZIP exports the selected content as one zip archive.
+	BookExportFormatZIP BookExportFormat = "zip"
 )
 
 // BookExportRequest describes a format-specific book export request.
 type BookExportRequest struct {
-	Path   string           `json:"path"`
-	Format BookExportFormat `json:"format"`
+	Path      string               `json:"path"`
+	Format    BookExportFormat     `json:"format"`
+	Selection book.ExportSelection `json:"selection"`
 }
 
 // BookExportResult carries a generated export file back to the API layer.
@@ -55,6 +63,11 @@ func (s *WorkspaceRuntimeManager) ExportBook(req BookExportRequest) (BookExportR
 
 	switch format {
 	case BookExportFormatTXT:
+		if !req.Selection.Chapters || req.Selection.ChapterGroups != book.ChapterGroupsNone ||
+			req.Selection.Outline || req.Selection.Rules || req.Selection.Progress ||
+			req.Selection.CharacterStates || req.Selection.Ideas || req.Selection.Meta {
+			return BookExportResult{}, ErrTXTRequiresChaptersOnly
+		}
 		result, err := book.NewService(absPath).ExportText(meta)
 		if err != nil {
 			return BookExportResult{}, err
@@ -65,6 +78,28 @@ func (s *WorkspaceRuntimeManager) ExportBook(req BookExportRequest) (BookExportR
 			Data:         []byte(result.Content),
 			ChapterCount: result.ChapterCount,
 		}, nil
+	case BookExportFormatMD, BookExportFormatZIP:
+		pack, err := book.NewService(absPath).BuildExportPack(req.Selection)
+		if err != nil {
+			return BookExportResult{}, err
+		}
+		if format == BookExportFormatMD && len(pack.Files) == 1 {
+			file := pack.Files[0]
+			return BookExportResult{
+				Filename:    filepath.Base(file.Path),
+				ContentType: "text/markdown; charset=utf-8",
+				Data:        file.Content,
+			}, nil
+		}
+		data, err := book.BuildExportZip(pack.Files)
+		if err != nil {
+			return BookExportResult{}, err
+		}
+		return BookExportResult{
+			Filename:    bookExportFilename(meta, absPath, BookExportFormatZIP),
+			ContentType: "application/zip",
+			Data:        data,
+		}, nil
 	default:
 		return BookExportResult{}, fmt.Errorf("%w: %s", ErrUnsupportedBookExportFormat, req.Format)
 	}
@@ -74,6 +109,10 @@ func normalizeBookExportFormat(format BookExportFormat) BookExportFormat {
 	switch BookExportFormat(strings.ToLower(strings.TrimSpace(string(format)))) {
 	case BookExportFormatTXT:
 		return BookExportFormatTXT
+	case BookExportFormatMD:
+		return BookExportFormatMD
+	case BookExportFormatZIP:
+		return BookExportFormatZIP
 	default:
 		return ""
 	}

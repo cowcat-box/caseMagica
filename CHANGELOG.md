@@ -6,8 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- 作品目录新增导出与导入入口：导出可按需勾选章节正文（保留分卷目录）、章节组细纲（最新或全部）、大纲、规则、进度、角色状态、灵感与书籍元信息，格式支持 txt / md / zip；导入支持"按格式"复用小说分章建书，以及"按材料"识别设定文件写入对应位置（自动备份、可回滚）。
+- The Works Catalog adds export and import entries: export lets you select chapter text (volume directories preserved), group outlines (latest or all), outline, rules, progress, character states, ideas, and book metadata in txt / md / zip; import supports format-based novel chapter splitting and material-based setting files written to their matching locations with automatic backups.
+- 书籍设定支持大纲、规则、章节组细纲的独立导出/导入；细纲可单个或全部打包导出，导入细纲自动编号不覆盖已有文件。
+- Book settings support standalone export/import for the outline, rules, and chapter group outlines; group outlines can be exported individually or as a zip, and imports are auto-numbered without overwriting existing files.
+- Skills 菜单新增 AI 对话页：与 Config Manager 对话炼成 Skill，Agent 通过 `create_skill_draft` 工具产出用户级草稿，可在对话页预览、编辑、确认导入（user/workspace）或丢弃（移入备份区）。
+- The Skills menu adds an AI Chat page: craft Skills by chatting with the Config Manager; the Agent produces user-scoped drafts via the `create_skill_draft` tool, which can be previewed, edited, confirmed (user/workspace) or discarded (moved to backups).
+- 新增续写推演：基于当前章节推演多个续写候选（方向级/片段级，短/中/长三档深度，可选风格模板与方向偏好），候选可编辑后提交为新章节或追加章末，走原子变更可审阅可撤销；推演结果落盘 `.casemagica/continuations/`，刷新可恢复，删除前自动备份。
+- Continuation Exploration: explore multiple continuation candidates from the current chapter (direction/excerpt granularity; short/medium/long depth; optional style template and direction preference). Candidates can be edited and committed as a new chapter or appended to the anchor chapter through atomic, reviewable changes; results persist under `.casemagica/continuations/` and survive refreshes, with backups before deletion.
+- 新增配置项 `[continuation]`：`max_candidates`（默认 3）、`excerpt_max_chars`（默认 1500）、`prefix_chars`（默认 3000）、`timeout_minutes`（默认 0=不限制）。
+- New `[continuation]` config section: `max_candidates` (default 3), `excerpt_max_chars` (default 1500), `prefix_chars` (default 3000), `timeout_minutes` (default 0 = unlimited).
+
 ### Changed
 
+- 品牌图标（左上角 + 浏览器标签页 favicon + PWA 图标）重设计为极简风格：深色圆角方块 + 白色"打开书"线条 + 红黄绿星光点缀，去除了原有渐变与光晕滤镜，小尺寸下更清晰，符合纯色主题规范。
+- The brand icon (top-left corner, browser-tab favicon, and PWA icons) was redesigned in a minimal style: a dark rounded square with a white open-book outline and red/yellow/green sparkle dots, removing the previous gradients and glow filters for better legibility at small sizes, consistent with the solid-color theme.
+- Skills 页顶部入口改为两行两列布局，避免 AI 对话/配置/新建/导入按钮拥挤显示不全；AI 对话激活时配置按钮置灰，配置面板打开时 AI 对话按钮置灰，避免同时出现两个对话面板。
+- The Skills page top entries now use a two-by-two layout so the AI Chat / Config / New / Import buttons are fully visible; the Config button is disabled while AI Chat is active and vice versa, preventing two chat panels at once.
+- 续写推演的风格模板下拉在暂无文风参考时显示引导文案（可在讲述者 → 文风参考中创建），不再空无一物。
+- The continuation style-template dropdown shows a guidance hint when no style references exist yet (create them under Teller → Style References), instead of being empty.
+- `GET /api/books/export` 支持内容勾选参数（chapters/groups/outline/rules/progress/character_states/ideas/meta）与 md/zip 格式；不带勾选参数时保持旧行为不变。
+- `GET /api/books/export` now accepts content-selection query params (chapters/groups/outline/rules/progress/character_states/ideas/meta) and md/zip formats; without selection params the legacy behavior is unchanged.
 - Home、Settings、Agents、Skills 和 Automations 统一使用共享页面框架、分区导航、表单字段、资源目录、空状态与确认弹窗；资料库和方案预设同时复用自适应面板与移动端入口。
 - Home, Settings, Agents, Skills, and Automations now share page shells, section navigation, form fields, resource directories, empty states, and confirmation dialogs; Lore and Presets also reuse adaptive panes and mobile entry points.
 - 写作与游戏模式的 Agent 对话统一为单一挂载的聊天面板，并共享持久化输入偏好、上下文分析展示、文本测量和底部滚动控制，避免布局切换时重复初始化会话状态。

@@ -11,6 +11,7 @@ const command = {
   'command.description': 'Search and run workbench commands',
   'command.title': 'Command Palette',
   'command.openButton': 'Commands',
+  'command.continuation': 'Continuation Explore',
 } as const
 
 export default command

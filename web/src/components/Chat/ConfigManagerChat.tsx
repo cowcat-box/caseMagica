@@ -16,10 +16,11 @@ interface ConfigManagerChatProps {
   branchId?: string
   context?: Record<string, string>
   onMutated?: () => void
+  onToolSuccess?: (view: AgentMessageView) => void
   className?: string
 }
 
-export function ConfigManagerChat({ workspace = '', origin, resourceId, storyId, branchId, context, onMutated, className = '' }: ConfigManagerChatProps) {
+export function ConfigManagerChat({ workspace = '', origin, resourceId, storyId, branchId, context, onMutated, onToolSuccess, className = '' }: ConfigManagerChatProps) {
   const { t } = useTranslation()
   const activeKeyRef = useRef('')
   const handledToolViewsRef = useRef(new Set<string>())
@@ -46,7 +47,8 @@ export function ConfigManagerChat({ workspace = '', origin, resourceId, storyId,
     if (handledToolViewsRef.current.has(key)) return
     handledToolViewsRef.current.add(key)
     onMutated?.()
-  }, [onMutated])
+    onToolSuccess?.(view)
+  }, [onMutated, onToolSuccess])
   const {
     messages,
     setMessages,

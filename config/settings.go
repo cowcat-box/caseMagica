@@ -92,6 +92,94 @@ type Settings struct {
 	// 游戏模式
 	InteractiveStageFontSize   *int     `toml:"interactive_stage_font_size,omitempty" json:"interactive_stage_font_size,omitempty"`
 	InteractiveStageLineHeight *float64 `toml:"interactive_stage_line_height,omitempty" json:"interactive_stage_line_height,omitempty"`
+
+	// 续写推演
+	Continuation ContinuationSettings `toml:"continuation,omitempty" json:"continuation,omitempty"`
+}
+
+// ContinuationSettings 是续写推演的运行参数；指针字段用于分层继承。
+type ContinuationSettings struct {
+	MaxCandidates   *int `toml:"max_candidates,omitempty" json:"max_candidates,omitempty"`
+	ExcerptMaxChars *int `toml:"excerpt_max_chars,omitempty" json:"excerpt_max_chars,omitempty"`
+	PrefixChars     *int `toml:"prefix_chars,omitempty" json:"prefix_chars,omitempty"`
+	TimeoutMinutes  *int `toml:"timeout_minutes,omitempty" json:"timeout_minutes,omitempty"`
+}
+
+const (
+	// DefaultContinuationMaxCandidates 单次推演最大候选数。
+	DefaultContinuationMaxCandidates = 3
+	// DefaultContinuationExcerptMaxChars 长推演单个片段上限（字）。
+	DefaultContinuationExcerptMaxChars = 1500
+	// DefaultContinuationPrefixChars 单章前文注入上限（字）。
+	DefaultContinuationPrefixChars = 3000
+	// DefaultContinuationTimeoutMinutes 推演超时分钟数；0 表示不限制。
+	DefaultContinuationTimeoutMinutes = 0
+)
+
+// ResolveContinuationSettings 合并分层配置并补齐默认值。
+func ResolveContinuationSettings(settings ContinuationSettings) ContinuationSettings {
+	if settings.MaxCandidates == nil || *settings.MaxCandidates < 1 || *settings.MaxCandidates > 5 {
+		settings.MaxCandidates = intPtr(DefaultContinuationMaxCandidates)
+	}
+	if settings.ExcerptMaxChars == nil || *settings.ExcerptMaxChars < 100 {
+		settings.ExcerptMaxChars = intPtr(DefaultContinuationExcerptMaxChars)
+	}
+	if settings.PrefixChars == nil || *settings.PrefixChars < 100 {
+		settings.PrefixChars = intPtr(DefaultContinuationPrefixChars)
+	}
+	if settings.TimeoutMinutes == nil || *settings.TimeoutMinutes < 0 {
+		settings.TimeoutMinutes = intPtr(DefaultContinuationTimeoutMinutes)
+	}
+	return settings
+}
+
+// MaxCandidatesOrDefault 返回候选数上限（默认 3）。
+func (s ContinuationSettings) MaxCandidatesOrDefault() int {
+	if s.MaxCandidates == nil || *s.MaxCandidates < 1 || *s.MaxCandidates > 5 {
+		return DefaultContinuationMaxCandidates
+	}
+	return *s.MaxCandidates
+}
+
+// ExcerptMaxCharsOrDefault 返回片段上限（默认 1500）。
+func (s ContinuationSettings) ExcerptMaxCharsOrDefault() int {
+	if s.ExcerptMaxChars == nil || *s.ExcerptMaxChars < 100 {
+		return DefaultContinuationExcerptMaxChars
+	}
+	return *s.ExcerptMaxChars
+}
+
+// PrefixCharsOrDefault 返回单章前文上限（默认 3000）。
+func (s ContinuationSettings) PrefixCharsOrDefault() int {
+	if s.PrefixChars == nil || *s.PrefixChars < 100 {
+		return DefaultContinuationPrefixChars
+	}
+	return *s.PrefixChars
+}
+
+// TimeoutMinutesOrDefault 返回可选超时（默认 0=不限）。
+func (s ContinuationSettings) TimeoutMinutesOrDefault() int {
+	if s.TimeoutMinutes == nil || *s.TimeoutMinutes < 0 {
+		return DefaultContinuationTimeoutMinutes
+	}
+	return *s.TimeoutMinutes
+}
+
+// MergeContinuationSettings 合并父子分层，child 非 nil 字段优先。
+func MergeContinuationSettings(parent, child ContinuationSettings) ContinuationSettings {
+	if child.MaxCandidates != nil {
+		parent.MaxCandidates = child.MaxCandidates
+	}
+	if child.ExcerptMaxChars != nil {
+		parent.ExcerptMaxChars = child.ExcerptMaxChars
+	}
+	if child.PrefixChars != nil {
+		parent.PrefixChars = child.PrefixChars
+	}
+	if child.TimeoutMinutes != nil {
+		parent.TimeoutMinutes = child.TimeoutMinutes
+	}
+	return parent
 }
 
 func boolPtr(v bool) *bool        { return &v }
@@ -207,6 +295,7 @@ func Merge(parent, child Settings) Settings {
 	out.AgentContexts = MergeAgentContextSettings(out.AgentContexts, child.AgentContexts)
 	out.GeneralSubAgents = MergeAgentGeneralSubAgentSettings(out.GeneralSubAgents, child.GeneralSubAgents)
 	out.SubAgents = MergeSubAgents(out.SubAgents, child.SubAgents)
+	out.Continuation = MergeContinuationSettings(out.Continuation, child.Continuation)
 	if child.SkillsDir != "" {
 		out.SkillsDir = child.SkillsDir
 	}

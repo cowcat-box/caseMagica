@@ -121,7 +121,9 @@ func (h *Handlers) HandleBookCoverUpload(ctx context.Context, c *app.RequestCont
 	writeJSON(c, consts.StatusOK, result)
 }
 
-// HandleBookExport GET /api/books/export?path=...&format=txt — 导出指定书籍。
+// HandleBookExport GET /api/books/export?path=...&format=txt|md|zip — 导出指定书籍。
+// 支持通过内容勾选参数（chapters/groups/outline/rules/progress/character_states/ideas/meta）
+// 选择导出范围；不带任何勾选参数时保持旧行为（默认导出全书章节正文）。
 func (h *Handlers) HandleBookExport(ctx context.Context, c *app.RequestContext) {
 	path := strings.TrimSpace(string(c.Query("path")))
 	format := strings.TrimSpace(string(c.Query("format")))
@@ -134,14 +136,20 @@ func (h *Handlers) HandleBookExport(ctx context.Context, c *app.RequestContext) 
 		return
 	}
 
+	selection := parseBookExportSelection(c)
 	result, err := h.app.ExportBook(novaApp.BookExportRequest{
-		Path:   path,
-		Format: novaApp.BookExportFormat(format),
+		Path:      path,
+		Format:    novaApp.BookExportFormat(format),
+		Selection: selection,
 	})
 	if err != nil {
 		switch {
 		case errors.Is(err, novaApp.ErrUnsupportedBookExportFormat):
 			writeErrorKey(c, consts.StatusBadRequest, "api.books.exportFormatUnsupported", "format", format)
+		case errors.Is(err, novaApp.ErrTXTRequiresChaptersOnly):
+			writeErrorKey(c, consts.StatusBadRequest, "api.books.exportTXTChaptersOnly")
+		case errors.Is(err, book.ErrNoExportableContent):
+			writeErrorKey(c, consts.StatusBadRequest, "api.books.exportNoContent")
 		case errors.Is(err, book.ErrNoExportableChapters):
 			writeErrorKey(c, consts.StatusBadRequest, "api.books.exportNoChapters")
 		default:
@@ -152,6 +160,47 @@ func (h *Handlers) HandleBookExport(ctx context.Context, c *app.RequestContext) 
 	c.Response.Header.Set("Content-Disposition", attachmentContentDisposition(result.Filename))
 	c.Response.Header.Set("Cache-Control", "no-store")
 	c.Data(consts.StatusOK, result.ContentType, result.Data)
+}
+
+// parseBookExportSelection 解析导出内容勾选参数；没有任何勾选参数时默认导出全书章节。
+func parseBookExportSelection(c *app.RequestContext) book.ExportSelection {
+	groups := strings.TrimSpace(string(c.Query("groups")))
+	if groups != book.ChapterGroupsLatest && groups != book.ChapterGroupsAll {
+		groups = book.ChapterGroupsNone
+	}
+	selection := book.ExportSelection{
+		Chapters:        queryFlag(c, "chapters"),
+		ChapterGroups:   groups,
+		Outline:         queryFlag(c, "outline"),
+		Rules:           queryFlag(c, "rules"),
+		Progress:        queryFlag(c, "progress"),
+		CharacterStates: queryFlag(c, "character_states"),
+		Ideas:           queryFlag(c, "ideas"),
+		Meta:            queryFlag(c, "meta"),
+	}
+	hasSelection := queryParamPresent(c, "chapters") || queryParamPresent(c, "groups") ||
+		queryParamPresent(c, "outline") || queryParamPresent(c, "rules") ||
+		queryParamPresent(c, "progress") || queryParamPresent(c, "character_states") ||
+		queryParamPresent(c, "ideas") || queryParamPresent(c, "meta")
+	if !hasSelection {
+		selection.Chapters = true
+	}
+	return selection
+}
+
+func queryParamPresent(c *app.RequestContext, key string) bool {
+	_, ok := c.GetQuery(key)
+	return ok
+}
+
+func queryFlag(c *app.RequestContext, key string) bool {
+	value := strings.ToLower(strings.TrimSpace(string(c.Query(key))))
+	switch value {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func attachmentContentDisposition(filename string) string {

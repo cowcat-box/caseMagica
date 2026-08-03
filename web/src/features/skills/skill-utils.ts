@@ -3,7 +3,7 @@ import type { AgentViewDefinition, VisibleAgentKey } from '@/features/agents/age
 import type { FileNode } from '@/hooks/useWorkspace'
 import type { SkillDocument, SkillFile, SkillInstallCandidate, SkillScope, SkillScopeInfo, SkillSummary } from '@/lib/api'
 
-export type SkillsMode = 'editor' | 'create' | 'config' | 'install'
+export type SkillsMode = 'editor' | 'create' | 'config' | 'install' | 'chat'
 export type SkillInstallSource = 'remote' | 'zip'
 export type SkillContentViewMode = 'preview' | 'raw'
 

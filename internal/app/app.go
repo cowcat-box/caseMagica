@@ -50,6 +50,7 @@ type App struct {
 	automationApp  *AutomationAppService
 	skillsApp      *SkillsAppService
 	imageApp       *ImageAppService
+	continuationApp *ContinuationAppService
 	servicesOnce   sync.Once
 
 	mu sync.RWMutex
@@ -136,6 +137,7 @@ func (a *App) ensureServices() {
 		a.automationApp = &AutomationAppService{app: a}
 		a.skillsApp = &SkillsAppService{app: a}
 		a.imageApp = &ImageAppService{app: a}
+		a.continuationApp = newContinuationAppService(a)
 	})
 }
 
@@ -177,6 +179,11 @@ func (a *App) automation() *AutomationAppService {
 func (a *App) skills() *SkillsAppService {
 	a.ensureServices()
 	return a.skillsApp
+}
+
+func (a *App) continuation() *ContinuationAppService {
+	a.ensureServices()
+	return a.continuationApp
 }
 
 func (a *App) applyRuntime(runtime *runtimeState) {

@@ -159,3 +159,44 @@ func (s *SkillsAppService) directories() []novaskills.Directory {
 	}
 	return novaskills.NewDirectories(a.cfg.SkillsDir, a.cfg.DataDir(), a.workspace)
 }
+
+// draftStore 返回用户级草稿存储（跨工作区共享）。
+func (s *SkillsAppService) draftStore() *novaskills.DraftStore {
+	a := s.app
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if a.cfg == nil {
+		return novaskills.NewDraftStore("")
+	}
+	return novaskills.NewDraftStore(a.cfg.DataDir())
+}
+
+// SkillDraftCreate 创建 Skill 草稿。
+func (a *App) SkillDraftCreate(input novaskills.CreateDraftInput) (novaskills.DraftMeta, error) {
+	return a.skills().draftStore().CreateDraft(input)
+}
+
+// SkillDraftList 列出全部 Skill 草稿。
+func (a *App) SkillDraftList() ([]novaskills.DraftMeta, error) {
+	return a.skills().draftStore().ListDrafts()
+}
+
+// SkillDraftRead 读取 Skill 草稿完整内容。
+func (a *App) SkillDraftRead(name string) (novaskills.DraftDocument, error) {
+	return a.skills().draftStore().ReadDraft(name)
+}
+
+// SkillDraftUpdate 更新 Skill 草稿正文。
+func (a *App) SkillDraftUpdate(name, description, agent, context, model, body string) (novaskills.DraftMeta, error) {
+	return a.skills().draftStore().UpdateDraftBody(name, description, agent, context, model, body)
+}
+
+// SkillDraftDiscard 丢弃 Skill 草稿（移至备份区）。
+func (a *App) SkillDraftDiscard(name string) (string, error) {
+	return a.skills().draftStore().DiscardDraft(name)
+}
+
+// SkillDraftConfirm 确认导入 Skill 草稿为正式 Skill。
+func (a *App) SkillDraftConfirm(ctx context.Context, name string, scope novaskills.Scope) (novaskills.Document, error) {
+	return a.skills().draftStore().ConfirmDraft(name, scope, a.skills().directories())
+}

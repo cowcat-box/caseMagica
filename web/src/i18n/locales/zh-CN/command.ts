@@ -11,6 +11,7 @@ const command = {
   'command.description': '搜索并执行工作台命令',
   'command.title': '命令面板',
   'command.openButton': '命令',
+  'command.continuation': '续写推演',
 } as const
 
 export default command

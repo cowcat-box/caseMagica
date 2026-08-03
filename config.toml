@@ -205,3 +205,14 @@ ide_story_teller_id = "classic"
 
 # 互动模式
 interactive_stage_line_height = 1.78
+
+# 续写推演
+[continuation]
+# 单次推演最大候选数（1~5，按深度取较小值）
+max_candidates = 3
+# 长推演单个片段上限（字）
+excerpt_max_chars = 1500
+# 单章前文注入上限（字）
+prefix_chars = 3000
+# 可选推演超时（分钟）；0 = 不限制（默认，LLM 运行总是耗时的，不建议设置）
+timeout_minutes = 0

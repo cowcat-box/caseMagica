@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -160,6 +161,7 @@ func newConfigManagerTools(cfg *config.Config, settings config.ResolvedAgentTool
 		{build: func() (tool.BaseTool, error) { return newListSkillsTool(cfg) }},
 		{build: func() (tool.BaseTool, error) { return newReadSkillsTool(cfg) }},
 		{build: func() (tool.BaseTool, error) { return newWriteSkillsTool(cfg) }},
+		{build: func() (tool.BaseTool, error) { return newCreateSkillDraftTool(denovaDir) }},
 		{build: func() (tool.BaseTool, error) { return newListAgentConfigsTool(cfg) }},
 		{build: func() (tool.BaseTool, error) { return newWriteAgentConfigsTool(cfg) }},
 	}
@@ -872,6 +874,51 @@ func skillDirs(cfg *config.Config) []novaskills.Directory {
 		return nil
 	}
 	return novaskills.NewDirectories(cfg.SkillsDir, cfg.DataDir(), cfg.Workspace)
+}
+
+type createSkillDraftInput struct {
+	Name        string            `json:"name" jsonschema:"required,description=Skill 名称（小写字母/数字/下划线/连字符，以字母或数字开头）"`
+	Description string            `json:"description" jsonschema:"required,description=Skill 描述，写入 frontmatter description"`
+	Agent       string            `json:"agent,omitempty" jsonschema:"description=可选：允许使用该 Skill 的 Agent 列表（逗号分隔），例如 ide, config_manager"`
+	Context     string            `json:"context,omitempty" jsonschema:"description=可选：context 字段（何时触发该 Skill）"`
+	Model       string            `json:"model,omitempty" jsonschema:"description=可选：model 字段"`
+	Body        string            `json:"body" jsonschema:"required,description=SKILL.md 正文（不含 frontmatter），描述触发条件、工作流步骤与规则"`
+	Files       map[string]string `json:"files,omitempty" jsonschema:"description=可选：附加文件（相对路径 -> 内容），如模板或参考资料"`
+}
+
+// newCreateSkillDraftTool 创建 Skill 草稿工具：把对话中炼成的 Skill 保存为用户级草稿
+// （不会直接生效），由用户在前端确认后导入为正式 Skill。
+func newCreateSkillDraftTool(denovaDir string) (tool.BaseTool, error) {
+	return utils.InferTool("create_skill_draft", "把当前对话中炼成的 Skill 保存为用户级草稿。草稿不会直接生效，用户确认后才导入为正式 Skill；同一名称已有草稿时需先让用户决定。正文是纯 Markdown，frontmatter 字段单独提供。", func(ctx context.Context, input createSkillDraftInput) (string, error) {
+		_ = ctx
+		store := novaskills.NewDraftStore(denovaDir)
+		meta, err := store.CreateDraft(novaskills.CreateDraftInput{
+			Name:        input.Name,
+			Description: input.Description,
+			Agent:       input.Agent,
+			Context:     input.Context,
+			Model:       input.Model,
+			Body:        input.Body,
+			Files:       input.Files,
+			SourceScope: "config-manager",
+		})
+		if err != nil {
+			if errors.Is(err, novaskills.ErrDraftExists) {
+				return "", fmt.Errorf("同名 Skill 草稿已存在: %s，请先请用户在 Skills 页确认或丢弃后再生成", input.Name)
+			}
+			return "", err
+		}
+		result, err := marshalToolJSON(map[string]any{
+			"draft_id":    meta.Name,
+			"name":        meta.Name,
+			"description": meta.Description,
+			"files":       meta.Files,
+		})
+		if err != nil {
+			return "", err
+		}
+		return result, nil
+	})
 }
 
 func marshalToolJSON(v any) (string, error) {

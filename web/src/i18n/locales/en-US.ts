@@ -9,6 +9,7 @@ import search from './en-US/search'
 import sidebar from './en-US/sidebar'
 import tab from './en-US/tab'
 import command from './en-US/command'
+import continuation from './en-US/continuation'
 import home from './en-US/home'
 import importCard from './en-US/importCard'
 import novelImport from './en-US/novelImport'
@@ -50,6 +51,7 @@ const enUS = {
   ...sidebar,
   ...tab,
   ...command,
+  ...continuation,
   ...home,
   ...importCard,
   ...novelImport,

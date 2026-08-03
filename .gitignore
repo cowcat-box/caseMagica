@@ -26,3 +26,6 @@ docs/*
 .casemagica
 prd
 .playwright-cli/
+
+# 本地数据目录（含用户配置与密钥），禁止提交
+.denova/

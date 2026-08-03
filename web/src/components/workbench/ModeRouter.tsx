@@ -1,4 +1,4 @@
-import { BookMarked, BookOpen, CheckCircle2, ChevronDown, ChevronRight, Circle, Database, FileText, Loader2, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { BookMarked, BookOpen, CheckCircle2, ChevronDown, ChevronRight, Circle, Database, Download, FileText, Loader2, MoreHorizontal, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, SlidersHorizontal, Sparkles, Upload } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -6,6 +6,13 @@ import { FileTree } from '@/components/Sidebar/FileTree'
 import { SearchPanel } from '@/components/Sidebar/SearchPanel'
 import { AgentPanel } from '@/components/Chat/AgentPanel'
 import { FilePreview } from '@/components/workbench/FilePreview'
+import { ExportDialog } from '@/components/workbench/ExportDialog'
+import { SettingsImportDialog } from '@/components/workbench/SettingsImportDialog'
+import { NovelImportDialog } from '@/components/Home/NovelImportDialog'
+import { ContinuationFlow } from '@/features/chapters/continuation/ContinuationFlow'
+import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { downloadChapterGroups, downloadSettingsFile, type SettingsKind } from '@/lib/api-client/books'
 import { MarkdownEditor, type EditorFlushHandler } from '@/components/Editor/MarkdownEditor'
 import { BookSettingsShortcuts } from '@/components/workbench/BookSettingsShortcuts'
 import { getImagePresets, getInteractiveTellers } from '@/features/interactive/api'
@@ -93,6 +100,8 @@ interface ModeRouterProps {
   onBooksChange: () => void | Promise<void>
   onOpenCharacterCardImport: () => void
   onSetSidebarView: (view: 'outline' | 'files' | 'search') => void
+  continuationOpen?: boolean
+  onCloseContinuation?: () => void
   onSelectSearchResult: (result: WorkspaceSearchResult, query: string) => void | Promise<void>
   onSelectFile: (path: string) => boolean | void | Promise<boolean | void>
   onSetChapterConfirmed: (path: string, confirmed: boolean) => void | Promise<void>
@@ -185,6 +194,8 @@ export function ModeRouter(props: ModeRouterProps) {
     onBooksChange,
     onOpenCharacterCardImport,
     onSetSidebarView,
+    continuationOpen,
+    onCloseContinuation,
     onSelectSearchResult,
     onSelectFile,
     onSetChapterConfirmed,
@@ -239,6 +250,10 @@ export function ModeRouter(props: ModeRouterProps) {
   const [agentSubAgentDetailsOpen, setAgentSubAgentDetailsOpen] = useState(false)
   const [illustrationInsertSignal, setIllustrationInsertSignal] = useState<{ illustration: ChapterIllustration; nonce: number } | null>(null)
   const [editorLine, setEditorLine] = useState(1)
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [continuationFlowOpen, setContinuationFlowOpen] = useState(false)
+  // continuationOpen 来自父级 props；内部入口用 continuationFlowOpen
+  const [continuationAnchor, setContinuationAnchor] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     setEditorLine(1)
@@ -462,6 +477,7 @@ export function ModeRouter(props: ModeRouterProps) {
         ) : sidebarView === 'outline' ? (
           <ChapterOutline
             workspace={workspace}
+            denovaDir={denovaDir}
             tree={tree}
             chapters={summary?.chapters || []}
             ideas={summary?.ideas}
@@ -471,6 +487,14 @@ export function ModeRouter(props: ModeRouterProps) {
             onSelectFile={(path) => { void onSelectFile(path) }}
             onRequestBookSettingCreate={(item) => requestSkillsAgent(t('planning.bookSettingCreatePrompt', item))}
             onSetChapterConfirmed={onSetChapterConfirmed}
+            onExport={() => setExportDialogOpen(true)}
+            onWorkspaceChanged={onWorkspaceChanged}
+            onSwitchBook={onSwitchBook}
+            onBooksChange={onBooksChange}
+            onContinueChapter={(path) => {
+              setContinuationAnchor(path)
+              setContinuationFlowOpen(true)
+            }}
           />
         ) : sidebarView === 'search' ? (
           <SearchPanel
@@ -529,8 +553,13 @@ export function ModeRouter(props: ModeRouterProps) {
                 <IdeWritingInfoActions
                   projectVisible={projectVisible}
                   aiVisible={aiVisible}
+                  currentChapterPath={currentChapter?.path}
                   onToggleProjectVisible={onToggleProjectVisible}
                   onToggleAgent={() => onSetRightPanel(aiVisible ? null : 'ai')}
+                  onOpenContinuation={() => {
+                    setContinuationAnchor(currentChapter?.path || selectedFile || undefined)
+                    setContinuationFlowOpen(true)
+                  }}
                 />
               )}
               onActivateTab={onActivateTab}
@@ -718,13 +747,14 @@ export function ModeRouter(props: ModeRouterProps) {
   ) : null
 
   return (
-    <WorkbenchShell
-      mode={mode}
-      booksReturnMode={booksReturnMode}
-      currentBookName={currentBookName}
-      workspace={workspace}
-      books={books}
-      appVersion={appVersion}
+    <>
+      <WorkbenchShell
+        mode={mode}
+        booksReturnMode={booksReturnMode}
+        currentBookName={currentBookName}
+        workspace={workspace}
+        books={books}
+        appVersion={appVersion}
       summary={summary}
       currentChapter={currentChapter}
       editorLine={editorLine}
@@ -748,7 +778,22 @@ export function ModeRouter(props: ModeRouterProps) {
       onCloseSettings={onCloseSettings}
       onQuickSwitchBook={onQuickSwitchBook}
       onDismissUpdateNotice={onDismissUpdateNotice}
-    />
+      />
+      <ExportDialog open={exportDialogOpen} workspace={workspace} onOpenChange={setExportDialogOpen} />
+      <ContinuationFlow
+        open={Boolean(continuationOpen || continuationFlowOpen)}
+        workspace={workspace}
+        chapters={summary?.chapters || []}
+        defaultAnchor={continuationAnchor}
+        onOpenChange={(open) => {
+          if (!open) {
+            setContinuationFlowOpen(false)
+            onCloseContinuation?.()
+          }
+        }}
+        onWorkspaceChanged={onWorkspaceChanged}
+      />
+    </>
   )
 }
 
@@ -763,13 +808,17 @@ function MainRouteLayer({ visible, children }: { visible: boolean; children: Rea
 function IdeWritingInfoActions({
   projectVisible,
   aiVisible,
+  currentChapterPath,
   onToggleProjectVisible,
   onToggleAgent,
+  onOpenContinuation,
 }: {
   projectVisible: boolean
   aiVisible: boolean
+  currentChapterPath?: string
   onToggleProjectVisible: () => void
   onToggleAgent: () => void
+  onOpenContinuation: () => void
 }) {
   const { t } = useTranslation()
   const ProjectIcon = projectVisible ? PanelLeftClose : PanelLeftOpen
@@ -788,6 +837,16 @@ function IdeWritingInfoActions({
         title={projectLabel}
       >
         <ProjectIcon className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onOpenContinuation}
+        aria-label={t('continuation.title')}
+        className={`nova-nav-item flex h-7 w-7 items-center justify-center ${currentChapterPath ? '' : 'opacity-40'}`}
+        title={currentChapterPath ? t('continuation.title') : t('continuation.noChapterHint')}
+        disabled={!currentChapterPath}
+      >
+        <Sparkles className="h-3.5 w-3.5" />
       </button>
       <button
         type="button"
@@ -833,6 +892,7 @@ function IdeWorkspacePanel({
 
 function ChapterOutline({
   workspace,
+  denovaDir,
   tree,
   chapters,
   ideas,
@@ -842,8 +902,14 @@ function ChapterOutline({
   onSelectFile,
   onRequestBookSettingCreate,
   onSetChapterConfirmed,
+  onExport,
+  onWorkspaceChanged,
+  onSwitchBook,
+  onBooksChange,
+  onContinueChapter,
 }: {
   workspace: string
+  denovaDir: string
   tree: FileNode[]
   chapters: ChapterSummary[]
   ideas?: DocumentPreview
@@ -853,11 +919,18 @@ function ChapterOutline({
   onSelectFile: (path: string) => void | Promise<void>
   onRequestBookSettingCreate: (item: { path: string; title: string }) => void
   onSetChapterConfirmed: (path: string, confirmed: boolean) => void | Promise<void>
+  onExport: () => void
+  onWorkspaceChanged: (paths: string[]) => void | Promise<void>
+  onSwitchBook: (path: string) => void
+  onBooksChange: () => void | Promise<void>
+  onContinueChapter: (path: string) => void
 }) {
   const { t } = useTranslation()
   const [collapsedVolumes, setCollapsedVolumes] = useState<Set<string>>(() => new Set())
   const [chapterPlansExpanded, setChapterPlansExpanded] = useState(() => chapterPlans.length > 0)
   const [chapterPlanHistoryExpanded, setChapterPlanHistoryExpanded] = useState(false)
+  const [importMode, setImportMode] = useState<null | 'novel' | 'settings'>(null)
+  const [settingsImportKind, setSettingsImportKind] = useState<SettingsKind | undefined>(undefined)
   const previousChapterPlanCountRef = useRef(chapterPlans.length)
   const volumes = useMemo(() => groupChaptersByVolume(chapters, t), [chapters, t])
   const latestChapterPlan = chapterPlans[chapterPlans.length - 1]
@@ -886,30 +959,62 @@ function ChapterOutline({
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-end gap-1.5">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" size="xs" variant="ghost" className="nova-nav-item border border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text)]">
+              <Upload className="h-3.5 w-3.5" />
+              {t('planning.importButton')}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="border-[var(--nova-border)] bg-[var(--nova-menu-bg)] text-[var(--nova-text)]">
+            <DropdownMenuItem onClick={() => { setSettingsImportKind(undefined); setImportMode('novel') }} className="text-xs">
+              <FileText className="h-3.5 w-3.5" />
+              {t('planning.importNovel')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setSettingsImportKind(undefined); setImportMode('settings') }} className="text-xs">
+              <Upload className="h-3.5 w-3.5" />
+              {t('planning.importSettings')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button type="button" size="xs" variant="ghost" className="nova-nav-item border border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text)]" onClick={onExport}>
+          <Download className="h-3.5 w-3.5" />
+          {t('planning.exportButton')}
+        </Button>
+      </div>
       <BookSettingsShortcuts workspace={workspace} tree={tree} outline={outline} ideas={ideas} chapterPlans={chapterPlans} selectedFile={selectedFile} onSelectFile={onSelectFile} onRequestCreate={onRequestBookSettingCreate} />
 
       <section className="space-y-1.5">
-        {chapterPlans.length > 0 ? (
-          <button
-            type="button"
-            className="nova-nav-item flex w-full items-center gap-1.5 rounded-[var(--nova-radius)] px-1 py-1 text-left text-[11px] font-medium text-[var(--nova-text-faint)]"
-            aria-expanded={chapterPlansExpanded}
-            onClick={() => setChapterPlansExpanded((expanded) => !expanded)}
-          >
-            {chapterPlansExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
-            <span className="min-w-0 flex-1 truncate">{t('planning.chapterPlans')}</span>
-            <span className="shrink-0">{t('planning.chapterPlanCount', { count: chapterPlans.length })}</span>
-          </button>
-        ) : (
-          <div className="flex items-center justify-between gap-2 px-1 py-1 text-[11px] font-medium text-[var(--nova-text-faint)]">
-            <span>{t('planning.chapterPlans')}</span>
-            <span>{t('planning.chapterPlansEmpty')}</span>
+        <div className="flex items-center gap-1 px-1">
+          {chapterPlans.length > 0 ? (
+            <button
+              type="button"
+              className="nova-nav-item flex min-w-0 flex-1 items-center gap-1.5 rounded-[var(--nova-radius)] px-1 py-1 text-left text-[11px] font-medium text-[var(--nova-text-faint)]"
+              aria-expanded={chapterPlansExpanded}
+              onClick={() => setChapterPlansExpanded((expanded) => !expanded)}
+            >
+              {chapterPlansExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+              <span className="min-w-0 flex-1 truncate">{t('planning.chapterPlans')}</span>
+              <span className="shrink-0">{t('planning.chapterPlanCount', { count: chapterPlans.length })}</span>
+            </button>
+          ) : (
+            <span className="min-w-0 flex-1 truncate px-1 py-1 text-[11px] font-medium text-[var(--nova-text-faint)]">{t('planning.chapterPlans')}</span>
+          )}
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button type="button" aria-label={t('planning.exportGroupsAll')} title={t('planning.exportGroupsAll')} className="rounded p-1 text-[var(--nova-text-faint)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]" onClick={() => void downloadChapterGroups(workspace)}>
+              <Download className="h-3.5 w-3.5" />
+            </button>
+            <button type="button" aria-label={t('planning.importGroups')} title={t('planning.importGroups')} className="rounded p-1 text-[var(--nova-text-faint)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]" onClick={() => { setSettingsImportKind('chapter_group'); setImportMode('settings') }}>
+              <Upload className="h-3.5 w-3.5" />
+            </button>
           </div>
-        )}
+        </div>
+        {chapterPlans.length === 0 && <div className="px-1 text-[10px] text-[var(--nova-text-faint)]">{t('planning.chapterPlansEmpty')}</div>}
         {chapterPlans.length > 0 && chapterPlansExpanded && (
           <div className="space-y-1">
             {latestChapterPlan && (
-              <PlanningListItem document={latestChapterPlan} icon="plan" selected={selectedFile === latestChapterPlan.path} onSelectFile={onSelectFile} />
+              <ChapterGroupRow document={latestChapterPlan} selected={selectedFile === latestChapterPlan.path} onSelectFile={onSelectFile} onExport={() => void downloadSettingsFile(workspace, latestChapterPlan.path)} />
             )}
             {historicalChapterPlans.length > 0 && (
               <div className="space-y-1">
@@ -929,7 +1034,7 @@ function ChapterOutline({
                 {chapterPlanHistoryExpanded && (
                   <div className="space-y-1 pl-4">
                     {historicalChapterPlans.map((plan) => (
-                      <PlanningListItem key={plan.path} document={plan} icon="plan" selected={selectedFile === plan.path} onSelectFile={onSelectFile} />
+                      <ChapterGroupRow key={plan.path} document={plan} selected={selectedFile === plan.path} onSelectFile={onSelectFile} onExport={() => void downloadSettingsFile(workspace, plan.path)} />
                     ))}
                   </div>
                 )}
@@ -972,6 +1077,7 @@ function ChapterOutline({
                           active={selectedFile === chapter.path}
                           onSelectFile={onSelectFile}
                           onSetChapterConfirmed={onSetChapterConfirmed}
+                          onContinueChapter={onContinueChapter}
                         />
                       ))}
                     </div>
@@ -982,6 +1088,57 @@ function ChapterOutline({
           </div>
         )}
       </section>
+      <NovelImportDialog
+        open={importMode === 'novel'}
+        denovaDir={denovaDir}
+        onOpenChange={(open) => { if (!open) setImportMode(null) }}
+        onImported={(result) => {
+          setImportMode(null)
+          onSwitchBook(result.workspace)
+          void onBooksChange()
+        }}
+      />
+      <SettingsImportDialog
+        open={importMode === 'settings'}
+        workspace={workspace}
+        presetKind={settingsImportKind}
+        onOpenChange={(open) => { if (!open) setImportMode(null) }}
+        onImported={() => { void onWorkspaceChanged([workspace]) }}
+      />
+    </div>
+  )
+}
+
+function ChapterGroupRow({
+  document,
+  selected,
+  onSelectFile,
+  onExport,
+}: {
+  document: DocumentPreview
+  selected: boolean
+  onSelectFile: (path: string) => void | Promise<void>
+  onExport: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="group flex min-w-0 items-center gap-0.5">
+      <div className="min-w-0 flex-1">
+        <PlanningListItem document={document} icon="plan" selected={selected} onSelectFile={onSelectFile} />
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" aria-label={t('planning.groupActions')} className="shrink-0 rounded p-1 text-[var(--nova-text-faint)] opacity-0 hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)] focus-visible:opacity-100 group-hover:opacity-100">
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="border-[var(--nova-border)] bg-[var(--nova-menu-bg)] text-[var(--nova-text)]">
+          <DropdownMenuItem className="text-xs" onClick={onExport}>
+            <Download className="h-3.5 w-3.5" />
+            {t('planning.exportGroup')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
@@ -1080,11 +1237,13 @@ function ChapterOutlineItem({
   active,
   onSelectFile,
   onSetChapterConfirmed,
+  onContinueChapter,
 }: {
   chapter: ChapterSummary
   active: boolean
   onSelectFile: (path: string) => void | Promise<void>
   onSetChapterConfirmed: (path: string, confirmed: boolean) => void | Promise<void>
+  onContinueChapter?: (path: string) => void
 }) {
   const { t } = useTranslation()
   const [saving, setSaving] = useState(false)
@@ -1129,6 +1288,20 @@ function ChapterOutlineItem({
         <span>{t('common.words', { count: formatNumber(chapter.words) })}</span>
         <div className="flex items-center gap-1.5">
           <span className="rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-1.5 text-[var(--nova-text-muted)]">{chapter.status}</span>
+          {onContinueChapter && (
+            <button
+              type="button"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-[var(--nova-radius)] text-[var(--nova-text-faint)] hover:bg-[var(--nova-surface-2)] hover:text-[var(--nova-text)]"
+              title={t('continuation.title')}
+              aria-label={t('continuation.title')}
+              onClick={(event) => {
+                event.stopPropagation()
+                onContinueChapter(chapter.path)
+              }}
+            >
+              <Sparkles className="h-3 w-3" />
+            </button>
+          )}
           <button
             type="button"
             className={`inline-flex h-5 w-5 items-center justify-center rounded-[var(--nova-radius)] text-[var(--nova-text-faint)] hover:bg-[var(--nova-surface-2)] hover:text-[var(--nova-text)] disabled:cursor-not-allowed disabled:opacity-40 ${saving ? 'opacity-70' : ''}`}

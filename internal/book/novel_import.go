@@ -704,6 +704,22 @@ func chapterFilename(index int, title, language string) string {
 	return strings.Join(parts, "-") + ".md"
 }
 
+// NextChapterFilename 返回下一章相对路径（chapters/ch%05d-标题.md），
+// 编号取现有章节最大序号 +1（沿用小说导入的命名与标题清洗规则）。
+func (s *Service) NextChapterFilename(title string) (string, error) {
+	summary, err := s.Summary()
+	if err != nil {
+		return "", err
+	}
+	maxIndex := 0
+	for _, chapter := range summary.Chapters {
+		if chapter.Index > maxIndex {
+			maxIndex = chapter.Index
+		}
+	}
+	return filepath.ToSlash(filepath.Join("chapters", chapterFilename(maxIndex+1, title, "zh"))), nil
+}
+
 func assignVolumePaths(chapters []parsedNovelChapter) map[string]string {
 	paths := map[string]string{}
 	for _, chapter := range chapters {

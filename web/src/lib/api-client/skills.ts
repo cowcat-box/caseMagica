@@ -148,3 +148,52 @@ export async function installSkillGitHub(input: SkillRemoteInstallInput & { cand
   })
   return { installed: data.installed || [] }
 }
+
+export interface SkillDraftMeta {
+  name: string
+  description: string
+  agent?: string
+  context?: string
+  model?: string
+  source_scope?: string
+  created_at?: string
+  updated_at?: string
+  files?: string[]
+}
+
+export interface SkillDraftDocument {
+  meta: SkillDraftMeta
+  body: string
+  content: string
+  files?: Record<string, string>
+}
+
+export async function listSkillDrafts(): Promise<SkillDraftMeta[]> {
+  const data = await requestJSON<{ drafts?: SkillDraftMeta[] }>('/api/skills/drafts')
+  return data.drafts || []
+}
+
+export async function readSkillDraft(name: string): Promise<SkillDraftDocument> {
+  return requestJSON(`/api/skills/drafts/${encodeURIComponent(name)}`)
+}
+
+export async function updateSkillDraft(name: string, input: { description: string; agent?: string; context?: string; model?: string; body: string }): Promise<SkillDraftMeta> {
+  return requestJSON(`/api/skills/drafts/${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify(input),
+  })
+}
+
+export async function discardSkillDraft(name: string): Promise<{ backup_path?: string }> {
+  return requestJSON(`/api/skills/drafts/${encodeURIComponent(name)}`, { method: 'DELETE' })
+}
+
+export async function confirmSkillDraft(name: string, scope: SkillScope): Promise<SkillDocument> {
+  const data = await requestJSON<SkillDocument>(`/api/skills/drafts/${encodeURIComponent(name)}/confirm`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ scope }),
+  })
+  return { ...data, files: data.files || [] }
+}

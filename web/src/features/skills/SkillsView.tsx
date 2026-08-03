@@ -12,6 +12,7 @@ import { deleteSkillDocument, getSkillDocument, getSkillFileDocument, getSkills,
 import type { SkillDocument, SkillFileDocument, SkillInstallResult, SkillScope, SkillSnapshot } from '@/lib/api'
 import { SkillConfigPanel } from './SkillConfigPanel'
 import { SkillCreatePanel } from './SkillCreatePanel'
+import { SkillChatTab } from './SkillChatTab'
 import { SkillEditor } from './SkillEditor'
 import { SkillInstallPanel } from './SkillInstallPanel'
 import { SkillListPanel } from './SkillListPanel'
@@ -388,6 +389,11 @@ export function SkillsView({ workspace, onClose }: SkillsViewProps) {
                 setMode('install')
                 setError(null)
               }}
+              onOpenChat={() => {
+                setMode('chat')
+                setAgentOpen(false)
+                setError(null)
+              }}
               onSelect={(key) => {
                 setSelectedKey(key)
                 setMode('editor')
@@ -442,6 +448,16 @@ export function SkillsView({ workspace, onClose }: SkillsViewProps) {
                 scopes={writableScopes}
                 defaultScope={defaultWritableScope}
                 onInstalled={onInstalled}
+              />
+            ) : mode === 'chat' ? (
+              <SkillChatTab
+                workspace={workspace}
+                scopes={snapshot.scopes}
+                defaultScope={defaultWritableScope}
+                onMutated={() => {
+                  window.dispatchEvent(new CustomEvent('nova:skills-updated'))
+                  void load()
+                }}
               />
             ) : mode === 'config' && document ? (
               <SkillConfigPanel
