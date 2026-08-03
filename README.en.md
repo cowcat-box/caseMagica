@@ -1,6 +1,6 @@
 # CaseMagica
 
-Current version: <strong>v0.3.0</strong> · Beta
+Current version: <strong>v0.4.0</strong> · Beta
 
 An AI creative platform for novel writing and AI role-playing games.
 
@@ -10,9 +10,10 @@ English | [中文](README.md)
 
 CaseMagica provides:
 
-- Writing workspace: chapter management, lore library, style references, version control
+- Writing workspace: chapter management, Works Catalog export/import, book settings (outline/rules/group outlines) export/import, lore library, style references, version control
+- Continuation exploration: explore multiple continuation candidates from the current chapter (direction/excerpt), editable and commitable as new chapters or appends
 - Game mode: interactive stories, story director, memory system, image generation
-- AI integration: Agents, Skills, Subagent Workflows, automation tasks
+- AI integration: Agents, Skills (with AI Chat crafting), Subagent Workflows, automation tasks
 
 ## Install & Run
 

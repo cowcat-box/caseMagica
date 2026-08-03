@@ -1,6 +1,6 @@
 # CaseMagica
 
-当前版本：<strong>v0.3.0</strong> · Beta
+当前版本：<strong>v0.4.0</strong> · Beta
 
 一个面向小说创作与 AI 角色扮演游戏的 AI 创作平台。
 
@@ -10,9 +10,10 @@
 
 CaseMagica 提供：
 
-- 写作工作台：章节管理、资料库（lore）、风格参考、版本管理
+- 写作工作台：章节管理、作品目录导入导出、书籍设定（大纲/规则/细纲）导入导出、资料库（lore）、风格参考、版本管理
+- 续写推演：基于当前章节推演多个续写候选（方向级/片段级），可编辑后提交为新章节或追加章末
 - 游戏模式：互动故事、故事导演、记忆系统、图像生成
-- AI 集成：Agents、Skills、Subagent Workflows、自动化任务
+- AI 集成：Agents、Skills（含 AI 对话炼成）、Subagent Workflows、自动化任务
 
 ## 安装与运行
 

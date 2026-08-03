@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-08-03
+
+### Brief / 简要说明
+
+#### 中文
+
+- 作品目录新增导入导出：可勾选章节、细纲与各类设定导出为 txt / md / zip，支持小说按格式导入与设定材料按类型导入（写入前自动备份、可回滚）。
+- 书籍设定的大纲、规则、章节组细纲支持独立导入导出，细纲导入自动编号不覆盖。
+- Skills 新增 AI 对话页：与 Agent 对话炼成 Skill，自动生成草稿后可在页内预览、编辑、一键确认导入。
+- 新增续写推演：基于当前章节推演多个方向级/片段级候选（短/中/长三档），可编辑后提交为新章节或追加章末，任务落盘可恢复。
+- 品牌图标重设计为极简风格（深色方块 + 白色书本线条 + 红黄绿星光），favicon 与 PWA 图标同步更新。
+
+#### English
+
+- The Works Catalog gains export/import: selectable chapters, outlines, and settings as txt / md / zip, plus format-based novel import and material-based setting imports with automatic backups.
+- Book settings (outline, rules, chapter group outlines) support standalone export/import; group imports are auto-numbered without overwrites.
+- Skills adds an AI Chat page that crafts Skills in conversation and confirms generated drafts into effect with preview, edit, and one-click import.
+- Continuation Exploration explores multiple direction/excerpt candidates from the current chapter (short/medium/long depth), editable and commitable as new chapters or appends, with persisted tasks.
+- The brand icon was redesigned in a minimal style (dark square, white book outline, red/yellow/green sparkle dots), synced across the favicon and PWA icons.
+
 ### Added
 
 - 作品目录新增导出与导入入口：导出可按需勾选章节正文（保留分卷目录）、章节组细纲（最新或全部）、大纲、规则、进度、角色状态、灵感与书籍元信息，格式支持 txt / md / zip；导入支持"按格式"复用小说分章建书，以及"按材料"识别设定文件写入对应位置（自动备份、可回滚）。
