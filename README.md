@@ -1,6 +1,6 @@
 # CaseMagica
 
-当前版本：<strong>v0.4.0</strong> · Beta
+当前版本：<strong>v0.4.1</strong> · Beta
 
 一个面向小说创作与 AI 角色扮演游戏的 AI 创作平台。
 

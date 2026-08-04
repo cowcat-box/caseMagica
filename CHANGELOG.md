@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v0.4.1] - 2026-08-04
+
+### Brief / 简要说明
+
+#### 中文
+
+- 修复消息中心更新日志详情中的交互问题：移除打赏与 GitHub Star 引导提示，详情页只展示更新内容。
+
+#### English
+
+- Fixed interaction issues in the message center changelog details: removed the donation and GitHub Star prompts so the details show only the update content.
+
 ### Removed
 
 - 移除消息中心更新日志详情中的打赏与 GitHub Star 引导提示块（"给 CaseMagica 充点 token"、"去 GitHub 点 Star"）及其二维码资源；消息详情只展示更新内容。
