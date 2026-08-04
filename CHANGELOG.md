@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Removed
 
-- 移除消息中心更新日志详情中的打赏提示块（"给 CaseMagica 充点 token"）及其二维码资源；保留 GitHub Star 引导。
-- Removed the donation prompt ("Top up CaseMagica") and its QR image from the message center changelog details; the GitHub Star prompt remains.
+- 移除消息中心更新日志详情中的打赏与 GitHub Star 引导提示块（"给 CaseMagica 充点 token"、"去 GitHub 点 Star"）及其二维码资源；消息详情只展示更新内容。
+- Removed the donation and GitHub Star prompts ("Top up CaseMagica", "Star on GitHub") and the QR asset from the message center changelog details; details now show only the update content.
 
 ## [v0.4.0] - 2026-08-03
 

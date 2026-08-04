@@ -20,9 +20,6 @@ const messages = {
   'messages.filter.product': '产品',
   'messages.openAutomation': '打开自动化任务',
   'messages.openAutomationAction': '前往处理',
-  'messages.github.title': '给 CaseMagica 点个 Star',
-  'messages.github.description': '如果 CaseMagica 项目有帮到你，欢迎去 GitHub 点个 Star，这是对 CaseMagica 持续开源、持续迭代最大的支持。',
-  'messages.github.star': '去 GitHub 点 Star',
 } as const
 
 export default messages

@@ -41,26 +41,21 @@ describe('MessageCenterButton', () => {
 
     expect(await screen.findAllByText('CaseMagica 未发布更新')).toHaveLength(2)
     expect(await screen.findAllByText('消息中心。')).toHaveLength(2)
-    expect(screen.getByText('给 CaseMagica 点个 Star')).toBeInTheDocument()
-    expect(screen.getByText('如果 CaseMagica 项目有帮到你，欢迎去 GitHub 点个 Star，这是对 CaseMagica 持续开源、持续迭代最大的支持。')).toBeInTheDocument()
-    const starLink = screen.getByRole('link', { name: '去 GitHub 点 Star' })
-    expect(starLink).toHaveAttribute('href', 'https://github.com/cowcat-box/caseMagica')
-    expect(starLink).toHaveAttribute('target', '_blank')
     await waitFor(() => expect(markRead).toHaveBeenCalledWith('changelog:unreleased'))
     await waitFor(() => expect(screen.queryByText('1')).not.toBeInTheDocument())
   })
 
-  it('does not show the github prompt for non-changelog messages', async () => {
+  it('renders changelog details without promotional prompts', async () => {
     server.use(
       http.get('/api/messages', () =>
         HttpResponse.json({
           unread_count: 0,
           items: [{
-            id: 'notice:1',
-            type: 'notice',
-            title: '系统通知',
-            summary: '普通消息。',
-            body: '普通正文。',
+            id: 'changelog:unreleased',
+            type: 'changelog',
+            title: 'Unreleased',
+            summary: '消息中心。',
+            body: '### Added\n\n- 消息中心。',
             read_at: '2026-06-30T00:00:00Z',
           }],
         }),
@@ -71,9 +66,9 @@ describe('MessageCenterButton', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '打开消息中心' }))
 
-    expect(await screen.findAllByText('系统通知')).toHaveLength(2)
+    expect(await screen.findAllByText('消息中心。')).toHaveLength(2)
     expect(screen.queryByText('给 CaseMagica 点个 Star')).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '去 GitHub 点 Star' })).not.toBeInTheDocument()
+    expect(screen.queryByText('给 CaseMagica 充点 token')).not.toBeInTheDocument()
   })
 
   it('marks all messages as read from the center header', async () => {

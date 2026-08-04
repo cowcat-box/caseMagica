@@ -20,9 +20,6 @@ const messages = {
   'messages.filter.product': 'Product',
   'messages.openAutomation': 'Open automation',
   'messages.openAutomationAction': 'Review action',
-  'messages.github.title': 'Star CaseMagica on GitHub',
-  'messages.github.description': 'If CaseMagica has helped you, a star on GitHub goes a long way toward keeping CaseMagica open source and improving. Thank you!',
-  'messages.github.star': 'Star on GitHub',
 } as const
 
 export default messages
