@@ -27,7 +27,8 @@ func (s *Session) AppendDisplayEvent(event DisplayEvent) error {
 		s.trimTokenUsageDisplayEventsLocked(event.AgentKind)
 	}
 	s.UpdatedAt = event.CreatedAt
-	return s.persistLocked()
+	s.markDisplayDirtyLocked()
+	return nil
 }
 
 func (s *Session) trimTokenUsageDisplayEventsLocked(agentKind string) {
@@ -74,7 +75,8 @@ func (s *Session) UpdateDisplayToolStatus(id, name, status string) error {
 	if index := findDisplayToolRecordIndex(s.records, id, name); index >= 0 {
 		s.records[index].display.Status = status
 		s.UpdatedAt = time.Now().UTC()
-		return s.persistLocked()
+		s.markDisplayDirtyLocked()
+		return nil
 	}
 	return nil
 }
@@ -101,8 +103,8 @@ func (s *Session) AppendDisplayToolArgs(id, name, delta string) error {
 			return nil
 		}
 		record.displayArgsPersistedBytes = len(record.display.Args)
-		// 流式工具参数只是展示缓存；若中途落盘失败，后续 tool_result 会再落完整卡片状态。
-		_ = s.persistLocked()
+		// 流式工具参数只是展示缓存；批量落盘，若失败后续 tool_result 会再落完整卡片状态。
+		s.markDisplayDirtyLocked()
 		return nil
 	}
 	return nil
@@ -168,7 +170,8 @@ func (s *Session) UpdateDisplayToolResult(id, name, status, result string) error
 		s.records[index].display.Status = status
 		s.records[index].display.Result = result
 		s.UpdatedAt = time.Now().UTC()
-		return s.persistLocked()
+		s.markDisplayDirtyLocked()
+		return nil
 	}
 	return nil
 }
@@ -185,7 +188,8 @@ func (s *Session) UpdateDisplayToolIllustration(id, name string, illustration *C
 	if index := findDisplayToolRecordIndex(s.records, id, name); index >= 0 {
 		s.records[index].display.Illustration = cloneChapterIllustration(illustration)
 		s.UpdatedAt = time.Now().UTC()
-		return s.persistLocked()
+		s.markDisplayDirtyLocked()
+		return nil
 	}
 	return nil
 }
@@ -208,7 +212,8 @@ func (s *Session) AppendDisplayEventContent(id, role, delta string) error {
 		if record.display.ID == id && record.display.Role == role {
 			s.records[i].display.Content += delta
 			s.UpdatedAt = time.Now().UTC()
-			return s.persistLocked()
+			s.markDisplayDirtyLocked()
+			return nil
 		}
 	}
 	return nil

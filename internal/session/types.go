@@ -237,6 +237,11 @@ type Session struct {
 	mu              sync.Mutex
 	messages        []*schema.Message
 	records         []historyRecord
+
+	// 展示事件批量落盘：display 写路径只更新内存并标记 dirty，
+	// 由 flushTimer 延迟一次全量持久化，避免每帧重写整个会话文件。
+	dirty      bool
+	flushTimer *time.Timer
 }
 
 // SessionMeta 是会话列表摘要。

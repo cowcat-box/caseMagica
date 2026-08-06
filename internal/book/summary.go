@@ -71,8 +71,8 @@ type chapterSortKey struct {
 	order int
 }
 
-// Summary 统计 workspace 的章节进度和书籍元信息。
-func (s *Service) Summary() (WorkspaceSummary, error) {
+// summaryUncached 统计 workspace 的章节进度和书籍元信息（无缓存，被 Summary 包装）。
+func (s *Service) summaryUncached() (WorkspaceSummary, error) {
 	meta := ReadBookMetaFromDir(s.workspace)
 	summary := WorkspaceSummary{
 		Title:        meta.Title,

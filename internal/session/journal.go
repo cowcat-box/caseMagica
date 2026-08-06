@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,54 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
+// displayPersistDelay 是展示事件批量落盘的节流窗口。
+// 流式期间展示事件（tool_call/thinking/工具结果/正文增量）每帧都会触发一次写，
+// 在长会话（数百 KB ~ 数 MB 文件）下每帧全量重写整个会话文件会串行阻塞帧循环；
+// 延迟合并后每秒最多写 2~3 次，成本降一个量级。仅展示事件走此路径，
+// 有效消息（Append/AppendWithMetadata）仍同步落盘不丢失。
+const displayPersistDelay = 400 * time.Millisecond
+
+// markDisplayDirtyLocked 标记展示事件需要落盘，并调度一次延迟批量持久化。
+// 调用方必须持有 s.mu。
+func (s *Session) markDisplayDirtyLocked() {
+	s.dirty = true
+	if s.flushTimer != nil {
+		return
+	}
+	s.flushTimer = time.AfterFunc(displayPersistDelay, s.flushDisplayRecords)
+}
+
+// flushDisplayRecords 执行一次批量落盘（由 flushTimer 触发，或由同步写路径顺带完成）。
+func (s *Session) flushDisplayRecords() {
+	s.mu.Lock()
+	s.flushTimer = nil
+	if !s.dirty {
+		s.mu.Unlock()
+		return
+	}
+	s.dirty = false
+	err := s.persistLocked()
+	s.mu.Unlock()
+	if err != nil {
+		log.Printf("[session] 批量持久化展示事件失败 id=%s err=%v", s.ID, err)
+	}
+}
+
+// Flush 立即把未落盘的展示事件持久化到磁盘（如切换会话、工作区前调用）。
+func (s *Session) Flush() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.dirty {
+		return nil
+	}
+	s.dirty = false
+	return s.persistLocked()
+}
+
+
+// persistLocked 全量重写会话文件；写盘成功后清除展示事件 dirty 标记，
+// 避免延迟定时器触发时对同一批 records 重复写盘。
+// 调用方必须持有 s.mu。
 func (s *Session) persistLocked() error {
 	header := sessionHeader{
 		Type:      "session",
@@ -77,7 +126,11 @@ func (s *Session) persistLocked() error {
 			}
 		}
 	}
-	return os.WriteFile(s.filePath, []byte(sb.String()), 0o644)
+	if err := os.WriteFile(s.filePath, []byte(sb.String()), 0o644); err != nil {
+		return err
+	}
+	s.dirty = false
+	return nil
 }
 
 // sessionHeader JSONL 文件首行的元数据。

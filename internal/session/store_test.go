@@ -108,6 +108,9 @@ func TestAssistantMessageMetadataPersistsRunID(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -147,6 +150,9 @@ func TestUserMessageReferencesPersistAcrossSessionReload(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -193,6 +199,9 @@ func TestDisplayEventsPersistOutsideEffectiveContext(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -250,6 +259,9 @@ func TestContextMessagesPersistInEffectiveContextButNotHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -354,6 +366,9 @@ func TestSubAgentAssistantDisplayChunksPersistOutsideEffectiveContext(t *testing
 		t.Fatal(err)
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -398,6 +413,7 @@ func TestDisplayToolArgsDeltasArePersistedOnFinalResult(t *testing.T) {
 		t.Fatalf("内存历史应实时累积工具参数: %#v", history)
 	}
 
+	// 展示事件是批量延迟落盘：未到节流窗口时磁盘尚未更新
 	reloadedBeforeResult, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -406,11 +422,14 @@ func TestDisplayToolArgsDeltasArePersistedOnFinalResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if history := beforeResult.History(); len(history) != 1 || history[0].Args != "" {
-		t.Fatalf("小块工具参数不应每帧落盘: %#v", history)
+	if history := beforeResult.History(); len(history) != 0 {
+		t.Fatalf("展示事件不应在节流窗口内逐帧落盘: %#v", history)
 	}
 
 	if err := sess.UpdateDisplayToolResult("call-1", "write_file", "success", "ok"); err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.Flush(); err != nil {
 		t.Fatal(err)
 	}
 	reloadedAfterResult, err := NewStore(dir)
@@ -448,6 +467,9 @@ func TestDisplayToolArgsPreviewIsBounded(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -583,6 +605,9 @@ func TestTokenUsageDisplayEventPersistsOutsideEffectiveContext(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -656,6 +681,9 @@ func TestTokenUsageDisplayEventsAreCappedPerAgent(t *testing.T) {
 		}
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -725,6 +753,9 @@ func TestContextCompactionPersistsOutsideVisibleHistory(t *testing.T) {
 		t.Fatalf("compaction must not appear in user-visible history: %#v", history)
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -795,6 +826,9 @@ func TestContextCompactionRemovalRestoresRawHistory(t *testing.T) {
 		t.Fatalf("visible history should stay raw after removal: %#v", history)
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -929,6 +963,9 @@ func TestInterruptionPersistsPendingRecordAndCanResolve(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := NewStore(dir)
 	if err != nil {
 		t.Fatal(err)

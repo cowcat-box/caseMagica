@@ -35,8 +35,8 @@ func (s *Service) Workspace() string {
 	return s.workspace
 }
 
-// Tree 递归扫描 workspace 目录返回文件树。
-func (s *Service) Tree() ([]*FileNode, error) {
+// treeUncached 递归扫描 workspace 目录返回文件树（无缓存，被 Tree 包装）。
+func (s *Service) treeUncached() ([]*FileNode, error) {
 	return BuildFileTree(s.workspace)
 }
 

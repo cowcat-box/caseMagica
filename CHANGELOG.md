@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Performance
+
+- 后端章节统计与文件树扫描增加缓存：按文件 mtime+size 指纹失效，命中时复用上次结果（138 章节工作区实测 Summary 28ms → 1.4ms）；指纹只 stat 不读内容，且与文件树一致跳过隐藏目录，`.casemagica` 的频繁变化不会触发重建。
+- Backend Summary/Tree scans are now cached with mtime+size fingerprints: hits reuse the last result (measured 28ms → 1.4ms on a 138-chapter workspace); fingerprints only stat files and skip hidden directories like the existing tree walk, so `.casemagica` churn does not invalidate them.
+- 会话展示事件改为批量延迟落盘（400ms 节流）：流式期间每帧触发的 tool_call/thinking/工具结果/正文增量不再逐帧全量重写整个会话文件；有效消息仍同步落盘不丢失。
+- Session display events now persist in 400ms debounced batches instead of rewriting the whole session file per frame during streaming; durable user/assistant messages still flush synchronously.
+- 前端目录树兜底轮询由 3 秒放宽到 15 秒；Agent 写文件的多次 workspace-change 事件合并为一次 500ms 去抖刷新。
+- The frontend tree fallback polling interval widened from 3s to 15s, and multiple workspace-change events per Agent run are coalesced into a single 500ms debounced refresh.
+
 ## [v0.4.1] - 2026-08-04
 
 ### Brief / 简要说明

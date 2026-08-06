@@ -382,6 +382,10 @@ func TestCommittedReviewFeedbackPersistsWithUserMessageAndDisappearsAfterReload(
 		t.Fatal("comment consumption ran before the durable user-message reference was visible")
 	}
 
+	// 展示事件（assistant 正文）是批量延迟落盘，reload 前强制 Flush
+	if err := sess.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	reloadedStore, err := session.NewStore(sessionDir)
 	if err != nil {
 		t.Fatal(err)

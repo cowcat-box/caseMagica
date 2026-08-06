@@ -23,7 +23,9 @@ export interface FileNode {
   children?: FileNode[]
 }
 
-const TREE_AUTO_REFRESH_INTERVAL_MS = 3000
+// 目录树兜底轮询间隔。Agent 写文件事件与编辑器保存已驱动即时刷新，
+// 轮询仅作为兜底覆盖外部修改，故间隔放宽以降低全量扫描频率。
+const TREE_AUTO_REFRESH_INTERVAL_MS = 15000
 
 interface WorkspaceRefreshOptions {
   showLoading?: boolean

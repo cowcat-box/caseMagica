@@ -92,6 +92,8 @@ function App() {
   const tabActivationsRef = useRef<Map<string, number>>(new Map())
   const tabActivationCounterRef = useRef(0)
   const editorFlushHandlerRef = useRef<EditorFlushHandler | null>(null)
+  const agentChangeTimerRef = useRef<number | null>(null)
+  const pendingAgentChangePathRef = useRef<string | undefined>(undefined)
 
   const rightPanel = useWorkspaceStore((state) => state.rightPanel)
   const commandOpen = useWorkspaceStore((state) => state.commandOpen)
@@ -135,9 +137,18 @@ function App() {
     }
   }, [t])
 
-  const handleAgentFileChange = useCallback(async (path?: string) => {
-    await refreshAfterAgentFileChange(path)
-    notifyVersionChange()
+  const handleAgentFileChange = useCallback((path?: string) => {
+    // 一轮 Agent 运行可能产生多次 workspace-change 事件（多次文件写入），
+    // 合并为一次 500ms 去抖刷新，避免每写一个文件就全量重扫目录树与统计。
+    if (path) pendingAgentChangePathRef.current = path
+    if (agentChangeTimerRef.current !== null) return
+    agentChangeTimerRef.current = window.setTimeout(async () => {
+      agentChangeTimerRef.current = null
+      const target = pendingAgentChangePathRef.current
+      pendingAgentChangePathRef.current = undefined
+      await refreshAfterAgentFileChange(target)
+      notifyVersionChange()
+    }, 500)
   }, [notifyVersionChange, refreshAfterAgentFileChange])
 
   const handleReviewedWorkspaceChange = useCallback(async (paths: string[]) => {
