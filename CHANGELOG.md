@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v0.4.2] - 2026-08-06
+
+### Brief / 简要说明
+
+#### 中文
+
+- 性能优化：章节统计与文件树扫描增加缓存（实测 Summary 28ms → 1.4ms），会话展示事件改为批量落盘，前端轮询降频并对 Agent 变更去抖，整体交互更流畅。
+
+#### English
+
+- Performance: Summary/Tree scans are cached (measured 28ms → 1.4ms), session display events persist in batches, and the frontend polling is widened with debounced Agent-change refreshes for a smoother experience.
+
 ### Performance
 
 - 后端章节统计与文件树扫描增加缓存：按文件 mtime+size 指纹失效，命中时复用上次结果（138 章节工作区实测 Summary 28ms → 1.4ms）；指纹只 stat 不读内容，且与文件树一致跳过隐藏目录，`.casemagica` 的频繁变化不会触发重建。

@@ -1,6 +1,6 @@
 {
   "name": "@cowcat-box/casemagica",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "面向长篇小说创作的 AI 写作工作台",
   "type": "module",
   "bin": {
