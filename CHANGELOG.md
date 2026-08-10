@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v0.4.3] - 2026-08-06
+
+### Brief / 简要说明
+
+#### 中文
+
+- 修复资料库正文编辑器输入后光标跳到文档末尾的问题。
+
+#### English
+
+- Fixed the lore editor cursor jumping to the end of the document after typing.
+
 ### Fixed
 
 - 修复资料库正文编辑器输入后光标跳到文档末尾的问题：自动保存后服务端会裁剪正文首尾空白，回灌的 value 与编辑器输出仅差换行时被误判为外部变更触发全文档重建；现在归一化后相同的回灌不再重写文档。
