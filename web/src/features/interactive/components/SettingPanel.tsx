@@ -334,16 +334,68 @@ function LoreSettingPanel({
     }
   }
 
-  const saveLoreDraft = async (mode: 'manual' | 'auto') => {
-    if (!draft) return null
-    const payload = { ...draft, tags: splitLoreTags(tagDraft) }
-    const signature = loreDraftSignature(payload, tagDraft)
+  const loreSaveInFlightRef = useRef(false)
+  const loreSaveQueuedRef = useRef(false)
+
+  /** 重新拉取最新条目仅用于恢复 baseRevision（不覆盖用户草稿），供 revision 冲突后重试。 */
+  const restoreLoreBaseRevision = async (id: string): Promise<boolean> => {
+    try {
+      const data = await getLoreItems()
+      setItems(data)
+      const fresh = data.find((item) => item.id === id)
+      if (!fresh) return false
+      loreBaseRevisionRef.current = fresh.updated_at || ''
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const doSaveLoreDraft = async (mode: 'manual' | 'auto') => {
+    const currentDraft = loreDraftRef.current
+    const currentTagDraft = loreTagDraftRef.current
+    if (!currentDraft) return null
+    const payload = { ...currentDraft, tags: splitLoreTags(currentTagDraft) }
+    const signature = loreDraftSignature(payload, currentTagDraft)
     if (mode === 'auto' && signature === loreSavedSignature.current) return null
-    const item = await updateLoreItem(draft.id, payload, loreBaseRevisionRef.current)
-    loreBaseRevisionRef.current = item.updated_at || ''
-    loreSavedSignature.current = loreDraftSignature(item, (item.tags || []).join('，'))
-    mergeSavedLoreItem(item)
-    return item
+    try {
+      const item = await updateLoreItem(currentDraft.id, payload, loreBaseRevisionRef.current)
+      loreBaseRevisionRef.current = item.updated_at || ''
+      loreSavedSignature.current = loreDraftSignature(item, (item.tags || []).join('，'))
+      mergeSavedLoreItem(item)
+      return item
+    } catch (err) {
+      // revision 冲突：刷新 baseRevision 后自动重试一次（单人编辑本地草稿优先）。
+      // 避免连续输入时两个 autosave 携带同一旧 revision 并发导致"内容已被其他操作更新"。
+      if (err instanceof APIError && err.status === 409) {
+        if (await restoreLoreBaseRevision(currentDraft.id)) {
+          return await doSaveLoreDraft(mode)
+        }
+      }
+      throw err
+    }
+  }
+
+  const saveLoreDraft = async (mode: 'manual' | 'auto') => {
+    // 串行化：同一时刻只允许一个保存请求，新的请求标记待补存，完成后再用最新草稿补一次。
+    // 避免 in-flight 期间的第二次保存携带旧 baseRevision 稳定触发 revision 冲突。
+    if (loreSaveInFlightRef.current) {
+      loreSaveQueuedRef.current = true
+      return null
+    }
+    loreSaveInFlightRef.current = true
+    try {
+      return await doSaveLoreDraft(mode)
+    } finally {
+      loreSaveInFlightRef.current = false
+      if (loreSaveQueuedRef.current) {
+        loreSaveQueuedRef.current = false
+        void saveLoreDraft('auto').catch((queuedErr) => {
+          console.warn('[lore-editor] 补存资料库条目失败', queuedErr)
+          toast.error((queuedErr as Error).message || t('editor.saveFailed'))
+        })
+      }
+    }
   }
 
   const handleCreateLore = async (section: KnowledgeSection = KNOWLEDGE_SECTIONS[0]) => {

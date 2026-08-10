@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- 修复资料库自动保存的 revision 冲突误报：连续输入时两个 autosave 可能携带同一旧 revision 并发提交，稳定触发"内容已被 Agent 或其他操作更新"警告；现在保存请求串行化（进行中时标记待补存、完成后用最新草稿补一次），冲突时自动刷新 baseRevision 并重试一次，不再误报。
+- Fixed the lore autosave revision-conflict false alarm: two autosaves during continuous typing could submit with the same stale revision and reliably trigger the "content updated by another operation" warning. Saves are now serialized (in-flight saves queue a follow-up with the latest draft) and conflicts refresh the base revision and retry once instead of alarming.
+
 ## [v0.4.3] - 2026-08-06
 
 ### Brief / 简要说明
