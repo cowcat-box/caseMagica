@@ -129,8 +129,7 @@ describe('MarkdownRichEditor', () => {
     expect(decorationsMock.selectSearchMatch).not.toHaveBeenCalled()
   })
 
-  it('Cmd/Ctrl+S 触发保存回调并阻止默认行为', () => {
-    const onSaveShortcut = vi.fn()
+  it('Cmd/Ctrl+S 触发保存回调并阻止默认行为', () => {    const onSaveShortcut = vi.fn()
     render(<MarkdownRichEditor value="" onChange={vi.fn()} onSaveShortcut={onSaveShortcut} />)
 
     const handleKeyDown = tiptapMock.useEditorOptions?.editorProps?.handleKeyDown
@@ -165,6 +164,21 @@ describe('MarkdownRichEditor', () => {
     tiptapMock.chainApi.setContent.mockClear()
 
     rerender(<MarkdownRichEditor value={'新内容\n'} onChange={onChange} />)
+
+    expect(tiptapMock.chainApi.setContent).not.toHaveBeenCalled()
+  })
+
+  it('父组件 trim 回灌（如 autosave 后服务端去首尾空白）不会重写文档导致光标跳动', () => {
+    const onChange = vi.fn()
+    const { rerender } = render(<MarkdownRichEditor value="正文内容" onChange={onChange} />)
+
+    tiptapMock.markdown = '正文内容'
+    tiptapMock.useEditorOptions?.onUpdate?.({ editor: tiptapMock.editor })
+    expect(onChange).toHaveBeenCalledWith('正文内容\n')
+    tiptapMock.chainApi.setContent.mockClear()
+
+    // 模拟保存后服务端 TrimSpace 回传：value 与编辑器输出仅差末尾换行
+    rerender(<MarkdownRichEditor value="正文内容" onChange={onChange} />)
 
     expect(tiptapMock.chainApi.setContent).not.toHaveBeenCalled()
   })

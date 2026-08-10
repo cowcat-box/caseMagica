@@ -99,9 +99,12 @@ export function MarkdownRichEditor({
   })
 
   // 外部内容变更（Agent 写入、重新加载等）时回灌文档；自己输入产生的回灌跳过。
+  // 父组件回传的 value 若与编辑器最近输出仅差首尾空白（如 autosave 后服务端 trim），
+  // 归一化后相同也视为自身输入，避免全文档 setContent 重建导致光标跳到最后。
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
     if (value === lastEmittedRef.current) return
+    if (normalizeEditorText(value) === normalizeEditorText(lastEmittedRef.current)) return
     const current = normalizeEditorText(editor.getMarkdown())
     lastEmittedRef.current = value
     if (value === current) return
